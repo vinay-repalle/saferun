@@ -14,31 +14,32 @@ describe('Guide page', () => {
     for (const k of ['python', 'node', 'analyzer', 'osv-db']) expect(text).toContain(k)
   })
 
-  it('documents the local analyzer build as current and the signed release as future: cosign, --build-local and --signature', () => {
+  it('documents the signed analyzer release as the default and the local build as the alternative: cosign, --build-local and --signature', () => {
     const text = render(<GuidePage />).container.textContent
-    for (const c of ['--build-local', 'saferun verify-images --signature', 'cosign is not installed', 'No signed analyzer release has been published yet', 'The analyzer is built locally for now', 'future signed release', 'built locally']) {
+    for (const c of ['--build-local', 'saferun verify-images --signature', 'cosign is not installed', 'The analyzer is a signed, digest-pinned image', 'analyzer-v1.0.1', 'signed download']) {
       expect(text).toContain(c)
     }
-    expect(text).not.toMatch(/~740 MB, signed download/)
-    expect(text).not.toMatch(/installs the signed analyzer image/)
+    expect(text).not.toMatch(/No signed analyzer release has been published yet/)
+    expect(text).not.toMatch(/built locally for now|Not needed today/)
   })
 
-  it('gives a complete, correct beginner setup: Docker, init, status, first scan, then a separate future section for cosign and the signature check', () => {
+  it('gives a complete, correct beginner setup: Docker, init, status, first scan, with cosign before init, then an optional signature check', () => {
     const { container } = render(<GuidePage />)
     const setup = container.querySelector('#setup').textContent
     for (const c of ['python3 --version', 'docker info', 'install -m 0755 cosign ~/.local/bin/cosign', 'saferun init --all', 'saferun status',
       'saferun verify-images --signature', 'saferun scan ./my-project']) expect(setup).toContain(c)
-    expect(container.querySelectorAll('.g-walk > li')).toHaveLength(6)
+    expect(container.querySelectorAll('.g-walk > li')).toHaveLength(7)
     const walk = container.querySelector('.g-walk').textContent
-    expect(walk).not.toMatch(/cosign|verify-images/i)
+    expect(walk).toMatch(/cosign/i)
+    expect(walk.indexOf('Install Cosign')).toBeLessThan(walk.indexOf('Set SafeRun up'))
+    expect(walk).not.toMatch(/verify-images/i)
     const future = container.querySelector('.g-future')
-    expect(future.textContent).toContain('Future: signed analyzer release (not available yet)')
-    expect(future.querySelectorAll('li')).toHaveLength(2)
-    expect(future.textContent).toContain('install -m 0755 cosign ~/.local/bin/cosign')
+    expect(future.textContent).toContain('Verify the signed analyzer release')
+    expect(future.querySelectorAll('li')).toHaveLength(1)
     expect(future.textContent).toContain('saferun verify-images --signature')
     expect(setup).toMatch(/SafeRun never downloads cosign for you/)
     const concepts = container.querySelector('#concepts').textContent
-    for (const c of ['Docker downloads', 'Cosign verifies a signed analyzer (once published)', 'pinned by digest', 'without network']) expect(concepts).toContain(c)
+    for (const c of ['Docker downloads', 'Cosign verifies the signed analyzer', 'pinned by digest', 'without network']) expect(concepts).toContain(c)
     expect(container.querySelector('#fix').textContent).toMatch(/command not found/)
   })
 

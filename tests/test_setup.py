@@ -652,7 +652,16 @@ def test_real_status_of_the_pinned_images_and_init_skips_them(monkeypatch):
     assert setup.out.getvalue().count("skipped (already installed and verified)") == 2
 
 
-def test_no_release_is_recorded_until_the_owner_publishes_one_so_the_default_install_path_builds_locally():
-    assert im.ANALYZER_RELEASE is None
-    assert su.Setup(out=io.StringIO(), build_local=False)._release() is None
+def test_recorded_release_is_the_verified_analyzer_v1_0_1_pinned_by_digest():
+    rel = im.ANALYZER_RELEASE
+    assert rel is not None
+    assert rel.repository == "ghcr.io/vinay-repalle/saferun-analyzer" == im.ANALYZER_REGISTRY_REPOSITORY
+    assert rel.digest == "sha256:6f26c3e3fed1a8b2a981bdcb920c4da3b2829bce2679709ba8880789ce6f6fa4"
+    assert rel.reference == "ghcr.io/vinay-repalle/saferun-analyzer@sha256:6f26c3e3fed1a8b2a981bdcb920c4da3b2829bce2679709ba8880789ce6f6fa4" and ":" not in rel.reference.split("@")[0].rsplit("/", 1)[1]   # digest, never a tag
+    assert im.digest_of(rel.reference) == rel.digest
+    assert rel.signer_identity_regexp == im.ANALYZER_SIGNER_IDENTITY_REGEXP and rel.oidc_issuer == im.GITHUB_OIDC_ISSUER
+
+
+def test_init_installs_the_recorded_release_unless_build_local_is_requested():
+    assert su.Setup(out=io.StringIO(), build_local=False)._release() is im.ANALYZER_RELEASE
     assert su.Setup(out=io.StringIO(), build_local=True)._release() is None

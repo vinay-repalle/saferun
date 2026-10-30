@@ -77,7 +77,7 @@ To set up without internet access, prepare the missing parts on a connected mach
                 verify it with:  saferun osv-db status
   * Docker images:  docker pull <image>@<digest>  (see: saferun verify-images), then docker save / docker load on the target machine. SafeRun only trusts an image
                 whose registry digest matches the pin (`saferun status` shows this); an image loaded without that digest is reported as invalid, never trusted.
-  * Analyzer:   build it where docker/analyzer/build.sh can run (needs internet once), or, if you have built it elsewhere, docker save / docker load it (no signed prebuilt image has been published yet; see docs/release-images.md)."""
+  * Analyzer:   build it where docker/analyzer/build.sh can run (needs internet once), or, if you have built it elsewhere, docker save / docker load it (or, without --build-local, install the signed release analyzer-v1.0.1; see docs/release-images.md)."""
 
 
 @dataclass(frozen=True)
@@ -298,18 +298,18 @@ class Setup:
                  "    no signed prebuilt analyzer image has been published yet (docs/release-images.md): building it locally with docker/analyzer/build.sh")
         if not BUILD_SCRIPT.is_file():
             return ("this installation does not include the build recipe (docker/ is not part of the pip package): "
-                    "use a SafeRun repository checkout (no signed prebuilt analyzer image has been published yet)")
+                    "use a SafeRun repository checkout, or run `saferun init --only analyzer` without --build-local to install the signed release")
         quiet = lambda t: None if t.lstrip().startswith("building…") else self.say(t)  # noqa: E731 - the spinner replaces the heartbeat lines
         with ui.Spinner(sys.stderr, "Building the analyzer image (a few minutes)", self.th) as sp:
             rc = self.build(quiet if sp.enabled else self.say)
         return "" if rc == 0 else f"the analyzer build failed (exit {rc})"
 
     def _release(self) -> "im.AnalyzerRelease | None":
-        """The published analyzer to install, or None when the local build is to be used (no release exists, or --build-local)."""
+        """The published analyzer to install, or None when the local build is to be used (no release is recorded, or --build-local)."""
         return None if self.build_local else im.ANALYZER_RELEASE
 
     def _install_analyzer_release(self, rel: im.AnalyzerRelease) -> str:
-        """Inactive until a release is recorded in ANALYZER_RELEASE. Verify the cosign signature of `repository@digest` BEFORE anything
+        """Used when a release is recorded in ANALYZER_RELEASE (and not --build-local). Verify the cosign signature of `repository@digest` BEFORE anything
         is pulled, then pull by digest, check the digest again, verify labels/tools/rules like a local build, then lock. Any failure leaves
         the image untrusted; there is no unsigned install and no automatic fallback to the local build."""
         ref = rel.reference

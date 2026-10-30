@@ -25,12 +25,12 @@ Requirements: Linux, Python 3.12+ with `venv`, a local Docker Engine reachable b
 ```bash
 git clone https://github.com/vinay-repalle/saferun.git && cd saferun
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-.venv/bin/saferun init --all          # pulls the pinned python/node images, builds the analyzer locally, downloads the OSV data (~260 MB)
+.venv/bin/saferun init --all          # pulls the pinned python/node images, installs the signed analyzer (cosign-verified, by digest), downloads the OSV data (~260 MB)
 .venv/bin/saferun status              # exit 0 only if everything is ready
 .venv/bin/saferun scan ./some-project
 ```
 
-No analyzer release is recorded yet, so `init` builds the analyzer locally and `cosign` is not needed. After you publish a signed release and record it (see `docs/release-images.md`), `init` installs it after verifying its signature.
+The analyzer release `analyzer-v1.0.1` is recorded in `ANALYZER_RELEASE`, so `init` installs it after verifying its cosign signature: **cosign 2.2+ must be on your PATH** (see `docs/release-images.md`). Add `--build-local` to build the analyzer locally instead (no cosign needed).
 
 ## Validate (run these yourself; nothing here has been run for you)
 

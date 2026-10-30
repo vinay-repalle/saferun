@@ -7,7 +7,7 @@ export const TRUST = [
   ['Your code is never run', 'Static checks only: nothing you submit is executed.'],
   ['Scans work offline', 'No network inside the analyzer container.'],
   ['Locked-down containers', 'Sandbox isolation: read-only copy, non-root, no capabilities.'],
-  ['Pinned analyzer image', 'Built locally from a hash-locked recipe and re-checked before every scan. A cosign-signed download comes only with a future release.'],
+  ['Pinned analyzer image', 'A cosign-signed image pinned by digest (built from a hash-locked recipe), locked locally and re-checked before every scan.'],
 ]
 
 // [title, text, command]
@@ -21,8 +21,8 @@ export const REQUIREMENTS = [
   ['Operating system', 'Linux. The analyzer image is linux/amd64 only; ARM64 is not supported yet.'],
   ['Python', '3.12 or newer, with venv and pip.'],
   ['Docker', 'A local Docker Engine that your user can reach, with memory, swap, pids and CPU limits and seccomp enabled. Remote Docker endpoints are refused. Docker Desktop is not tested.'],
-  ['Cosign', 'Not needed today: the analyzer is built locally. Cosign 2.2 or newer on your PATH will be needed only after we publish our own signed analyzer release, to verify its signature. SafeRun does not install it for you.'],
-  ['Internet', 'Only for setup (Docker Hub, the local analyzer build, which fetches packages from PyPI and GitHub, and the OSV data). Scans never use the network. A future signed release would also need ghcr.io and sigstore.dev.'],
+  ['Cosign', 'Yes, for the default setup: Cosign 2.2 or newer on your PATH verifies the signed analyzer image before it is pulled. SafeRun does not install it for you. Not needed if you build the analyzer yourself with --build-local.'],
+  ['Internet', 'Only for setup (Docker Hub, the signed analyzer from ghcr.io with its Sigstore check, and the OSV data; a local analyzer build uses PyPI and GitHub instead). Scans never use the network.'],
   ['Disk space', 'About 1.5 GB for images and vulnerability data.'],
 ]
 export const requirement = (name) => REQUIREMENTS.find(([n]) => n === name)[1]
@@ -38,7 +38,7 @@ export const VERDICTS = [
 export const SAFETY = [
   ['Your project is never executed', 'It is copied read-only into a throwaway container: no network, non-root user, no Linux capabilities, memory, CPU and process limits.'],
   ['Images are pinned by digest', 'An image is trusted only if Docker reports the exact pinned digest. A tag that merely exists is not enough.'],
-  ['The analyzer is built locally for now', 'Setup builds it from the repository recipe (digest-pinned base, hash-locked Semgrep, checksum-verified OSV-Scanner). No signed analyzer release has been published yet. Once one is, SafeRun will check its cosign signature and pinned digest before using it; a signature would not prove the project itself was never compromised.'],
+  ['The analyzer is a signed, digest-pinned image', 'Setup checks its cosign signature (this project\'s release workflow, a release tag) and the pinned digest before pulling it, then verifies its tool versions and rules hash. A signature would not prove the project itself was never compromised. You can build it yourself with --build-local instead.'],
   ['The analyzer is locked', 'Its image ID, tool versions and rules hash are re-checked before every scan. The lock file must be private to your user.'],
   ['Vulnerability data has an integrity record', 'SHA-256, size, advisory count and date are re-checked before every scan. Damaged, tampered or old data cannot produce PASS.'],
   ['The dashboard stays on your machine', 'It accepts connections only from your own computer (loopback) and has no login.'],

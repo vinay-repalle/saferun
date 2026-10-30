@@ -15,7 +15,7 @@ Prints a two-line introduction, shows the components with their state, size and 
 |---|---|---|---|
 | 1 `python` | Python sandbox image | `python-syntax` | `docker pull python@sha256:…` (pinned digest) |
 | 2 `node` | Node.js sandbox image | `javascript-syntax` | `docker pull node@sha256:…` (pinned digest) |
-| 3 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, rules | `python-static-analysis`, `dependency-vulnerabilities` | local build today (no signed release published yet); once one is recorded, a cosign-verified pull of it (needs `cosign`), with `--build-local` still building locally (`docker/analyzer/build.sh`), see [release-images.md](release-images.md) |
+| 3 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, rules | `python-static-analysis`, `dependency-vulnerabilities` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest (needs `cosign` 2.2+), or, with `--build-local`, a local build (`docker/analyzer/build.sh`), see [release-images.md](release-images.md) |
 | 4 `osv-db` | Local OSV vulnerability data | `dependency-vulnerabilities` | `saferun osv-db update` (~260 MB) |
 
 Answer with numbers or names (`1,3`, `all`, `all -osv-db`, `-2`); Enter = all. **Before anything is fetched** each component is verified with the existing checks (image registry digest, analyzer lock + labels + rules hash, OSV
@@ -84,7 +84,7 @@ Checks that the container images SafeRun runs are present locally with the diges
 pinned_digest, status, detail}]}`; `status` is `verified`, `missing` (the detail gives the exact `docker pull`), `mismatch` or `error`.
 Exit codes: 0 all verified; 1 any image missing, mismatched or uninspectable; 64 usage; 70 Docker unusable (e.g. remote endpoint).
 `saferun scan` itself refuses to start a sandbox run when the image digest does not match (exit 70, no verdict).
-`--signature` (online, needs `cosign` 2.2+) additionally verifies the cosign signature of the published analyzer release (`ANALYZER_RELEASE`; currently `None`, so it reports that no release is configured): it must come from this repository's
+`--signature` (online, needs `cosign` 2.2+) additionally verifies the cosign signature of the published analyzer release (`ANALYZER_RELEASE`, currently `analyzer-v1.0.1`; with no release configured it reports that there is nothing to verify and exits 1): it must come from this repository's
 release workflow on an `analyzer-v*` tag and name exactly the pinned repository and digest. JSON gains a `signature` object `{ok, reference, detail}` only when the flag is given; any failure
 (including cosign missing) makes the exit code 1. See [release-images.md](release-images.md).
 

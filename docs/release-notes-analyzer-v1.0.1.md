@@ -1,4 +1,3 @@
-<!-- GitHub Release text for tag analyzer-v1.0.1. Fill in the two <…> placeholders from the workflow run summary AFTER the run; do not guess them. -->
 # SafeRun analyzer image analyzer-v1.0.1
 
 The signed analyzer image used by `saferun init` (Semgrep, OSV-Scanner and SafeRun's rules, run with no network, a read-only root and no capabilities).
@@ -23,11 +22,11 @@ The signed analyzer image used by `saferun init` (Semgrep, OSV-Scanner and SafeR
 cosign verify \
   --certificate-identity-regexp '^https://github\.com/vinay-repalle/saferun/\.github/workflows/release-analyzer\.yml@refs/tags/analyzer-v[0-9]+(\.[0-9]+)*$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/vinay-repalle/saferun-analyzer@<DIGEST FROM THE WORKFLOW RUN SUMMARY>
+  ghcr.io/vinay-repalle/saferun-analyzer@sha256:6f26c3e3fed1a8b2a981bdcb920c4da3b2829bce2679709ba8880789ce6f6fa4
 ```
-Image: `ghcr.io/vinay-repalle/saferun-analyzer@<DIGEST FROM THE WORKFLOW RUN SUMMARY>` (tag `analyzer-v1.0.1`). Always use the digest, not the tag.
+Image: `ghcr.io/vinay-repalle/saferun-analyzer@sha256:6f26c3e3fed1a8b2a981bdcb920c4da3b2829bce2679709ba8880789ce6f6fa4` (tag `analyzer-v1.0.1`). Always use the digest, not the tag.
 
-SafeRun does this check for you: once this digest is recorded in `ANALYZER_RELEASE`, `saferun verify-images --signature` and `saferun init --only analyzer` verify the signature before pulling anything.
+SafeRun does this check for you: this digest is recorded in `ANALYZER_RELEASE`, and `saferun verify-images --signature` and `saferun init --only analyzer` verify the signature before pulling anything.
 
 ## Notes
 * Signed keylessly by this repository's `release-analyzer` workflow from the tag `analyzer-v1.0.1` (Sigstore transparency log). A signature from any other repository, workflow, branch or tag pattern is refused by SafeRun.
