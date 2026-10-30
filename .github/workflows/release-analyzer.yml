@@ -57,7 +57,7 @@ jobs:
           set -eu
           ctx="$RUNNER_TEMP/analyzer-ctx"
           mkdir "$ctx"
-          cp docker/analyzer/Dockerfile docker/analyzer/fetch_verified.py docker/analyzer/semgrep-requirements.txt docker/analyzer/THIRD_PARTY_NOTICES.md saferun/engine/rules/python.yml "$ctx/"
+          cp docker/analyzer/Dockerfile docker/analyzer/fetch_verified.py docker/analyzer/semgrep-requirements.txt docker/analyzer/THIRD_PARTY_NOTICES.md LICENSE saferun/engine/rules/python.yml "$ctx/"
           cp -r docker/analyzer/licenses "$ctx/licenses"
           echo "path=$ctx" >> "$GITHUB_OUTPUT"
           echo "rules_sha=$(sha256sum "$ctx/python.yml" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
@@ -103,7 +103,7 @@ jobs:
           run "$img" osv-scanner --version | grep -q "osv-scanner version: $osv_v" || { echo "osv-scanner version mismatch" >&2; exit 1; }
           [ "$(run "$img" sha256sum /opt/saferun/rules/python.yml | cut -d' ' -f1)" = "$RULES_SHA" ] || { echo "baked rules differ from the repository rules" >&2; exit 1; }
           # The third-party notices and license texts must be in the image.
-          for f in THIRD_PARTY_NOTICES.md licenses/semgrep-LICENSE licenses/osv-scanner-v2.7.0-LICENSE; do
+          for f in LICENSE THIRD_PARTY_NOTICES.md licenses/semgrep-LICENSE licenses/osv-scanner-v2.7.0-LICENSE; do
             run "$img" test -s "/usr/share/doc/saferun-analyzer/$f" || { echo "missing in image: $f" >&2; exit 1; }
           done
           # The container must have no network.

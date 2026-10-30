@@ -29,6 +29,7 @@ RUN test -n "${RULES_SHA256}" \
  && chmod 0555 /opt/saferun /opt/saferun/rules && chmod 0444 /opt/saferun/rules/python.yml
 
 # Licenses and notices of the redistributed third-party software (Semgrep, OSV-Scanner, Python packages): see THIRD_PARTY_NOTICES.md.
+COPY LICENSE /usr/share/doc/saferun-analyzer/LICENSE
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/saferun-analyzer/THIRD_PARTY_NOTICES.md
 COPY licenses/ /usr/share/doc/saferun-analyzer/licenses/
 RUN chmod -R a=rX /usr/share/doc/saferun-analyzer

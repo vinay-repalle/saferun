@@ -1,6 +1,7 @@
 {
   "name": "saferun-web",
   "private": true,
+  "license": "MIT",
   "version": "0.0.1",
   "type": "module",
   "description": "SafeRun local dashboard (React + Vite, plain JavaScript; secondary interface, the CLI is the primary product)",

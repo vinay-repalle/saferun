@@ -4,8 +4,8 @@ The SafeRun analyzer image (`ghcr.io/vinay-repalle/saferun-analyzer`) is built f
 software listed here, unmodified**, each under its own license. This file is installed in the image as
 `/usr/share/doc/saferun-analyzer/THIRD_PARTY_NOTICES.md`; the texts it references are in `/usr/share/doc/saferun-analyzer/licenses/`.
 
-SafeRun's own code and rules are covered by SafeRun's own license, which the project owner has not chosen yet (see the repository root). Nothing here
-grants or implies any license to SafeRun itself. This list is a good-faith inventory, not legal advice.
+SafeRun's own code and rules are covered by the MIT License (`/usr/share/doc/saferun-analyzer/LICENSE`, Copyright (c) 2026 Vinay Repalle). The MIT License does
+not apply to the third-party software below, which stays under its own licenses. This list is a good-faith inventory, not legal advice.
 
 ## Components that carry their own license text
 

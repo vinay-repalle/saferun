@@ -74,7 +74,7 @@ Publishing the image **redistributes** other people's software. The inventory, t
 `docker/analyzer/THIRD_PARTY_NOTICES.md` and `docker/analyzer/licenses/`; the Dockerfile copies them into the image under `/usr/share/doc/saferun-analyzer/`, and the release workflow's smoke test fails if they are missing.
 * Semgrep (LGPL-2.1-or-later) and OSV-Scanner (Apache-2.0) license texts are included. Their upstream sources are the corresponding-source references. See the notices file for exactly which upstream files were used and how they were checked.
 * The Python packages installed with Semgrep keep their own license files in their `dist-info` directories.
-* **Open items:** (1) SafeRun's own license and copyright holder are an owner decision and are not added yet; (2) the Go modules statically linked into the OSV-Scanner binary are not enumerated; (3) the Semgrep LICENSE text came from upstream's default branch because the 1.182.1 tag could not be located. This is not legal advice.
+* **Open items:** (1) the Go modules statically linked into the OSV-Scanner binary are not enumerated; (2) the Semgrep LICENSE text came from upstream's default branch because the 1.182.1 tag could not be located. This is not legal advice.
 
 ### Version and tag strategy
 * The tag sequence `analyzer-v<n>` versions the **analyzer image only**. It is independent of the SafeRun package version in `pyproject.toml` (`0.0.1`).

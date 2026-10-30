@@ -4,6 +4,9 @@ Checks AI-generated code before you run or trust it. Executing untrusted code in
 code; it does **not** prove the code is safe, and a passing scan does not guarantee security.
 Status: Phases 1-4 and 5A-5E are implemented and committed (not independently certified). No signed analyzer release has been published from this repository yet (`ANALYZER_RELEASE` is `None`), so `saferun init` builds the analyzer image locally; see [docs/release-images.md](docs/release-images.md). Not yet done: a clean-machine install test, CI, a built-wheel install test, a detection-quality benchmark and broader JavaScript rules (see *Remaining work* in [PROJECT.md](PROJECT.md)). **The CLI is the primary product**; the dashboard is a secondary, loopback-only demonstration interface.
 
+## License
+SafeRun is released under the [MIT License](LICENSE) (Copyright (c) 2026 Vinay Repalle). The analyzer image also redistributes third-party software under its own licenses (Semgrep, OSV-Scanner and others); their notices are in [docker/analyzer/THIRD_PARTY_NOTICES.md](docker/analyzer/THIRD_PARTY_NOTICES.md) and inside the image.
+
 ## Key features
 - **Restricted Docker sandbox** (Phase 1): read-only sanitized project copy, no network, non-root, no capabilities, resource limits, verified at run time.
 - **Validation engine** (Phase 2): Python syntax check and `node --check` in the sandbox; Semgrep (Python) and an **offline** OSV-Scanner dependency scan, both run **only inside a verified, locked-down analyzer container** (Phase 5B, no host-side fallback); one normalized report and a PASS / WARNING / FAIL verdict.

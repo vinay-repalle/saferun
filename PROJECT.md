@@ -216,7 +216,7 @@ A phase starts only after the previous one's acceptance criteria are met and app
 1. **Clean-machine end-to-end test** (fresh clone, `pip install`, `saferun init --all`, `status`, `verify-images --signature`, `scan`) — not done.
 2. **CI** for tests, lint and wheel build — only `release-analyzer.yml` exists.
 3. **Packaging**: the wheel builds but has no `[build-system]` table, version is `0.0.1`, and it excludes `web/dist` (the dashboard UI) and `docker/` (`--build-local`). Install from a built wheel is untested.
-4. **Project files**: no LICENSE, CHANGELOG or SECURITY.md.
+4. **Project files**: LICENSE (MIT) added; no CHANGELOG or SECURITY.md.
 5. **Docker-less tests** skip loudly; a job that runs the non-Docker subset should be a CI gate.
 6. **Detection quality**: rules are unmeasured (no false-positive/negative benchmark); JavaScript has only `node --check` and an npm lockfile scan.
 Future enhancements (not release blockers unless a later audit says so): dashboard authentication, gVisor/Kata backend, ARM64 analyzer.

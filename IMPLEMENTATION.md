@@ -456,3 +456,5 @@ Changed in `SafeRun-personal` only; no tests, builds, installs, Git commands or 
 * **Docs:** `docs/install-and-test.md` (new), `docs/release-images.md` (manual GitHub configuration, release order, install/verify commands, trust boundary), `docker/analyzer/README.md` (stale "not used yet" text).
 * **No license added** (owner decision pending).
 * **Pre-validation review (same day):** packaging decision = source-install-only (see `docs/install-and-test.md`); release workflow now asserts the image's default user and writes a warning to the run summary when a step after the push fails; the five inherited action pins were checked against the GitHub API (all resolve to the tagged commits).
+
+**License (2026-10-30):** SafeRun is released under the MIT License, Copyright (c) 2026 Vinay Repalle, chosen by the owner (`LICENSE`, `pyproject.toml` `license = "MIT"`, README). The earlier "No license added (owner decision pending)" entry is superseded. The analyzer image carries `LICENSE` next to the third-party notices, which only takes effect in a new image tag.

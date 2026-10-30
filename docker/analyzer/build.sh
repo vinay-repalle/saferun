@@ -13,7 +13,7 @@ py=${PYTHON:-python3}
 ( cd "$root" && "$py" -m saferun verify-images --only python ) || { echo "build.sh: pinned base images not verified; aborting" >&2; exit 1; }
 ctx=$(mktemp -d)
 trap 'rm -rf "$ctx"' EXIT
-cp "$here/Dockerfile" "$here/fetch_verified.py" "$here/semgrep-requirements.txt" "$here/THIRD_PARTY_NOTICES.md" "$root/saferun/engine/rules/python.yml" "$ctx/"
+cp "$here/Dockerfile" "$here/fetch_verified.py" "$here/semgrep-requirements.txt" "$here/THIRD_PARTY_NOTICES.md" "$root/LICENSE" "$root/saferun/engine/rules/python.yml" "$ctx/"
 cp -r "$here/licenses" "$ctx/licenses"
 rules_sha=$(sha256sum "$ctx/python.yml" | cut -d' ' -f1)
 docker build --pull=false --build-arg "RULES_SHA256=$rules_sha" -t saferun-analyzer:local "$ctx"

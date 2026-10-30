@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]      # >=77: SPDX `license` expression and `license-files`
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "saferun"
 version = "0.0.1"
 description = "Secure verification of AI-generated code"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = []
 classifiers = [
@@ -15,7 +17,6 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Topic :: Security",
 ]
-# No license is declared yet: the owner has not chosen one (see IMPLEMENTATION.md). Add `license` and the matching classifier when they do.
 
 [project.urls]
 Homepage = "https://github.com/vinay-repalle/saferun"
