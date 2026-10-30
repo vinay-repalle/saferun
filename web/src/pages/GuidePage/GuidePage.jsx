@@ -21,7 +21,7 @@ const WALK = [
     'Official instructions: https://docs.docker.com/engine/install/. After usermod, log out and back in. Members of the docker group have root-equivalent access to the machine, so add only users you trust. docker info must print without an error.'],
   ['Install SafeRun from the repository', 'SafeRun is installed from a checkout. It is not published on PyPI, and Semgrep and OSV-Scanner are not installed on your computer: they live in the analyzer image.',
     ['git clone https://github.com/vinay-repalle/saferun.git', 'cd saferun', 'python3 -m venv .venv', '.venv/bin/pip install -e .', 'source .venv/bin/activate', 'saferun --help'],
-    'Activate the virtual environment (source .venv/bin/activate) in every new terminal. For the dashboard add the web extra: .venv/bin/pip install -e ".[web]".'],
+    'Activate the virtual environment (source .venv/bin/activate) in every new terminal.'],
   ['Install Cosign without sudo', 'Setup installs the signed analyzer image (analyzer-v1.0.1) and uses Cosign to check, before anything is pulled, that this project\'s release workflow signed it. Download the official binary into your own bin folder and put that folder on your PATH. Skip this only if you will build the analyzer yourself with --build-local.',
     ['mkdir -p ~/.local/bin', 'curl -fsSL -o cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64', 'install -m 0755 cosign ~/.local/bin/cosign', 'export PATH="$HOME/.local/bin:$PATH"', 'cosign version'],
     'Official page: https://docs.sigstore.dev/cosign/system_config/installation/. Compare sha256sum cosign with the checksums file on the cosign release page if you want to check the download. To keep the PATH change, add the export line to ~/.bashrc. On a machine with sudo you can install cosign with your package manager instead. SafeRun never downloads cosign for you.'],
@@ -87,7 +87,6 @@ const FIXES = [
   ['cosign: command not found, although you installed it', 'Its folder is not on your PATH in this terminal. Run export PATH="$HOME/.local/bin:$PATH", check with cosign version, and add the line to ~/.bashrc to keep it.'],
   ['saferun status shows an image as INVALID', 'Docker does not report the pinned digest for it (for example a tag that moved or an image loaded without its digest). Run saferun init --only python,node to pull the pinned one. Do not ignore an INVALID analyzer: see the --repair entry above.'],
   ['A check says "unavailable", "error" or "incomplete"', 'Run saferun status. It names the component and prints the exact fix, for example saferun init --only osv-db. A scan also prints that fix on stderr.'],
-  ['The dashboard shows "Not ready on this machine"', 'The analyzer image is not installed or failed verification. Run saferun init --only analyzer.'],
   ['A component says INVALID', 'Images are repaired by pulling the pinned digest. The analyzer is reinstalled only with --repair, because that replaces the image and its lock. Investigate first if you did not expect it.'],
   ['Setup says cosign is not installed', 'SafeRun checks the analyzer\'s signature before pulling anything and nothing was pulled. Install cosign 2.2 or newer (see the walkthrough) and run saferun init --only analyzer again, or build it yourself with saferun init --only analyzer --build-local.'],
   ['Setup says the signature could not be verified', 'Nothing was pulled or trusted. Check your internet access to ghcr.io and sigstore.dev, then retry. If it keeps failing, do not use --build-local to get around it without finding out why.'],
@@ -161,7 +160,7 @@ export function GuidePage() {
               </li>
             ))}
           </ol>
-          <p className="fine">Needs Linux, Python 3.12+, a local Docker Engine and internet access for setup (the signed analyzer is checked with cosign 2.2+): see Full setup below. To use this dashboard: <code>cd web && npm ci --ignore-scripts && npm run build</code>, then <code>saferun-web</code> and open http://127.0.0.1:8765/.</p>
+          <p className="fine">Needs Linux, Python 3.12+, a local Docker Engine and internet access for setup (the signed analyzer is checked with cosign 2.2+): see Full setup below.</p>
         </section>
 
         <section id="setup" className="card g-section">
@@ -282,15 +281,6 @@ export function GuidePage() {
           <p className="notice">{HONEST_LIMITS}</p>
         </section>
 
-        <section className="card g-section">
-          <h2>What the ZIP needs (dashboard)</h2>
-          <ul className="g-list">
-            <li>Project files at the top level, or inside one top-level folder.</li>
-            <li>Up to 100 MiB compressed, 400 MiB extracted and 5000 files.</li>
-            <li>No unsafe entries (path traversal, symlinks); otherwise the whole archive is refused.</li>
-            <li>Include requirements.txt or a lockfile so dependencies can be checked.</li>
-          </ul>
-        </section>
         </div>
         </div>
       </main>

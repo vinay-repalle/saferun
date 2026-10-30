@@ -2,7 +2,7 @@
    (.card, .card-head, .stack, buttons, tables, .badge, severity colours, .kpis, .notice, .error, details).
    Everything specific to one component lives in that component's folder next to its .tsx file. */
 :root {
-  /* One dark theme for the whole site: website, dashboard and guide. */
+  /* One dark theme for the whole site: website and guide. */
   --bg: #070b12; --surface: #0d1420; --surface-2: #101a29; --border: #1c2840; --text: #e8edf6; --muted: #8b98ae;
   --accent: #5b9bff; --accent-ink: #06101f; --glow: rgb(91 155 255 / 18%); --shadow: none;
   --pass: #4fd18b; --pass-bg: #0e2a1d; --warn: #f0b24a; --warn-bg: #2f240c; --fail: #ff7b72; --fail-bg: #331412;
@@ -37,7 +37,7 @@ td { padding: .55rem .6rem; border-bottom: 1px solid var(--border); vertical-ali
 .error { border-left: 4px solid var(--fail); }
 details > summary { cursor: pointer; color: var(--accent); font-size: .85rem; }
 
-/* shared page primitives (website, dashboard and guide) */
+/* shared page primitives (website and guide) */
 .wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 24px; } @media (max-width: 640px) { .wrap { padding: 0 16px; } }
 .btn { display: inline-flex; align-items: center; gap: .4rem; padding: .7rem 1.2rem; border-radius: 6px; font-size: .95rem; font-weight: 600; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
 .btn:hover { text-decoration: none; }

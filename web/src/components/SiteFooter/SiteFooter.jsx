@@ -11,11 +11,10 @@ export function SiteFooter() {
       <div className="wrap foot-row">
         <div>
           <a className="brand" href="#/"><Mark size={22} /> <span>SafeRun</span></a>
-          <p className="fine">SafeRun checks what it can check. It never claims the code is secure. The dashboard has no login: use it only on your own machine.</p>
+          <p className="fine">SafeRun checks what it can check. It never claims the code is secure.</p>
         </div>
         <nav aria-label="Footer">
           <a href="#/guide">Setup guide</a>
-          <a href="#/dashboard">Dashboard</a>
           <a href={DOCS + 'cli.md'} {...EXT}>CLI docs</a>
           <a href={DOCS + 'engine.md'} {...EXT}>Engine docs</a>
           <a href={DOCS + 'release-images.md'} {...EXT}>Release images</a>

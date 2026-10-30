@@ -1,5 +1,8 @@
 # SafeRun — Implementation Status
 
+> **Update:** the Phase 4 dashboard and its API (`saferun/api`, `saferun-web`, `docs/api.md`, `web/src/pages/DashboardPage`) were removed; the website is now static and informational. Dashboard/API sections below are historical. Tests that covered shared code were kept (`tests/test_cleanup_hardening.py`, `tests/test_report_fixture.py`).
+
+
 ## Environment (inspected 2026-10-28)
 Ubuntu 24.04 host, kernel 7.0.0-38, 12 CPU / 15 GiB, ext4 `/tmp`. Python 3.12.3 (no pip/venv module: project-local `.venv`
 created with `--without-pip` + official `get-pip.py`). Docker 29.8.0 (runc, cgroup v2, AppArmor + builtin seccomp reported by the

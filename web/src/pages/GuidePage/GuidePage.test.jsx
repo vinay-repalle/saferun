@@ -98,7 +98,7 @@ describe('Guide page', () => {
     expect(window.location.hash).toBe(before)
   })
 
-  it('uses no inline styles or scripts (the dashboard CSP forbids them)', () => {
+  it('uses no inline styles or scripts (keeps the site compatible with a strict CSP)', () => {
     const { container } = render(<GuidePage />)
     expect(container.querySelectorAll('[style]')).toHaveLength(0)
     expect(container.querySelectorAll('script')).toHaveLength(0)

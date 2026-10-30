@@ -3,8 +3,8 @@ import { GITHUB } from '../../content/site'
 import { Mark } from '../Mark/Mark'
 import './SiteNav.css'
 
-// Every link is a real hash link, so the same navbar works on the website, the dashboard and the guide.
-const LINKS = [['#/product', 'Product'], ['#/security', 'Security'], ['#/how', 'How it works'], ['#/guide', 'Documentation'], ['#/dashboard', 'Dashboard']]
+// Every link is a real hash link, so the same navbar works on the website and the guide.
+const LINKS = [['#/product', 'Product'], ['#/security', 'Security'], ['#/how', 'How it works'], ['#/guide', 'Documentation']]
 
 /** The one navbar for every page. `current` is the active hash route (e.g. '#/guide'), if any. */
 export function SiteNav({ current = '' }) {

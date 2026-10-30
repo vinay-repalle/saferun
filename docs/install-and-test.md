@@ -4,19 +4,18 @@ Everything below is a *procedure*. None of it has been recorded as run for this 
 
 ## Supported installation: a source checkout
 
-Decision (pre-validation review): SafeRun is supported **only when installed from a source checkout** (`pip install -e .`). The wheel is *not* a supported way to run it, because two things SafeRun needs live outside the Python package:
+Decision (pre-validation review): SafeRun is supported **only when installed from a source checkout** (`pip install -e .`). The wheel is *not* a supported way to run it, because one thing SafeRun needs lives outside the Python package:
 
 | Needed by | Location | In the wheel? |
 |---|---|---|
 | `saferun init` (local analyzer build) | `docker/analyzer/` (found relative to the checkout by `saferun/setup.py`) | no |
-| Dashboard UI (`saferun-web`) | `web/dist`, produced by `npm run build` (found by `saferun/api/app.py`) | no |
 | Semgrep rules, CLI, engine | `saferun/` | yes |
 
-What happens on a wheel install: the CLI starts; `saferun init` explains that the build recipe is missing; `saferun-web` serves only the API (no UI). Nothing breaks silently, but the product is not usable end to end, so we do not claim wheel support. CI still builds the wheel and sdist and installs the wheel into a clean venv, as a **packaging sanity check** (metadata, bundled rules, entry point), not as a statement of support.
+What happens on a wheel install: the CLI starts; `saferun init` explains that the build recipe is missing. Nothing breaks silently, but the product is not usable end to end, so we do not claim wheel support. CI still builds the wheel and sdist and installs the wheel into a clean venv, as a **packaging sanity check** (metadata, bundled rules, entry point), not as a statement of support.
 
-The sdist additionally contains `docker/`, the `web/` sources (no `node_modules`/`dist`), `docs/`, `tests/` and `.github/`, so an unpacked sdist behaves like a checkout.
+The sdist additionally contains `docker/`, the `web/` website sources (no `node_modules`/`dist`), `docs/`, `tests/` and `.github/`, so an unpacked sdist behaves like a checkout.
 
-**Decision for the owner:** wheel support would need either (a) moving the analyzer recipe into the package (for example `saferun/analyzer_recipe/`) and building `web/dist` into it before `python -m build` (touches `saferun/setup.py`, `saferun/api/app.py`, `docker/analyzer/build.sh`, the release workflow's staging step and several tests), or (b) nothing, if you are happy with source installs. Note that once a signed analyzer release exists, `init` no longer needs `docker/`, so a wheel could then run the CLI scans (still without the dashboard UI).
+**Decision for the owner:** wheel support would need either (a) moving the analyzer recipe into the package (for example `saferun/analyzer_recipe/`) (touches `saferun/setup.py`, `docker/analyzer/build.sh`, the release workflow's staging step and several tests), or (b) nothing, if you are happy with source installs. Note that once a signed analyzer release exists, `init` no longer needs `docker/`, so a wheel could then run the CLI scans.
 
 ## Install from a fresh clone
 
@@ -41,7 +40,7 @@ The analyzer release `analyzer-v1.0.1` is recorded in `ANALYZER_RELEASE`, so `in
 # 2. everything, including the Docker sandbox and the real analyzer (after `saferun init --all`); fails instead of skipping
 SAFERUN_REQUIRE_DOCKER=1 .venv/bin/python -m pytest -q -ra
 
-# 3. dashboard (optional)
+# 3. website (optional)
 (cd web && npm ci --ignore-scripts && npm test && npm run build)
 
 # 4. packaging sanity check (wheels are not a supported install): build, inspect, install into a clean environment
@@ -57,10 +56,10 @@ Runs on every pull request and every push to `main`. Read-only token, no secrets
 
 | Job | Blocking | What it does |
 |---|---|---|
-| `python` | yes | `pip install -e '.[dev,web]'`, `compileall`, `sh -n` on the build script, `pytest -m "not docker"` |
+| `python` | yes | `pip install -e '.[dev]'`, `compileall`, `sh -n` on the build script, `pytest -m "not docker"` |
 | `web` | yes | `npm ci --ignore-scripts`, `npm test`, `npm run build` |
 | `package` | yes | `python -m build`, checks wheel and sdist contents, installs the wheel into a clean venv and starts the CLI (packaging sanity check only; wheels are not a supported install, see above) |
-| `audit` | no (advisory) | `npm audit` (production dependencies) and `pip-audit` (web extra) |
+| `audit` | no (advisory) | `npm audit` (website production dependencies) |
 | `docker` | no (advisory) | `saferun init --only python,node,analyzer --build-local`, then `pytest -m docker` on the runner's Docker daemon |
 
 The `docker` job is advisory because it depends on the runner's Docker/cgroup configuration and has never been run; promote it to blocking only after you have seen it pass. There is no lint step: the repository has no linter configuration, and adding one unconfigured would only produce noise.

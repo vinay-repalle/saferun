@@ -14,7 +14,7 @@ export const TRUST = [
 export const STEPS = [
   ['Set up', 'Run saferun init once. It installs only what is missing.', 'saferun init'],
   ['Verify', 'Check that every part is ready and verified.', 'saferun status'],
-  ['Scan', 'Scan a folder, or drop a ZIP on the dashboard.', 'saferun scan ./my-project'],
+  ['Scan', 'Scan a project folder.', 'saferun scan ./my-project'],
 ]
 
 export const REQUIREMENTS = [
@@ -41,7 +41,6 @@ export const SAFETY = [
   ['The analyzer is a signed, digest-pinned image', 'Setup checks its cosign signature (this project\'s release workflow, a release tag) and the pinned digest before pulling it, then verifies its tool versions and rules hash. A signature would not prove the project itself was never compromised. You can build it yourself with --build-local instead.'],
   ['The analyzer is locked', 'Its image ID, tool versions and rules hash are re-checked before every scan. The lock file must be private to your user.'],
   ['Vulnerability data has an integrity record', 'SHA-256, size, advisory count and date are re-checked before every scan. Damaged, tampered or old data cannot produce PASS.'],
-  ['The dashboard stays on your machine', 'It accepts connections only from your own computer (loopback) and has no login.'],
 ]
 
 export const HONEST_LIMITS = 'Honest limits: these checks detect damage and later changes, but a locally recorded hash cannot prove the original download was genuine. PASS means the existing checks found nothing, not that the code is safe. Scans send nothing anywhere and are only as current as your last saferun osv-db update.'

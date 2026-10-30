@@ -1,8 +1,8 @@
-"""The dashboard's golden report fixture is generated from the REAL engine model and pinned by this test.
+"""The website's sample report fixture is generated from the REAL engine model and pinned by this test.
 
 web/src/fixtures/report.json is consumed by the frontend tests. If the engine's report schema changes, this test fails
-until the fixture is regenerated (SAFERUN_UPDATE_FIXTURES=1 .venv/bin/pytest tests/test_api_schema_fixture.py) and the
-frontend types/tests are reviewed - the UI can never silently drift from the engine.
+until the fixture is regenerated (SAFERUN_UPDATE_FIXTURES=1 .venv/bin/pytest tests/test_report_fixture.py) and the
+frontend types/tests are reviewed - the site can never silently drift from the engine.
 """
 import json
 import os

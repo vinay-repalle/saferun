@@ -1,6 +1,6 @@
 # SafeRun — Project
 
-Developer tool that checks AI-generated code *before* it is run or trusted. CLI + web dashboard
+Developer tool that checks AI-generated code *before* it is run or trusted. CLI + static website
 share one backend, one validation engine, one sandbox. Python first; JavaScript partially (syntax check and npm-lockfile
 vulnerability scanning exist since Phase 2; installation, test runners and JS rules are later work — see *Runtime profiles*).
 
@@ -14,8 +14,7 @@ saferun/
   sandbox/     Phase 1  workspace copy + locked-down docker run   (implemented)
   engine/      Phase 2  checks -> normalized findings -> verdict (implemented; see *Validation engine*)
   cli.py       Phase 3  `saferun scan <dir>` (implemented; see docs/cli.md)
-  api/         Phase 4  FastAPI: hostile-ZIP extractor, bounded job runner (runs the CLI), loopback guard (implemented; docs/api.md)
-web/           Phase 4  React + Vite dashboard (implemented; secondary interface)
+web/           React + Vite static website (informational only; no scanning, no server)
 ```
 
 Sandbox (`saferun/sandbox/`): `workspace.py` (sanitized temp copy) · `docker.py` (defensive CLI wrappers, daemon
@@ -98,12 +97,8 @@ seccomp filter and AppArmor profile come from the Docker daemon's defaults and a
 | † Concurrent runs (6 in parallel) are isolated and fully cleaned up | test_concurrent_runs_are_isolated_and_all_cleaned_up |
 | † Both cleanup steps always run; original exception preserved (cleanup errors added as notes) | test_cleanup.py |
 
-## Web dashboard threat model (Phase 4, summary; details in docs/api.md)
-Attacker: anyone who can reach the dashboard port, supplying a hostile ZIP. Scope: **loopback only**, enforced in code (launcher refuses non-loopback binds; middleware refuses
-non-loopback peers, foreign Host headers and cross-origin writes). Archives are validated whole and rejected on any unsafe member before extraction (traversal, absolute paths,
-symlinks/devices, duplicates/collisions, bombs, overlaps, size/count/depth limits), extracted fd-relative into a private 0700 directory, and scanned by the existing CLI in a
-child process with an allow-listed environment, a hard deadline (process-group kill) and guaranteed cleanup. Uploaded code is never executed. **Not mitigated:** (before Phase 5B) Semgrep/OSV-Scanner
-parse hostile files inside the analyzer container (Phase 5B; tested, not proven, see *Phase 5 security status*) instead of on the host, but the dashboard stays loopback-only and unauthenticated until that isolation is reviewed; any local user can use the port.
+## Removed: web dashboard and API
+The Phase 4 local dashboard (`saferun/api`, `saferun-web`, hostile-ZIP upload, loopback guard) was removed; it was a demonstration interface only. SafeRun has no network-facing component: the CLI is the only way to scan, and `web/` is a static informational site.
 
 ## Operational assumptions and known exposures (read before relying on SafeRun)
 
@@ -207,7 +202,7 @@ verified code, and the only second backend considered (OpenSandbox) failed the r
 1. Environment + sandbox PoC — **approved as the Phase 2 baseline** (a milestone approval, not a security certification)
 2. Validation engine (syntax, Semgrep, dependency vulns, normalized report, tests) — **committed (`088b279`)**
 3. CLI — **committed (`a9ea5dc`)**; the primary product
-4. Web dashboard (upload limits, secure handling) — **committed (`e4bceef`)**; local/loopback-only demonstration interface; remote use needs isolated analyzers first
+4. Web dashboard — committed (`e4bceef`), later **removed** (see *Removed: web dashboard and API*)
 5. Integration, security testing, release docs — 5A image pinning, 5B analyzer isolation, 5C adversarial tests, 5D cleanup/exhaustion hardening and 5E signed analyzer release (workflow + cosign verification) are **implemented and committed**; `analyzer-v1.0.0` is published and signed but not recorded (no license notices in the image); `analyzer-v1.0.1` is published, signed and recorded in `ANALYZER_RELEASE` (a release under a previous owner's identity is not trusted here)
 
 A phase starts only after the previous one's acceptance criteria are met and approved.
@@ -219,7 +214,7 @@ A phase starts only after the previous one's acceptance criteria are met and app
 4. **Project files**: LICENSE (MIT) added; no CHANGELOG or SECURITY.md.
 5. **Docker-less tests** skip loudly; a job that runs the non-Docker subset should be a CI gate.
 6. **Detection quality**: rules are unmeasured (no false-positive/negative benchmark); JavaScript has only `node --check` and an npm lockfile scan.
-Future enhancements (not release blockers unless a later audit says so): dashboard authentication, gVisor/Kata backend, ARM64 analyzer.
+Future enhancements (not release blockers unless a later audit says so): gVisor/Kata backend, ARM64 analyzer.
 
 ## Image pinning (Phase 5A)
 - Profiles and `DEFAULT_IMAGE` use `repo:tag@sha256:<index digest>` references from `saferun/sandbox/images.py`. Docker resolves by digest; the tag is only a label.

@@ -24,14 +24,12 @@ Issues = "https://github.com/vinay-repalle/saferun/issues"
 
 [project.scripts]
 saferun = "saferun.cli:main"
-saferun-web = "saferun.api.server:main"   # local dashboard; needs the `web` extra
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "httpx", "ruamel.yaml>=0.18", "build>=1.2"]   # httpx: FastAPI/Starlette TestClient; ruamel.yaml: validates the release workflow YAML in tests; build: wheel/sdist check
-web = ["fastapi>=0.115,<0.141", "uvicorn"]   # upper bound = the range tested; it was originally forced by a conflict with a host-installed Semgrep, which SafeRun no longer uses
+dev = ["pytest>=8", "ruamel.yaml>=0.18", "build>=1.2"]   # ruamel.yaml: validates the release workflow YAML in tests; build: wheel/sdist check
 # no "analysis" extra: Semgrep and OSV-Scanner run only inside the analyzer container (docker/analyzer/build.sh), never from the host environment
 
-# Supported installation is from a source checkout (`pip install -e .`): the analyzer build recipe (docker/) and the dashboard build (web/dist) live
+# Supported installation is from a source checkout (`pip install -e .`): the analyzer build recipe (docker/) lives
 # outside the `saferun` package and are not included in the wheel. See docs/install-and-test.md.
 [tool.setuptools.packages.find]
 include = ["saferun*"]

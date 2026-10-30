@@ -4,7 +4,7 @@
   "license": "MIT",
   "version": "0.0.1",
   "type": "module",
-  "description": "SafeRun local dashboard (React + Vite, plain JavaScript; secondary interface, the CLI is the primary product)",
+  "description": "SafeRun website (static React + Vite, plain JavaScript; the CLI is the product)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
