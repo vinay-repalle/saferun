@@ -168,7 +168,7 @@ jobs:
           echo "wrong identity refused, as required"
 
       - name: Report an image that was pushed but not fully verified
-        if: ${{ failure() && steps.push.outcome == 'success' }}
+        if: ${{ always() && steps.push.outcome == 'success' && job.status != 'success' }}
         env:
           TAG: ${{ github.ref_name }}
         run: |
