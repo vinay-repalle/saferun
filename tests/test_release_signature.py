@@ -270,6 +270,17 @@ def test_workflow_stages_the_same_files_as_build_sh(wf):
     lic = ROOT / "docker" / "analyzer" / "licenses"
     assert (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").stat().st_size > 1000
     assert "Apache License" in (lic / "osv-scanner-v2.7.0-LICENSE").read_text() and "GNU LESSER GENERAL PUBLIC LICENSE" in (lic / "semgrep-LICENSE").read_text()
+    # the Go dependency inventory of the pinned OSV-Scanner binary: one table row per module, and a license text section for every module
+    inv = (lic / "osv-scanner-v2.7.0-go-modules.md").read_text()
+    texts = (lic / "osv-scanner-v2.7.0-go-module-licenses.txt").read_text()
+    rows = [l for l in inv.splitlines() if l.startswith("| ") and not l.startswith(("| Module", "|---"))]
+    assert len(rows) == 191 and all(len(r.split("|")) == 6 for r in rows)
+    for r in rows:
+        module, version = (c.strip() for c in r.split("|")[1:3])
+        assert f"\n{module} {version} -- " in texts, module
+    assert "Go standard library and runtime" in texts and "MPL-2.0" in inv
+    assert "licenses/osv-scanner-v2.7.0-go-modules.md" in (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").read_text()
+    assert "osv-scanner-v2.7.0-go-module-licenses.txt" in wf
 
 
 # ------------------------------------------------------------------------------------------ command line

@@ -103,7 +103,7 @@ jobs:
           run "$img" osv-scanner --version | grep -q "osv-scanner version: $osv_v" || { echo "osv-scanner version mismatch" >&2; exit 1; }
           [ "$(run "$img" sha256sum /opt/saferun/rules/python.yml | cut -d' ' -f1)" = "$RULES_SHA" ] || { echo "baked rules differ from the repository rules" >&2; exit 1; }
           # The third-party notices and license texts must be in the image.
-          for f in LICENSE THIRD_PARTY_NOTICES.md licenses/semgrep-LICENSE licenses/osv-scanner-v2.7.0-LICENSE; do
+          for f in LICENSE THIRD_PARTY_NOTICES.md licenses/semgrep-LICENSE licenses/osv-scanner-v2.7.0-LICENSE licenses/osv-scanner-v2.7.0-go-modules.md licenses/osv-scanner-v2.7.0-go-module-licenses.txt; do
             run "$img" test -s "/usr/share/doc/saferun-analyzer/$f" || { echo "missing in image: $f" >&2; exit 1; }
           done
           # The container must have no network.

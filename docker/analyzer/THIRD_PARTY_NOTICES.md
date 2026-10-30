@@ -12,7 +12,8 @@ not apply to the third-party software below, which stays under its own licenses.
 | Component | Version | License | Where the text is |
 |---|---|---|---|
 | Semgrep (CLI and bundled `semgrep-core`) | 1.182.1 | LGPL-2.1-or-later (as declared in the package metadata) | `licenses/semgrep-LICENSE` |
-| OSV-Scanner (single Go binary, includes OSV-SCALIBR 0.5.3) | 2.7.0 | Apache-2.0 | `licenses/osv-scanner-v2.7.0-LICENSE` |
+| OSV-Scanner (single Go binary; its own `--version` reports OSV-SCALIBR 0.5.3, the embedded module is the pseudo-version `v0.5.4-0.20261009010329-5be78a00e3c2`) | 2.7.0 | Apache-2.0 | `licenses/osv-scanner-v2.7.0-LICENSE` |
+| 191 Go modules and the Go standard library statically linked into the OSV-Scanner binary | see list | MIT, Apache-2.0, BSD-2/3-Clause, ISC, Unlicense; one module BSD-3-Clause AND MPL-2.0 | `licenses/osv-scanner-v2.7.0-go-modules.md` (inventory), `licenses/osv-scanner-v2.7.0-go-module-licenses.txt` (full texts) |
 
 * **Semgrep** is installed unmodified from the hash-locked PyPI wheel (`docker/analyzer/semgrep-requirements.txt`). Its wheel does not ship a license file, so the
   LGPL-2.1 text was taken from the upstream repository (`github.com/semgrep/semgrep`, file `LICENSE`, branch `develop`, git blob `8000a6fa…`, verified against the
@@ -22,8 +23,19 @@ not apply to the third-party software below, which stays under its own licenses.
   (`/opt/saferun/rules/python.yml`); no Semgrep Registry rules are included.
 * **OSV-Scanner** is downloaded as the official `osv-scanner_linux_amd64` release binary and checked against a pinned SHA-256 at build time. The license text is
   `LICENSE` of `github.com/google/osv-scanner` at tag `v2.7.0` (git blob `d6456956…`, identical to the hash GitHub reports for the repository's Apache-2.0 license). The
-  repository has no `NOTICE` file at that tag. The binary statically includes Go modules under their own licenses; their notices are in the upstream source
-  (`go.mod` / `go.sum` at the same tag). They have **not** been enumerated here.
+  repository has no `NOTICE` file at that tag.
+* **Go modules inside the OSV-Scanner binary.** The exact list was read from the module information embedded in the pinned binary (SHA-256 `160c6253…4218b`, built with
+  Go go1.27.0, `-trimpath`, no `replace` directives): **191 dependency modules** plus the Go standard library and runtime. Each module was downloaded at exactly that version
+  from the Go module proxy and its top-level license and notice files were read. The inventory (module, version, license) is `licenses/osv-scanner-v2.7.0-go-modules.md`; the verbatim
+  license and notice texts are `licenses/osv-scanner-v2.7.0-go-module-licenses.txt`. Result: MIT (75), Apache-2.0 (54), BSD-3-Clause (40), BSD-2-Clause (5), ISC (2), Unlicense (1) and
+  14 modules with more than one license (per-file). Points worth knowing:
+  * `github.com/cyphar/filepath-securejoin` is `BSD-3-Clause AND MPL-2.0` (per file). MPL-2.0 is a file-level weak-copyleft license; its source is available from the module's upstream
+    repository at v0.7.0 and is unmodified here.
+  * `github.com/spdx/tools-golang` offers `Apache-2.0 OR GPL-2.0-or-later`; Apache-2.0 is the license relied on.
+  * Several modules ship separate documentation licenses (CC-BY-4.0 / CC-BY-SA-4.0: `opencontainers/go-digest`, `spdx/tools-golang`, `modelcontextprotocol/go-sdk`); those cover documentation, not the linked code.
+  * `github.com/google/osv-scalibr`'s LICENSE was fetched from the upstream repository at commit `5be78a00e3c2` (the module zip was too slow to download); it is Apache-2.0 with BSD-3-Clause and MIT notices for a few files.
+  * The licensing of modules was determined by matching the license text and hand-checking every module with more than one license text; it was not checked file by file inside each module.
+  * No module has a missing license file. No NOTICE files exist except those reproduced in the texts file (for example `gopkg.in/yaml.v3`).
 
 ## Python packages installed with Semgrep
 

@@ -30,7 +30,7 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/saferun scan ./some-project
 ```
 
-No signed analyzer release exists yet, so `init` builds the analyzer locally and `cosign` is not needed. After you publish a signed release and record it (see `docs/release-images.md`), `init` installs it after verifying its signature.
+No analyzer release is recorded yet, so `init` builds the analyzer locally and `cosign` is not needed. After you publish a signed release and record it (see `docs/release-images.md`), `init` installs it after verifying its signature.
 
 ## Validate (run these yourself; nothing here has been run for you)
 
