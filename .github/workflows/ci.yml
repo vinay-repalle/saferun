@@ -147,6 +147,14 @@ jobs:
       - name: Install SafeRun
         run: python -m pip install -e '.[dev]'
 
+      - name: Print the runner's Docker and cgroup environment (diagnostic only)
+        # Read-only. Helps explain runner-specific differences, e.g. whether Docker reports OOMKilled for a killed container.
+        run: |
+          docker version
+          docker info
+          stat -fc %T /sys/fs/cgroup
+          uname -r
+
       - name: Pull the pinned sandbox images and build the analyzer locally
         # SafeRun pulls by pinned digest and verifies it; the analyzer is built from docker/analyzer (no signed release is used or needed).
         run: saferun init --only python,node,analyzer --build-local
