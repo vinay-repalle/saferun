@@ -1,0 +1,4 @@
+.foot { padding: 48px 0; border-top: 1px solid var(--border); }
+.foot-row { display: flex; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
+.foot nav { display: flex; flex-wrap: wrap; gap: .6rem 1.6rem; align-content: flex-start; font-size: .9rem; } .foot nav a { color: var(--muted); }
+.foot p { max-width: 40ch; }

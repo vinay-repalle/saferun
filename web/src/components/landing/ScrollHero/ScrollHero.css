@@ -1,0 +1,80 @@
+/* Scroll-driven opening. --p1 cards in, --p2 scan, --p3 headline (all 0..1, set from script); --mx/--my cursor for tilt.
+   The defaults below are the finished state, so without script or with reduced motion the hero is just shown. */
+.sh { --p1: 1; --p2: 1; --p3: 1; --mx: 0; --my: 0; position: relative; border-bottom: 1px solid var(--border);
+  background: radial-gradient(60% 50% at 50% 0%, var(--glow), transparent 70%), linear-gradient(rgb(28 40 64 / 30%) 1px, transparent 1px) 0 0 / 100% 56px, var(--bg); }
+.sh-live { --p1: 0; --p2: 0; --p3: 0; height: 270vh; }
+.sh-pin { position: relative; padding: 72px 0 56px; overflow: hidden; }
+.sh-live .sh-pin { position: sticky; top: 64px; height: calc(100vh - 64px); height: calc(100svh - 64px); padding: 0; display: grid; align-items: center; }
+.sh-pin::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(420px circle at calc(50% + var(--mx) * 50%) calc(50% + var(--my) * 50%), rgb(91 155 255 / 10%), transparent 70%); }
+
+.sh-stage { position: relative; display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr) minmax(0, 230px); gap: clamp(20px, 4vw, 56px); align-items: center; }
+.sh-center { display: grid; justify-items: center; text-align: center; }
+.sh-center > * { grid-area: 1 / 1; }
+
+/* intro layer: the logo alone, until the cards arrive; gone once the headline is up */
+.sh-intro { display: none; justify-items: center; align-content: center; gap: .8rem; }
+.sh-live .sh-intro { display: grid; opacity: calc(1 - var(--p3)); }
+.sh-logo { width: min(248px, 56vw); height: auto; transform: scale(calc(1 - var(--p1) * .3)); }
+.sh-word { margin: 0; font-size: 1.8rem; font-weight: 700; letter-spacing: -.02em; }
+.sh-cue { margin: .6rem 0 0; font: .78rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: .45rem .9rem; opacity: clamp(0, calc(1 - var(--p1) * 4), 1); }
+
+/* headline layer */
+.sh-copy { display: grid; justify-items: center; }
+.sh-live .sh-copy { opacity: var(--p3); transform: translateY(calc((1 - var(--p3)) * 28px)); pointer-events: none; }
+.sh-live.sh-copy-on .sh-copy, .sh-live .sh-copy:focus-within { pointer-events: auto; }
+.sh-live .sh-copy:focus-within { opacity: 1; }
+.sh-copy h1 { font-size: clamp(2.2rem, 4.4vw, 3.6rem); font-weight: 700; line-height: 1.1; margin: 0; }
+.sh-copy .lede { margin-top: 1.3rem; max-width: 46ch; color: var(--muted); font-size: 1.08rem; }
+.sh-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .8rem; margin-top: 1.8rem; }
+.eyebrow { display: inline-flex; align-items: center; gap: .55rem; font: .78rem var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 1.2rem; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--glow); }
+
+/* the two cards: outer element is scroll-driven (slide, fade), inner one tilts with the cursor */
+.sh-card { opacity: var(--p1); }
+.sh-l { transform: translateX(calc((1 - var(--p1)) * -55vw)) scale(calc(1 - var(--p3) * .06)); justify-self: end; width: 100%; }
+.sh-r { transform: translateX(calc((1 - var(--p1)) * 55vw)) scale(calc(1 - var(--p3) * .06)); justify-self: start; width: 100%; }
+.sh-tilt { background: rgb(13 20 32 / 88%); border: 1px solid var(--border); border-radius: 6px; padding: 12px; box-shadow: 0 24px 60px -24px rgb(91 155 255 / 35%); transition: transform .25s ease-out; }
+.sh-l .sh-tilt { transform: perspective(1000px) rotateY(calc(16deg + var(--mx) * 5deg)) rotateX(calc(var(--my) * -4deg)); transform-origin: right center; }
+.sh-r .sh-tilt { transform: perspective(1000px) rotateY(calc(-16deg + var(--mx) * 5deg)) rotateX(calc(var(--my) * -4deg)); transform-origin: left center; }
+.sh-head { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: 10px; font: .66rem var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.sh-head b { font-weight: 600; color: var(--accent); }
+.sh-gridwrap { position: relative; }
+.sh-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.c { display: block; aspect-ratio: 1; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); }
+.sh-l .c.warn { background: var(--warn-bg); border-color: var(--warn); } .sh-l .c.fail { background: var(--fail-bg); border-color: var(--fail); }
+/* right card: a cell is judged once the scan (--p2) has passed its row */
+.sh-r .c { --cc: var(--pass); --k: clamp(0, calc(var(--p2) * 12 - var(--row)), 1);
+  background: color-mix(in srgb, var(--cc) calc(var(--k) * 28%), var(--surface-2)); border-color: color-mix(in srgb, var(--cc) calc(var(--k) * 100%), var(--border)); }
+.sh-r .c.warn { --cc: var(--warn); } .sh-r .c.fail { --cc: var(--fail); }
+.sh-beam { position: absolute; left: -4px; right: -4px; top: min(100%, calc(var(--p2) * 120%)); height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); box-shadow: 0 0 16px 3px var(--glow); opacity: min(calc(var(--p2) * 10), calc((1 - var(--p2)) * 10), 1); }
+.row-0 { --row: 0; }
+.row-1 { --row: 1; }
+.row-2 { --row: 2; }
+.row-3 { --row: 3; }
+.row-4 { --row: 4; }
+.row-5 { --row: 5; }
+.row-6 { --row: 6; }
+.row-7 { --row: 7; }
+.row-8 { --row: 8; }
+.row-9 { --row: 9; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .sh-word { animation: sh-up .7s ease-out .9s both; }
+  .sh-cue { animation: sh-bob 2.4s ease-in-out infinite; }
+  .dot { animation: sh-pulse 2.4s ease-in-out infinite; }
+}
+@keyframes sh-up { from { opacity: 0; transform: translateY(10px); } }
+@keyframes sh-bob { 50% { transform: translateY(4px); } }
+@keyframes sh-pulse { 50% { box-shadow: 0 0 0 7px transparent; } }
+
+@media (max-width: 1000px) { .sh-stage { grid-template-columns: minmax(0, 170px) minmax(0, 1fr) minmax(0, 170px); gap: 20px; } }
+@media (max-width: 780px) {
+  .sh-live { height: 230vh; }
+  .sh-stage { grid-template-columns: 1fr 1fr; grid-template-areas: "c c" "l r"; gap: 24px 12px; }
+  .sh-center { grid-area: c; } .sh-l { grid-area: l; } .sh-r { grid-area: r; }
+  .sh-logo { width: min(190px, 52vw); }
+  .sh-tilt { padding: 8px; } .sh-head { font-size: .56rem; } .sh-grid { gap: 3px; }
+  .sh-copy h1 { font-size: 2rem; } .sh-copy .lede { font-size: .98rem; margin-top: .9rem; }
+  .sh-cta .btn { flex: 1 1 100%; justify-content: center; }
+}
+@media (max-width: 780px) and (max-height: 720px) { .sh-copy .lede { display: none; } }

@@ -1,0 +1,264 @@
+{
+  "checks": [
+    {
+      "detail": "",
+      "duration_s": 0.0,
+      "errors": [],
+      "findings": [
+        {
+          "category": "workspace",
+          "check": "workspace-sensitive-files",
+          "cwe": [],
+          "end_line": null,
+          "fixed_versions": [],
+          "line": null,
+          "message": "credential-like file found in the project; it was withheld from analysis and the sandbox",
+          "package": null,
+          "path": "deploy/id_rsa",
+          "rule_id": "withheld.private-key",
+          "severity": "high",
+          "vulnerability_ids": []
+        }
+      ],
+      "name": "workspace-sensitive-files",
+      "notes": [
+        "content of withheld files is never read by SafeRun analyzers"
+      ],
+      "status": "findings",
+      "tool": "",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "",
+      "duration_s": 1.234,
+      "errors": [],
+      "findings": [
+        {
+          "category": "syntax",
+          "check": "python-syntax",
+          "cwe": [],
+          "end_line": 1,
+          "fixed_versions": [],
+          "line": 1,
+          "message": "invalid syntax",
+          "package": null,
+          "path": "src/broken.py",
+          "rule_id": "python.syntax-error",
+          "severity": "medium",
+          "vulnerability_ids": []
+        }
+      ],
+      "name": "python-syntax",
+      "notes": [],
+      "status": "findings",
+      "tool": "python 3.12",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "",
+      "duration_s": 3.5,
+      "errors": [],
+      "findings": [
+        {
+          "category": "code",
+          "check": "python-static-analysis",
+          "cwe": [
+            "CWE-95"
+          ],
+          "end_line": 4,
+          "fixed_versions": [],
+          "line": 4,
+          "message": "<img src=x onerror=alert(1)> eval() on non-constant input",
+          "package": null,
+          "path": "src/app.py",
+          "rule_id": "saferun.python.eval",
+          "severity": "high",
+          "vulnerability_ids": []
+        },
+        {
+          "category": "code",
+          "check": "python-static-analysis",
+          "cwe": [],
+          "end_line": 9,
+          "fixed_versions": [],
+          "line": 9,
+          "message": "assert used for validation",
+          "package": null,
+          "path": "src/app.py",
+          "rule_id": "saferun.python.assert",
+          "severity": "low",
+          "vulnerability_ids": []
+        }
+      ],
+      "name": "python-static-analysis",
+      "notes": [
+        "2 Python file(s) targeted",
+        "rules: bundled local set (saferun/engine/rules/python.yml)"
+      ],
+      "status": "findings",
+      "tool": "semgrep 1.182.1",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "package.json: no npm lockfile; dependencies not scanned",
+      "duration_s": 2.0,
+      "errors": [
+        "package.json: no npm lockfile"
+      ],
+      "findings": [
+        {
+          "category": "dependency",
+          "check": "dependency-vulnerabilities",
+          "cwe": [],
+          "end_line": null,
+          "fixed_versions": [
+            "4.17.21"
+          ],
+          "line": null,
+          "message": "Command Injection in lodash",
+          "package": {
+            "ecosystem": "npm",
+            "name": "lodash",
+            "version": "4.17.15"
+          },
+          "path": "package-lock.json",
+          "rule_id": "GHSA-35jh-r3h4-6jhm",
+          "severity": "critical",
+          "vulnerability_ids": [
+            "GHSA-35jh-r3h4-6jhm",
+            "CVE-2021-23337"
+          ]
+        },
+        {
+          "category": "dependency",
+          "check": "dependency-vulnerabilities",
+          "cwe": [],
+          "end_line": null,
+          "fixed_versions": [],
+          "line": null,
+          "message": "severity not reported",
+          "package": {
+            "ecosystem": "PyPI",
+            "name": "flask",
+            "version": "1.0"
+          },
+          "path": "requirements.txt",
+          "rule_id": "PYSEC-0000",
+          "severity": "unknown",
+          "vulnerability_ids": []
+        }
+      ],
+      "name": "dependency-vulnerabilities",
+      "notes": [
+        "1 lockfile(s) scanned"
+      ],
+      "status": "incomplete",
+      "tool": "osv-scanner 2.7.0",
+      "truncated_findings": 3
+    },
+    {
+      "detail": "node image not present locally",
+      "duration_s": 0.0,
+      "errors": [],
+      "findings": [],
+      "name": "javascript-syntax",
+      "notes": [],
+      "status": "unavailable",
+      "tool": "",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "disabled by options",
+      "duration_s": 0.0,
+      "errors": [],
+      "findings": [],
+      "name": "example-skipped",
+      "notes": [],
+      "status": "skipped",
+      "tool": "",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "tool exceeded 120s and was killed",
+      "duration_s": 0.0,
+      "errors": [],
+      "findings": [],
+      "name": "example-timeout",
+      "notes": [],
+      "status": "timeout",
+      "tool": "",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "no files",
+      "duration_s": 0.0,
+      "errors": [],
+      "findings": [],
+      "name": "example-not-applicable",
+      "notes": [],
+      "status": "not_applicable",
+      "tool": "",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "",
+      "duration_s": 0.5,
+      "errors": [],
+      "findings": [],
+      "name": "example-passed",
+      "notes": [],
+      "status": "passed",
+      "tool": "example 1.0",
+      "truncated_findings": 0
+    },
+    {
+      "detail": "tool exited with code 2",
+      "duration_s": 0.0,
+      "errors": [
+        "stderr: boom"
+      ],
+      "findings": [],
+      "name": "example-error",
+      "notes": [],
+      "status": "error",
+      "tool": "",
+      "truncated_findings": 0
+    }
+  ],
+  "complete": false,
+  "reasons": [
+    "workspace-sensitive-files: 1 finding(s) of severity high or critical",
+    "python-static-analysis: 1 finding(s) of severity high or critical",
+    "dependency-vulnerabilities: 1 finding(s) of severity high or critical",
+    "python-syntax: 1 finding(s) of severity medium, low or unknown",
+    "python-static-analysis: 1 finding(s) of severity medium, low or unknown",
+    "dependency-vulnerabilities: 1 finding(s) of severity medium, low or unknown",
+    "dependency-vulnerabilities: 3 further finding(s) not listed (cap reached)",
+    "dependency-vulnerabilities: incomplete - package.json: no npm lockfile; dependencies not scanned",
+    "javascript-syntax: unavailable - node image not present locally",
+    "example-skipped: skipped - disabled by options",
+    "example-timeout: timeout - tool exceeded 120s and was killed",
+    "example-error: error - tool exited with code 2",
+    "partial scan: 1 entr(y/ies) skipped (symlinks, special files or external hard links); 1 sensitive file(s) withheld"
+  ],
+  "schema_version": 1,
+  "verdict": "FAIL",
+  "workspace": {
+    "copied_bytes": 4096,
+    "copied_dirs": 2,
+    "copied_files": 9,
+    "entries_scanned": 12,
+    "skipped": [
+      {
+        "path": "link-to-etc",
+        "reason": "symlink"
+      }
+    ],
+    "withheld": [
+      {
+        "path": "deploy/id_rsa",
+        "reason": "private-key"
+      }
+    ]
+  }
+}

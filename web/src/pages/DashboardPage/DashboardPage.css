@@ -1,0 +1,7 @@
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.layout { flex: 1; display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 1.25rem; padding: 1.25rem 24px; max-width: 1180px; width: 100%; margin: 0 auto; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; padding: 1rem 16px; } }
+.empty-state p { color: var(--muted); }
+.status { display: flex; align-items: center; gap: .75rem; }
+.spin { width: 1.1rem; height: 1.1rem; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } } @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }

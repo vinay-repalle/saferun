@@ -1,0 +1,23 @@
+.flow { width: 100%; height: auto; overflow: visible; }
+.flow-box rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+.flow-iso { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.flow-inner { fill: var(--surface-2); stroke: var(--border); }
+.flow-line { stroke: var(--muted); stroke-width: 1.5; fill: none; } .flow-fill { fill: var(--muted); }
+.flow-cap { fill: var(--muted); font: 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.flow-mono { fill: var(--text); font: 11.5px var(--mono); } .flow-mono.flow-dim { fill: var(--muted); }
+.flow-mono.flow-ok { fill: var(--pass); } .flow-mono.flow-warn { fill: var(--warn); } .flow-mono.flow-bad { fill: var(--fail); }
+.flow-shield { fill: var(--glow); stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.flow-tick { fill: var(--accent); stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+
+/* motion: packets flow in, a scan sweeps the isolated box, the report cycles its three verdicts */
+.flow-pk { fill: var(--accent); opacity: 0; } .flow-hl { fill: var(--accent); opacity: 0; } .flow-scan { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .flow-pk { animation: flow-pk 1.8s linear infinite; } .flow-pk.pk-2 { animation-delay: .6s; } .flow-pk.pk-3 { animation-delay: 1.2s; }
+  .flow-scan { opacity: 1; animation: flow-scan 3.2s ease-in-out infinite alternate; }
+  .flow-shield { animation: flow-glow 2.4s ease-in-out infinite; }
+  .flow-hl { animation: flow-hl 6s ease-in-out infinite; } .flow-hl.hl-2 { animation-delay: 2s; } .flow-hl.hl-3 { animation-delay: 4s; }
+}
+@keyframes flow-pk { 0% { transform: translateX(0); opacity: 0; } 15%, 85% { opacity: 1; } 100% { transform: translateX(50px); opacity: 0; } }
+@keyframes flow-scan { from { transform: translateY(0); } to { transform: translateY(76px); } }
+@keyframes flow-glow { 50% { fill: rgb(91 155 255 / 38%); } }
+@keyframes flow-hl { 0%, 100% { opacity: 0; } 12%, 30% { opacity: .22; } 45% { opacity: 0; } }

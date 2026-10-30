@@ -1,0 +1,5 @@
+.faq-wrap { max-width: 860px; }
+.faq details { border-top: 1px solid var(--border); padding: 1.1rem 0; } .faq details:last-child { border-bottom: 1px solid var(--border); }
+.faq summary { cursor: pointer; font-weight: 600; font-size: 1.02rem; color: var(--text); list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+.faq summary::-webkit-details-marker { display: none; } .faq summary::after { content: "+"; color: var(--accent); font-family: var(--mono); }
+.faq details[open] summary::after { content: "−"; } .faq p { margin-top: .7rem; color: var(--muted); max-width: 70ch; }

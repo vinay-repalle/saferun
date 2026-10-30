@@ -1,0 +1,27 @@
+.em { overflow: visible; }
+.em path, .em circle { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.em .dim { stroke-opacity: .5; }
+.em .glow { fill: url(#em-glow); stroke: none; }
+.em .node { fill: var(--accent); stroke: none; }
+.em .core { fill: var(--accent); stroke: var(--accent); stroke-width: 3; filter: drop-shadow(0 0 10px rgb(91 155 255 / 70%)); }
+.em .vd { stroke: none; } .em .pass { fill: var(--pass); } .em .warn { fill: var(--warn); } .em .fail { fill: var(--fail); }
+.em .d { stroke-dasharray: 1; stroke-dashoffset: 0; } .em circle.d[stroke-dasharray] { stroke-dasharray: 1.4 6; }
+.em-scan { opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .em .d { stroke-dashoffset: 1; animation: em-draw 1.5s cubic-bezier(.6, 0, .2, 1) forwards; }
+  .em circle.d[stroke-dasharray] { stroke-dasharray: 1.4 6; stroke-dashoffset: 0; animation: em-fade 1.2s ease-out forwards; opacity: 0; }
+  .em .t1 { animation-delay: .1s; } .em .t2 { animation-delay: .5s; } .em .t3 { animation-delay: .9s; } .em .t4 { animation-delay: 1.2s; } .em .t5 { animation-delay: 1.5s; }
+  .em .node, .em .vd { opacity: 0; animation: em-pop .5s ease-out forwards; }
+  .em .n1 { animation-delay: 1.9s; } .em .n2 { animation-delay: 2.05s; } .em .n3 { animation-delay: 2.2s; } .em .vd { animation-delay: 2.4s; }
+  .em .core { opacity: 0; animation: em-pop .8s ease-out 1.7s forwards; transform-origin: 124px 140px; }
+  .em-ring { transform-origin: 120px 140px; animation: em-spin 50s linear infinite; }
+  .em-scan { animation: em-scan 3.6s ease-in-out 2.4s infinite; }
+  .em .node { animation-name: em-pop, em-blink; animation-duration: .5s, 3s; animation-iteration-count: 1, infinite; animation-delay: var(--nd, 1.9s), 3s; }
+}
+@keyframes em-draw { to { stroke-dashoffset: 0; } }
+@keyframes em-fade { to { opacity: 1; } }
+@keyframes em-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes em-blink { 50% { opacity: .45; } }
+@keyframes em-spin { to { transform: rotate(360deg); } }
+@keyframes em-scan { 0% { opacity: 0; transform: translateY(0); } 15%, 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(170px); } }

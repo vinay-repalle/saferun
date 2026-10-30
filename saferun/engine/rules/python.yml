@@ -1,0 +1,103 @@
+# SafeRun's own, small, local Python rule set. Passed to Semgrep with --config <this file>; no registry,
+# no network. It is a starting point, NOT a complete security ruleset: absence of findings proves nothing.
+# metadata.saferun_severity (critical|high|medium|low) is what SafeRun uses; `severity` is Semgrep's own.
+rules:
+  - id: saferun.python.dynamic-code-execution
+    languages: [python]
+    severity: ERROR
+    message: eval()/exec() runs dynamically built code; never pass untrusted data to it.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+    metadata: {saferun_severity: high, cwe: ["CWE-95"]}
+
+  - id: saferun.python.subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: subprocess call with shell=True is vulnerable to command injection; pass an argument list instead.
+    pattern-either:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+    metadata: {saferun_severity: high, cwe: ["CWE-78"]}
+
+  - id: saferun.python.os-command-execution
+    languages: [python]
+    severity: ERROR
+    message: os.system()/os.popen() run a shell command line; use subprocess with an argument list.
+    pattern-either:
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+    metadata: {saferun_severity: high, cwe: ["CWE-78"]}
+
+  - id: saferun.python.unsafe-deserialization
+    languages: [python]
+    severity: ERROR
+    message: pickle/marshal/shelve deserialization can execute arbitrary code; never load untrusted data with it.
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+      - pattern: marshal.loads(...)
+      - pattern: shelve.open(...)
+    metadata: {saferun_severity: high, cwe: ["CWE-502"]}
+
+  - id: saferun.python.yaml-unsafe-load
+    languages: [python]
+    severity: ERROR
+    message: yaml.load()/unsafe_load() can construct arbitrary objects; use yaml.safe_load().
+    patterns:
+      - pattern-either:
+          - pattern: yaml.load(...)
+          - pattern: yaml.unsafe_load(...)
+      - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)
+      - pattern-not: yaml.load(..., Loader=SafeLoader, ...)
+    metadata: {saferun_severity: high, cwe: ["CWE-502"]}
+
+  - id: saferun.python.tls-verification-disabled
+    languages: [python]
+    severity: ERROR
+    message: TLS certificate verification is disabled (verify=False).
+    pattern-either:
+      - pattern: requests.$FUNC(..., verify=False, ...)
+      - pattern: httpx.$FUNC(..., verify=False, ...)
+    metadata: {saferun_severity: high, cwe: ["CWE-295"]}
+
+  - id: saferun.python.weak-hash
+    languages: [python]
+    severity: WARNING
+    message: MD5/SHA-1 are broken for security purposes.
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    metadata: {saferun_severity: medium, cwe: ["CWE-327"]}
+
+  - id: saferun.python.insecure-tempfile
+    languages: [python]
+    severity: WARNING
+    message: tempfile.mktemp() is racy; use tempfile.mkstemp() or NamedTemporaryFile().
+    pattern: tempfile.mktemp(...)
+    metadata: {saferun_severity: medium, cwe: ["CWE-377"]}
+
+  - id: saferun.python.flask-debug
+    languages: [python]
+    severity: WARNING
+    message: Flask debug mode exposes an interactive debugger; do not enable it outside local development.
+    pattern: $APP.run(..., debug=True, ...)
+    metadata: {saferun_severity: medium, cwe: ["CWE-489"]}
+
+  - id: saferun.python.hardcoded-secret
+    languages: [python]
+    severity: WARNING
+    message: A credential-like variable is assigned a string literal; keep secrets out of source.
+    patterns:
+      - pattern: $NAME = "..."
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: (?i)^(.*_)?(password|passwd|secret|api_?key|token|private_key)$
+      - pattern-not: $NAME = ""
+    metadata: {saferun_severity: medium, cwe: ["CWE-798"]}
+
+  - id: saferun.python.assert-for-validation
+    languages: [python]
+    severity: INFO
+    message: assert statements are removed under python -O; do not rely on them for security checks.
+    pattern: assert $X
+    metadata: {saferun_severity: low, cwe: ["CWE-617"]}

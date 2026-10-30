@@ -1,0 +1,11 @@
+.eyebrow { text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; color: var(--muted); }
+.ok { color: var(--pass); font-weight: 600; } .bad { color: var(--fail); font-weight: 600; }
+.verdict { border-left: 6px solid var(--border); }
+.verdict-PASS, .verdict-pass { border-left-color: var(--pass); } .verdict-WARNING, .verdict-warning { border-left-color: var(--warn); } .verdict-FAIL, .verdict-fail { border-left-color: var(--fail); }
+.verdict-main { display: flex; gap: 1rem; align-items: center; }
+.verdict-icon { width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; font-weight: 700; background: var(--surface-2); }
+.verdict-pass .verdict-icon { background: var(--pass-bg); color: var(--pass); } .verdict-warning .verdict-icon { background: var(--warn-bg); color: var(--warn); } .verdict-fail .verdict-icon { background: var(--fail-bg); color: var(--fail); }
+.verdict-word { font-size: 1.9rem; font-weight: 800; letter-spacing: .02em; line-height: 1.1; }
+.reasons { margin: .25rem 0; padding-left: 1.2rem; } .reasons li { margin: .15rem 0; }
+
+.verdict-advice { margin: 0.4rem 0 0; font-weight: 600; }

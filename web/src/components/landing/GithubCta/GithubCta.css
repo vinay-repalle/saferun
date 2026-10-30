@@ -1,0 +1,4 @@
+.gh { display: flex; justify-content: space-between; align-items: center; gap: 2rem; flex-wrap: wrap; }
+.gh h2 { font-size: clamp(1.9rem, 3.4vw, 2.7rem); font-weight: 700; margin: 0; }
+.gh-card { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; border: 1px solid var(--border); padding: 1rem 1.2rem; background: var(--surface); }
+.gh-card code { font-size: 1rem; color: var(--text); }

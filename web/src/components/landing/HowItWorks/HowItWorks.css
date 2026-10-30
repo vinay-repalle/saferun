@@ -1,0 +1,7 @@
+.pipe { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); background: var(--bg); }
+.pipe li { padding: 1.8rem 1.5rem 2rem; position: relative; } .pipe li + li { border-left: 1px solid var(--border); }
+.pipe li + li::before { content: "→"; position: absolute; left: -.7rem; top: 1.6rem; background: var(--bg); color: var(--accent); width: 1.4rem; text-align: center; }
+.pipe-n { font: 600 .8rem var(--mono); color: var(--accent); }
+.pipe h3 { font-size: 1.15rem; margin: 1.6rem 0 .6rem; } .pipe p { color: var(--muted); font-size: .92rem; margin: 0; }
+@media (max-width: 1000px) { .pipe { grid-template-columns: 1fr 1fr; } .pipe li:nth-child(3) { border-left: 0; } .pipe li:nth-child(n+3) { border-top: 1px solid var(--border); } .pipe li:nth-child(3)::before { display: none; } }
+@media (max-width: 640px) { .pipe { grid-template-columns: 1fr; } .pipe li + li { border-left: 0; border-top: 1px solid var(--border); } .pipe li + li::before { display: none; } }

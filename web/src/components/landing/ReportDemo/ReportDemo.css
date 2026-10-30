@@ -1,0 +1,13 @@
+.demo { border: 1px solid var(--border); background: var(--surface); max-width: 880px; }
+.demo-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .8rem 1rem; border-bottom: 1px solid var(--border); }
+.demo-tag { font: 600 .74rem var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--warn); }
+.demo-tabs { display: flex; gap: .4rem; }
+.demo-tab { padding: .35rem .9rem; font: 600 .8rem var(--mono); background: transparent; color: var(--muted); }
+.demo-tab[aria-selected="true"].v-pass { background: var(--pass-bg); color: var(--pass); border-color: var(--pass); }
+.demo-tab[aria-selected="true"].v-warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+.demo-tab[aria-selected="true"].v-fail { background: var(--fail-bg); color: var(--fail); border-color: var(--fail); }
+.report { padding: 1.6rem; }
+.verdict { font: 700 1.5rem var(--mono); margin: 0; } .v-pass .verdict { color: var(--pass); } .v-warn .verdict { color: var(--warn); } .v-fail .verdict { color: var(--fail); }
+.report-note { color: var(--muted); margin: .3rem 0 1.2rem; }
+.s-passed { color: var(--pass); } .s-findings { color: var(--fail); } .s-unavailable { color: var(--warn); }
+@media (max-width: 640px) { .report table { display: block; overflow-x: auto; } }

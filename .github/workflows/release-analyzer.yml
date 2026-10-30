@@ -1,0 +1,203 @@
+# Builds the SafeRun analyzer image, pushes it to ghcr.io and signs it with cosign (keyless, GitHub OIDC). Phase 5E.
+#
+# Triggered ONLY by pushing a tag `analyzer-v<number>[.<number>...]` whose commit is on main. The tag name is part of the signer
+# identity that `saferun init` demands (saferun/sandbox/images.py: ANALYZER_SIGNER_IDENTITY_REGEXP), so a branch, a pull request or a
+# renamed workflow produces a signature SafeRun refuses. The workflow prints the pushed manifest DIGEST: record it in
+# ANALYZER_RELEASE (saferun/sandbox/images.py) in a reviewed commit; nothing updates the digest automatically.
+#
+# The image is built from the same recipe as docker/analyzer/build.sh (base image by digest, hash-locked Semgrep wheels,
+# checksum-verified OSV-Scanner, rules checked against RULES_SHA256). tests/test_release_signature.py checks this file against images.py.
+#
+# Order, on purpose: build locally (NOT pushed) -> smoke-test that exact image -> log in to ghcr.io -> push that same image -> sign its digest
+# -> verify with SafeRun's identity expression -> check that a wrong identity is refused. Nothing is published unless every earlier step passed,
+# and the registry login happens only after the tests. Signatures made by any other repository or workflow (including the repository this
+# project was copied from) do not satisfy the identity expression and are never trusted.
+name: release-analyzer
+
+on:
+  push:
+    tags: ["analyzer-v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-analyzer
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/vinay-repalle/saferun-analyzer
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write      # push to ghcr.io
+      id-token: write      # keyless cosign signing (GitHub OIDC token)
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the tag name and that its commit is on main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          printf '%s' "$TAG" | grep -Eq '^analyzer-v[0-9]+(\.[0-9]+)*$' || { echo "tag '$TAG' is not analyzer-v<number>[.<number>...]" >&2; exit 1; }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "tag commit is not on main" >&2; exit 1; }
+
+      - name: Stage the build context (same files as docker/analyzer/build.sh)
+        id: ctx
+        run: |
+          set -eu
+          ctx="$RUNNER_TEMP/analyzer-ctx"
+          mkdir "$ctx"
+          cp docker/analyzer/Dockerfile docker/analyzer/fetch_verified.py docker/analyzer/semgrep-requirements.txt saferun/engine/rules/python.yml "$ctx/"
+          echo "path=$ctx" >> "$GITHUB_OUTPUT"
+          echo "rules_sha=$(sha256sum "$ctx/python.yml" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2  # v3.10.0
+
+      - name: Build the image locally (not pushed yet)
+        id: build
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4  # v6.15.0
+        with:
+          context: ${{ steps.ctx.outputs.path }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          build-args: RULES_SHA256=${{ steps.ctx.outputs.rules_sha }}
+          tags: ${{ env.IMAGE }}:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Smoke-test the exact image that will be published
+        env:
+          TAG: ${{ github.ref_name }}
+          RULES_SHA: ${{ steps.ctx.outputs.rules_sha }}
+        run: |
+          set -eu
+          img="$IMAGE:$TAG"
+          pins=$(python3 -c 'import sys; sys.path.insert(0,"."); from saferun.sandbox import images as i; print(i.SEMGREP_VERSION, i.OSV_SCANNER_VERSION)')
+          semgrep_v=${pins%% *}
+          osv_v=${pins##* }
+          # Same restrictions SafeRun applies when it runs the analyzer: no network, read-only root, no capabilities, non-root.
+          run() { docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --user 65534:65534 \
+                    --memory 1g --pids-limit 256 --tmpfs /tmp:rw,noexec,nosuid,size=64m -e HOME=/tmp "$@"; }
+          for pair in "saferun.analyzer=1" "saferun.semgrep.version=$semgrep_v" "saferun.osv-scanner.version=$osv_v" "saferun.rules.sha256=$RULES_SHA"; do
+            key=${pair%%=*}; want=${pair#*=}
+            got=$(docker image inspect --format "{{index .Config.Labels \"$key\"}}" "$img")
+            [ "$got" = "$want" ] || { echo "label $key is '$got', expected '$want'" >&2; exit 1; }
+          done
+          [ "$(docker image inspect --format '{{.Config.User}}' "$img")" = "65534:65534" ] || { echo "the image does not default to the unprivileged user" >&2; exit 1; }
+          [ "$(run "$img" semgrep --version)" = "$semgrep_v" ] || { echo "semgrep version mismatch" >&2; exit 1; }
+          run "$img" osv-scanner --version | grep -q "osv-scanner version: $osv_v" || { echo "osv-scanner version mismatch" >&2; exit 1; }
+          [ "$(run "$img" sha256sum /opt/saferun/rules/python.yml | cut -d' ' -f1)" = "$RULES_SHA" ] || { echo "baked rules differ from the repository rules" >&2; exit 1; }
+          # The container must have no network.
+          if run "$img" python -c 'import socket; socket.create_connection(("1.1.1.1", 53), 3)' >/dev/null 2>&1; then
+            echo "the analyzer container could reach the network" >&2; exit 1
+          fi
+          # A real (tiny) scan with the baked rules must produce valid JSON that names the scanned file.
+          proj=$(mktemp -d); chmod 0755 "$proj"
+          printf 'import subprocess\nsubprocess.run("ls", shell=True)\n' > "$proj/sample.py"; chmod 0644 "$proj/sample.py"
+          run -v "$proj:/work:ro" "$img" semgrep scan --json --quiet --metrics=off --disable-version-check --no-git-ignore \
+              --config /opt/saferun/rules/python.yml /work > "$RUNNER_TEMP/semgrep.json"
+          python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert "/work/sample.py" in d["paths"]["scanned"], d["paths"]' "$RUNNER_TEMP/semgrep.json"
+          echo "smoke test passed for $img"
+
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772  # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the tested image and read back its digest
+        id: push
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          docker push "$IMAGE:$TAG"
+          digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE:$TAG" | grep "^$IMAGE@" | head -n 1 | cut -d@ -f2)
+          printf '%s' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$' || { echo "unexpected digest '$digest'" >&2; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb  # v3.8.2
+        with:
+          cosign-release: v2.4.3
+
+      - name: Sign the pushed digest (keyless)
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -eu
+          printf '%s' "$DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$' || { echo "unexpected digest '$DIGEST'" >&2; exit 1; }
+          cosign sign --yes "$IMAGE@$DIGEST"
+
+      - name: Verify with the exact identity expression SafeRun will use
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -eu
+          regexp=$(python3 -c 'import re,sys; sys.path.insert(0,"."); from saferun.sandbox.images import ANALYZER_SIGNER_IDENTITY_REGEXP as r; print(r)')
+          cosign verify \
+            --certificate-identity-regexp "$regexp" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$IMAGE@$DIGEST" > /dev/null
+
+      - name: Check that a wrong signer identity is refused (fails closed)
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -u
+          if cosign verify \
+               --certificate-identity-regexp '^https://github\.com/not-this-owner/not-this-repo/.*$' \
+               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+               "$IMAGE@$DIGEST" > /dev/null 2>&1; then
+            echo "cosign accepted an identity it must refuse" >&2
+            exit 1
+          fi
+          echo "wrong identity refused, as required"
+
+      - name: Report an image that was pushed but not fully verified
+        if: ${{ failure() && steps.push.outcome == 'success' }}
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          {
+            echo "### WARNING: pushed but NOT signed and verified"
+            echo
+            echo "A step after the push failed. \`$IMAGE:$TAG\` exists in the registry without a verified signature."
+            echo "SafeRun refuses unsigned images. Do NOT record it in ANALYZER_RELEASE. Delete this package version in GitHub (Packages -> saferun-analyzer -> versions), fix the cause, and use a NEW tag."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Print what to record in ANALYZER_RELEASE
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          {
+            echo "### Analyzer image published and signed"
+            echo
+            echo "Record this in \`saferun/sandbox/images.py\` in a reviewed commit (rules must be unchanged since this tag):"
+            echo
+            echo '```python'
+            echo "ANALYZER_RELEASE = AnalyzerRelease(ANALYZER_REGISTRY_REPOSITORY, \"$DIGEST\", \"$(date -u +%F)\")"
+            echo '```'
+            echo
+            echo "Reference: \`$IMAGE@$DIGEST\` (tag \`${{ github.ref_name }}\`, commit \`${{ github.sha }}\`)"
+            echo "Check from any machine: \`saferun verify-images --signature\` (after recording it)."
+            echo
+            echo "Manual check without SafeRun (cosign 2.2 or newer):"
+            echo '```sh'
+            echo "cosign verify --certificate-identity-regexp '^https://github\\.com/${{ github.repository }}/\\.github/workflows/release-analyzer\\.yml@refs/tags/analyzer-v[0-9]+(\\.[0-9]+)*\$' --certificate-oidc-issuer https://token.actions.githubusercontent.com $IMAGE@$DIGEST"
+            echo '```'
+            echo "The package is private until you make it public once (docs/release-images.md, step 3)."
+          } >> "$GITHUB_STEP_SUMMARY"

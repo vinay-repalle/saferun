@@ -1,0 +1,24 @@
+{
+  "name": "saferun-web",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "SafeRun local dashboard (React + Vite, plain JavaScript; secondary interface, the CLI is the primary product)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@vitejs/plugin-react": "6.1.2",
+    "jsdom": "30.1.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

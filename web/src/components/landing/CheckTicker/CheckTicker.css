@@ -1,0 +1,10 @@
+.tick { overflow: hidden; border-bottom: 1px solid var(--border); background: var(--surface); }
+.tick-track { display: flex; width: max-content; }
+.tick-row { display: flex; flex: none; margin: 0; padding: 0; list-style: none; }
+.tick-row li { padding: .8rem 2rem; font: .78rem var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+.tick-ok { color: var(--pass); margin-right: .6rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .tick-track { animation: tick 38s linear infinite; } .tick:hover .tick-track { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: reduce) { .tick-track { width: auto; flex-wrap: wrap; } .tick-row[aria-hidden] { display: none; } }
+@keyframes tick { to { transform: translateX(-33.3333%); } }

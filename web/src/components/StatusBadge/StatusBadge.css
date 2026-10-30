@@ -1,0 +1,3 @@
+.st-passed, .st-not_applicable { color: var(--pass); background: var(--pass-bg); border-color: transparent; } .st-not_applicable { color: var(--muted); background: var(--surface-2); }
+.st-findings { color: var(--fail); background: var(--fail-bg); border-color: transparent; }
+.st-incomplete, .st-error, .st-timeout, .st-unavailable, .st-skipped { color: var(--warn); background: var(--warn-bg); border-color: transparent; }

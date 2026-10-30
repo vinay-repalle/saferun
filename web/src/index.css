@@ -1,0 +1,46 @@
+/* Global styles only: design tokens, reset, typography and primitives shared by several components
+   (.card, .card-head, .stack, buttons, tables, .badge, severity colours, .kpis, .notice, .error, details).
+   Everything specific to one component lives in that component's folder next to its .tsx file. */
+:root {
+  /* One dark theme for the whole site: website, dashboard and guide. */
+  --bg: #070b12; --surface: #0d1420; --surface-2: #101a29; --border: #1c2840; --text: #e8edf6; --muted: #8b98ae;
+  --accent: #5b9bff; --accent-ink: #06101f; --glow: rgb(91 155 255 / 18%); --shadow: none;
+  --pass: #4fd18b; --pass-bg: #0e2a1d; --warn: #f0b24a; --warn-bg: #2f240c; --fail: #ff7b72; --fail-bg: #331412;
+  --crit: #f08ad0; --info: #7fb0e6; --radius: 6px;
+  --sans: "Inter", "Segoe UI Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); overflow-x: clip; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+h1, h2, h3 { line-height: 1.2; letter-spacing: -.01em; margin: 0 0 .5rem; } h1 em, h2 em { font-style: italic; font-weight: 500; color: var(--accent); } h2 { font-size: 1.05rem; } h3 { font-size: .95rem; margin-top: 1rem; }
+code { font-family: var(--mono); font-size: .86em; } p { margin: .35rem 0; }
+.muted { color: var(--muted); } .small { font-size: .85rem; } .fine { font-size: .8rem; color: var(--muted); }
+.stack { display: grid; gap: 1rem; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; box-shadow: var(--shadow); min-width: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: .5rem; } .card-head h2 { margin: 0; }
+button { font: inherit; padding: .45rem .9rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); } button:disabled { opacity: .55; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.link { border: 0; background: none; color: var(--accent); padding: .6rem 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.notice { background: var(--surface-2); border-left: 3px solid var(--accent); padding: .5rem .7rem; border-radius: 4px; font-size: .85rem; margin: .6rem 0 0; }
+.notice.warn { border-color: var(--warn); background: var(--warn-bg); }
+.kpis { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: .9rem 0 0; } .kpis > div { min-width: 7rem; } .kpis dt { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; } .kpis dd { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.scroll { overflow-x: auto; } table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: .45rem .6rem; border-bottom: 1px solid var(--border); }
+td { padding: .55rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; } tr:last-child td { border-bottom: 0; }
+.num { text-align: right; white-space: nowrap; }
+.badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); white-space: nowrap; }
+.sev-critical { color: var(--crit); } .sev-high { color: var(--fail); } .sev-medium, .sev-unknown { color: var(--warn); } .sev-low { color: var(--info); } .sev-info { color: var(--muted); }
+.error { border-left: 4px solid var(--fail); }
+details > summary { cursor: pointer; color: var(--accent); font-size: .85rem; }
+
+/* shared page primitives (website, dashboard and guide) */
+.wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 24px; } @media (max-width: 640px) { .wrap { padding: 0 16px; } }
+.btn { display: inline-flex; align-items: center; gap: .4rem; padding: .7rem 1.2rem; border-radius: 6px; font-size: .95rem; font-weight: 600; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
+.btn:hover { text-decoration: none; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); } .btn-primary:hover { background: #7cb0ff; border-color: #7cb0ff; }
+.btn-ghost { background: transparent; color: var(--text); } .btn-ghost:hover { border-color: var(--accent); }
+.btn-primary:hover { box-shadow: 0 0 0 4px var(--glow); }

@@ -1,0 +1,5 @@
+.feat { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+.feat > div { padding: 1.8rem; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg); }
+.feat h3 { font-size: 1.05rem; margin-bottom: .6rem; } .feat p { color: var(--muted); font-size: .92rem; margin: 0; }
+@media (max-width: 1000px) { .feat { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .feat { grid-template-columns: 1fr; } }
