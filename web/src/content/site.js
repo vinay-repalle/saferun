@@ -22,7 +22,7 @@ export const REQUIREMENTS = [
   ['Python', '3.12 or newer, with venv and pip.'],
   ['Docker', 'A local Docker Engine that your user can reach, with memory, swap, pids and CPU limits and seccomp enabled. Remote Docker endpoints are refused. Docker Desktop is not tested.'],
   ['Cosign', 'Not needed today: the analyzer is built locally. Cosign 2.2 or newer on your PATH will be needed only after we publish our own signed analyzer release, to verify its signature. SafeRun does not install it for you.'],
-  ['Internet', 'Only for setup (Docker Hub, the local analyzer build, which downloads from PyPI and GitHub, and the OSV download). Scans never use the network. A future signed release would also need ghcr.io and sigstore.dev.'],
+  ['Internet', 'Only for setup (Docker Hub, the local analyzer build, which fetches packages from PyPI and GitHub, and the OSV data). Scans never use the network. A future signed release would also need ghcr.io and sigstore.dev.'],
   ['Disk space', 'About 1.5 GB for images and vulnerability data.'],
 ]
 export const requirement = (name) => REQUIREMENTS.find(([n]) => n === name)[1]

@@ -28,4 +28,3 @@ failed container run is `error`. None of these is ever clean and none falls back
 **Not implemented (deferred):** npm/pip dependency *installation* and test execution (needs a separate network-enabled step),
 JavaScript test runners, Semgrep rules for JavaScript, transitive resolution (requirements.txt and manifests without lockfiles),
 per-scan online OSV queries (removed on purpose in Phase 5B).
-

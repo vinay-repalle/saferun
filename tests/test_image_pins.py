@@ -117,7 +117,14 @@ def test_real_docker_refuses_a_wrong_digest_and_creates_nothing(tmp_path):
 def test_real_docker_runs_the_pinned_image(tmp_path):
     (tmp_path / "main.py").write_text("print('pinned')\n")
     r = run_sandboxed(tmp_path, ["python", "-I", "main.py"], image=PYTHON.image)
-    assert r.exit_code == 0 and r.image_id == PY.digest and "pinned" in r.stdout
+    assert r.exit_code == 0 and "pinned" in r.stdout
+    # What `docker image inspect .Id` returns depends on the daemon's image store: the manifest digest with the containerd store, the config digest with
+    # the classic overlay2 store (GitHub-hosted runners). So the run must use the image Docker reports as the pinned one, and the PINNED digest itself
+    # is proven separately through RepoDigests, which is store-independent.
+    ident = dk.docker("image", "inspect", "--format", "{{.Id}}", PYTHON.image).stdout.strip()
+    assert r.image_id == ident
+    have = dk.docker("image", "inspect", "--format", "{{json .RepoDigests}}", PYTHON.image).stdout.strip()
+    assert PY.digest in images.repo_digests(have)
 
 
 # --- verify_images ---
