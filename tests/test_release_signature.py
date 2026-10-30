@@ -262,6 +262,14 @@ def test_workflow_stages_the_same_files_as_build_sh(wf):
     for name in ("Dockerfile", "fetch_verified.py", "semgrep-requirements.txt", "python.yml"):
         assert name in wf and name in sh
     assert "RULES_SHA256=" in wf and "RULES_SHA256=" in sh
+    # third-party notices and license texts are staged by both, and copied into the image by the Dockerfile
+    for name in ("THIRD_PARTY_NOTICES.md", "licenses"):
+        assert name in wf and name in sh
+    df = (ROOT / "docker" / "analyzer" / "Dockerfile").read_text()
+    assert "/usr/share/doc/saferun-analyzer/THIRD_PARTY_NOTICES.md" in df and "/usr/share/doc/saferun-analyzer/licenses/" in df
+    lic = ROOT / "docker" / "analyzer" / "licenses"
+    assert (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").stat().st_size > 1000
+    assert "Apache License" in (lic / "osv-scanner-v2.7.0-LICENSE").read_text() and "GNU LESSER GENERAL PUBLIC LICENSE" in (lic / "semgrep-LICENSE").read_text()
 
 
 # ------------------------------------------------------------------------------------------ command line

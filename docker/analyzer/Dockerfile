@@ -28,6 +28,11 @@ RUN test -n "${RULES_SHA256}" \
  && echo "${RULES_SHA256}  /opt/saferun/rules/python.yml" | sha256sum -c - \
  && chmod 0555 /opt/saferun /opt/saferun/rules && chmod 0444 /opt/saferun/rules/python.yml
 
+# Licenses and notices of the redistributed third-party software (Semgrep, OSV-Scanner, Python packages): see THIRD_PARTY_NOTICES.md.
+COPY THIRD_PARTY_NOTICES.md /usr/share/doc/saferun-analyzer/THIRD_PARTY_NOTICES.md
+COPY licenses/ /usr/share/doc/saferun-analyzer/licenses/
+RUN chmod -R a=rX /usr/share/doc/saferun-analyzer
+
 LABEL saferun.analyzer="1" \
       saferun.semgrep.version="${SEMGREP_VERSION}" \
       saferun.osv-scanner.version="${OSV_SCANNER_VERSION}" \

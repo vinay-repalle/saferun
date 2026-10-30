@@ -69,15 +69,17 @@ cosign verify \
 ```
 Build reproducibility: the inputs are pinned (base image digest, hash-locked Semgrep wheels, checksum-verified OSV-Scanner, rules hash), but the image is **not bit-for-bit reproducible** (layer and config timestamps differ between builds). The digest you record identifies the one image that was tested, pushed and signed.
 
-### Third-party software in the analyzer image (review before the first publish)
-Publishing the image **redistributes** other people's software. No license or NOTICE file has been added yet (owner decision pending). Before the first publish, settle the following; this list was assembled from the build recipe and from memory of upstream licenses, and must be confirmed against each package's own metadata (`*.dist-info/METADATA`, upstream repositories) for the pinned versions:
-* **Base image** `python:3.12-slim` (Debian + CPython): Debian packages carry their own licenses (some GPL/LGPL) with copyright files under `/usr/share/doc`; CPython is under the PSF license. Both stay in the image unmodified; source for Debian packages is available from Debian.
-* **Semgrep** (`semgrep==1.182.1`, includes the `semgrep-core` binary): LGPL-2.1. Redistribution requires keeping its license text and notices and making the corresponding source obtainable (upstream `github.com/semgrep/semgrep`, same version tag). SafeRun does not modify it or link it into its own code. SafeRun uses only its own rules (`saferun/engine/rules/python.yml`); the separately licensed Semgrep Registry rules are **not** included.
-* **OSV-Scanner** (`2.7.0`, one Go binary): Apache-2.0. Redistribution requires giving recipients a copy of the license (and any upstream NOTICE text). The Dockerfile currently installs only the binary, so its license text is **not** in the image; add it (or a NOTICE) before publishing. The binary also statically contains Go dependencies under their own licenses.
-* **Semgrep's Python dependencies** (66 hash-locked wheels, see `semgrep-requirements.txt`): mostly MIT/BSD/Apache-2.0 (for example opentelemetry, pydantic, requests, rich, jsonschema); `certifi` is MPL-2.0; `cryptography` is Apache-2.0 or BSD. Each wheel ships its license file under `dist-info`, which stays in the image.
-* **OSV data** is not in the image (users download it), but if you ever redistribute it, check the OSV/database attribution terms.
-* The image labels do not yet carry `org.opencontainers.image.licenses`; set it after the license decision.
-Recommended before publishing: choose SafeRun's license, add a `NOTICE`/third-party-licenses file covering the items above, copy the OSV-Scanner license into the image from its verified release, and have the final list checked against the actual image contents (for example by listing `dist-info` license files). This is not legal advice.
+### Third-party software in the analyzer image
+Publishing the image **redistributes** other people's software. The inventory, the license texts that must travel with it, and the verification behind them are in
+`docker/analyzer/THIRD_PARTY_NOTICES.md` and `docker/analyzer/licenses/`; the Dockerfile copies them into the image under `/usr/share/doc/saferun-analyzer/`, and the release workflow's smoke test fails if they are missing.
+* Semgrep (LGPL-2.1-or-later) and OSV-Scanner (Apache-2.0) license texts are included. Their upstream sources are the corresponding-source references. See the notices file for exactly which upstream files were used and how they were checked.
+* The Python packages installed with Semgrep keep their own license files in their `dist-info` directories.
+* **Open items:** (1) SafeRun's own license and copyright holder are an owner decision and are not added yet; (2) the Go modules statically linked into the OSV-Scanner binary are not enumerated; (3) the Semgrep LICENSE text came from upstream's default branch because the 1.182.1 tag could not be located. This is not legal advice.
+
+### Version and tag strategy
+* The tag sequence `analyzer-v<n>` versions the **analyzer image only**. It is independent of the SafeRun package version in `pyproject.toml` (`0.0.1`).
+* `analyzer-v1.0.0` was built before the license texts were added to the image, so its image does **not** contain them. Tags are never moved or re-created: keep that package private, and publish the image that contains the notices as a **new tag** (next free number, for example `analyzer-v1.0.1`), record that digest in `ANALYZER_RELEASE`, and only then make the package public.
+* Recording the digest and releasing are separate commits: the tag is created first from `main`, the digest is recorded afterwards in a reviewed commit.
 
 ## What this does and does not give
 * The digest pins the exact bytes; the signature says those bytes were produced by this repository's release workflow from a tag, recorded in the public Sigstore transparency log. Someone who edits
