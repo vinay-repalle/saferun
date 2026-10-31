@@ -1,4 +1,4 @@
-# Platform support (Phase 1 status)
+# Platform support (status)
 
 SafeRun runs untrusted code only inside a Linux container, so **every platform needs a local Docker that runs Linux containers**.
 Installing SafeRun does not install Docker.
@@ -6,11 +6,36 @@ Installing SafeRun does not install Docker.
 | Platform | Docker you need | SafeRun host code | Evidence in this repository |
 |---|---|---|---|
 | Linux (x86-64) | Docker Engine, cgroup limits + seccomp | unchanged POSIX implementation | full test suite **including 101 Docker tests**, run locally (Ubuntu) and in CI |
-| macOS (Apple Silicon and Intel) | Docker Desktop (Linux containers) | the same POSIX implementation | unit tests on `macos-14` (arm64) and `macos-15-intel` in CI (Intel leg advisory). **Docker integration not verified.** |
-| Windows 10/11 | Docker Desktop, **Linux containers mode** (WSL 2 or Hyper-V backend) | native Windows implementation, no WSL needed for SafeRun itself | unit and NTFS tests on `windows-2022` in CI. **Docker integration not verified.** |
+| macOS (Apple Silicon and Intel) | Docker Desktop (Linux containers) | the same POSIX implementation | non-Docker tests **passed** on `macos-14` (arm64) and `macos-15-intel` in CI (the Intel leg is advisory in the workflow). **Docker Desktop integration not verified.** |
+| Windows 10/11 | Docker Desktop, **Linux containers mode** (WSL 2 or Hyper-V backend) | native Windows implementation, no WSL needed for SafeRun itself | non-Docker unit, security and NTFS tests **passed** on `windows-2022` in CI. **Docker Desktop integration not verified.** |
 
-"Verified" means a test that ran. This phase was developed on Linux; the Windows code could not be executed by its author before CI, and
-nothing below should be read as a claim until the Windows and macOS CI jobs (and the manual checklist) have passed.
+"Verified" means a test that ran. The Windows code was written on Linux and first executed in CI. CI results are evidence for the
+behaviours the tests exercise on GitHub's runner images; they do not prove every real-machine scenario (other Windows editions, file
+systems, antivirus or backup software holding files open, unusual ACLs, other macOS versions). The manual checklist
+([platform-test-checklist.md](platform-test-checklist.md)) is still required on a real Docker Desktop machine.
+
+## CI results (commit `257f7aa`, all 8 jobs passed)
+| Job | Result |
+|---|---|
+| Linux (Ubuntu): full test suite | passed |
+| Linux (Ubuntu): Docker sandbox and analyzer integration tests | passed |
+| Windows (`windows-2022`): native unit and security tests, Docker tests excluded | passed |
+| macOS (`macos-14`, Apple Silicon): tests, Docker tests excluded | passed |
+| macOS (`macos-15-intel`): tests, Docker tests excluded | passed |
+| Website tests and build | passed |
+| Package build and inspection | passed |
+| Dependency audit | passed |
+
+On Windows the native tests cover, among others: junctions, symlinks, hard links and alternate data streams; reserved device names and
+long paths; ACL-based private-file withholding; the analyzer-lock trust rules; the workspace reaper; process-tree termination through job
+objects; Docker endpoint and mount-path validation; and the NTFS sharing behaviour described below. Test modules that exercise the POSIX
+implementation itself (`fcntl` locks, `O_NOFOLLOW`/`dir_fd` copy, permission bits, uid ownership) and the Docker-dependent modules are
+skipped on Windows; their Windows equivalents are in `tests/test_windows_native.py`, `tests/test_copy_windows_engine.py` and
+`tests/test_hostos_acl.py`.
+
+**Not verified by any CI job:** running the sandbox or the analyzer through Docker Desktop on Windows or macOS (GitHub's Windows and macOS
+runners have no Linux Docker daemon), the bind mount of a Windows/macOS path into a Linux container, the `docker info` capability fields as
+reported by Docker Desktop's VM, and behaviour on a real developer machine.
 
 ## What GitHub's runners can and cannot show
 Windows and macOS runners have no Linux Docker daemon, so the sandbox and analyzer tests are skipped there (the CI summary says so). To
@@ -42,7 +67,7 @@ The local analyzer build is now `docker/analyzer/build.py` (`build.sh` just runs
 | Other reparse points (junctions, mount points, cloud placeholders) | n/a | skipped, reported as `reparse-point` |
 | Alternate data streams | n/a | entry skipped, reported as `alternate-data-stream` (the benign `Zone.Identifier` mark is ignored and never copied) |
 | Race detection | 3 passes: signature (type, mode, dev, ino, size, mtime, ctime) + directory listings | 3 passes: signature (type, attributes, 128-bit file id + volume, size, LastWrite, ChangeTime, link count) + listings |
-| Race *prevention* | none (detection only) | directories and files are held open without rename/delete/write sharing; **to be confirmed by the NTFS tests in CI** |
+| Race *prevention* | none (detection only) | directories and files are held open without rename/delete/write sharing. The native NTFS tests on `windows-2022` confirm that an open directory (and its ancestors) cannot be renamed or deleted and that a file being read cannot be written or deleted; adding or removing entries in a directory stays possible and is caught by the three-pass comparison. Tested on the GitHub runner's NTFS only |
 | Hard links with outside names | link count vs names seen | same (`nlink` vs names seen) |
 | Private-file withholding | "not world-readable" (mode bits) | **different rule:** withheld unless every principal that can read the project root can also read the file (real token + groups, deny ACEs, inheritance). Unreadable/unparseable ACLs, conditional/object ACEs: withheld |
 | Credential-signature scan | yes | yes (identical) |
@@ -56,7 +81,7 @@ private-file rule is a *relative* heuristic (a project whose files are all equal
 with `honor_private_modes=False`, but here without a switch); `ChangeTime` behaviour on every file system is not guaranteed (FAT/exFAT, network
 shares are refused or weaker); Windows containers mode is refused.
 
-## Docker Desktop caveats (unverified until tested on real machines)
+## Docker Desktop caveats (unverified: CI cannot test them)
 * `docker info` capability fields (`MemoryLimit`, `SwapLimit`, `PidsLimit`, `CpuCfsQuota`, seccomp) as reported by Docker Desktop's VM may differ from
   a Linux host. SafeRun treats them as required and refuses to run if they are missing; it will not be loosened without real output.
 * Bind mounts go through Docker Desktop file sharing; ownership and modes inside the container may differ from Linux. The container user is

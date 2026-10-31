@@ -1,6 +1,6 @@
 # Manual verification on a real Docker Desktop machine (Windows or macOS)
 
-CI cannot run Linux containers on Windows/macOS runners, so run this once per platform and record the result in the pull request.
+CI cannot run Linux containers on Windows/macOS runners (the native Windows and macOS test jobs passed, but they exclude every Docker test), so run this once per platform and record the result in the pull request. Until then Docker Desktop integration on Windows and macOS is unverified.
 Windows: use both PowerShell and Command Prompt for steps 1-4. Replace the python launcher as needed.
 
 1. `docker version` shows a Server with `OS/Arch: linux/...`; `docker info --format "{{.OSType}}"` prints `linux`.

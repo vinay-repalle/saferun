@@ -114,28 +114,36 @@ class WinOps:
             _win.close(h)
 
     def _check_path(self, d: WinNode, name: str, h: int) -> str:
+        """Final path of the open handle `h`. Raises without closing `h`: the caller owns it and closes it on any failure."""
         final = _win.final_path(h)
         if _norm(final) != _norm(d.final.rstrip("\\") + "\\" + name):
-            _win.close(h)
             raise EntryReplaced(f"{name} is not located where its directory says")
         return final
 
     def open_dir(self, d: WinNode, name: str) -> WinNode:
         h = _win.open_handle(self._child(d, name), _win.FILE_LIST_DIRECTORY | _win.FILE_READ_ATTRIBUTES | _win.READ_CONTROL, _win.SHARE_READ,
                              flags=_win.FLAG_BACKUP_SEMANTICS | _win.FLAG_OPEN_REPARSE_POINT)
-        final = self._check_path(d, name, h)
-        return WinNode(self._child(d, name), _mk_info(h, None, False), handle=h, final=final)
+        try:
+            final = self._check_path(d, name, h)
+            return WinNode(self._child(d, name), _mk_info(h, None, False), handle=h, final=final)
+        except BaseException:
+            _win.close(h)
+            raise
 
     def open_file(self, d: WinNode, name: str) -> WinNode:
         h = _win.open_handle(self._child(d, name), _win.GENERIC_READ | _win.FILE_READ_ATTRIBUTES, _win.SHARE_READ,
                              flags=_win.FLAG_OPEN_REPARSE_POINT)
-        final = self._check_path(d, name, h)
         try:
+            final = self._check_path(d, name, h)
             fd = msvcrt.open_osfhandle(h, os.O_RDONLY | os.O_BINARY | os.O_NOINHERIT)
         except BaseException:
             _win.close(h)
             raise
-        return WinNode(self._child(d, name), _mk_info(h, None, False), fd=fd, final=final)
+        try:   # from here the descriptor owns the handle
+            return WinNode(self._child(d, name), _mk_info(h, None, False), fd=fd, final=final)
+        except BaseException:
+            os.close(fd)
+            raise
 
     def refresh(self, node: WinNode) -> Info:
         h = node.handle if node.handle is not None else msvcrt.get_osfhandle(node.fd)

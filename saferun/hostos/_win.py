@@ -166,11 +166,14 @@ def stream_names(path: str) -> list[str]:
         raise oserror(err)
     try:
         names = [data.name]
-        while FindNextStreamW(h, ctypes.byref(data)):
-            names.append(data.name)
-        if ctypes.get_last_error() not in (0, ERROR_HANDLE_EOF):   # enumeration ended on an error, not at the end
-            pass
-        return names
+        while True:
+            if FindNextStreamW(h, ctypes.byref(data)):
+                names.append(data.name)
+                continue
+            err = ctypes.get_last_error()
+            if err != ERROR_HANDLE_EOF:   # enumeration ended on an error, not at the end: the list may be incomplete, so fail closed
+                raise oserror(err)
+            return names
     finally:
         FindClose(h)
 

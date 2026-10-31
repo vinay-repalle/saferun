@@ -131,6 +131,49 @@ def test_alternate_data_streams_are_reported_but_zone_identifier_is_not_a_reason
         ws.cleanup()
 
 
+def test_stream_enumeration_that_ends_on_an_error_raises_and_the_file_is_skipped(proj, ws_root, monkeypatch):
+    real = _win.FindNextStreamW
+    calls = {"n": 0}
+
+    def failing(handle, data):
+        calls["n"] += 1
+        ctypes.set_last_error(5)   # ERROR_ACCESS_DENIED
+        return 0
+    with open(str(proj / "a.py") + ":payload", "w") as f:
+        f.write("hidden")
+    monkeypatch.setattr(_win, "FindNextStreamW", failing)
+    with pytest.raises(OSError):
+        _win.stream_names(str(proj / "a.py"))
+    ws = create_workspace(proj)   # the copy engine turns that into a skipped file, never a copied one
+    try:
+        assert reasons(ws)["a.py"] == "unreadable" and not (ws.project / "a.py").exists()
+    finally:
+        ws.cleanup()
+    monkeypatch.setattr(_win, "FindNextStreamW", real)
+    assert any("payload" in n for n in _win.stream_names(str(proj / "a.py")))
+
+
+def test_open_dir_and_open_file_release_their_handles_when_describing_fails(proj, monkeypatch):
+    import saferun.hostos.winfs as winfs
+    ops = WinOps()
+    root = ops.open_root(str(proj))
+
+    def boom(*a, **k):
+        raise OSError("describe failed")
+    try:
+        with monkeypatch.context() as m:
+            m.setattr(winfs, "_mk_info", boom)
+            with pytest.raises(OSError, match="describe failed"):
+                ops.open_dir(root, "pkg")
+            with pytest.raises(OSError, match="describe failed"):
+                ops.open_file(root, "a.py")
+        # A leaked handle (share mode: read only) would make both of these fail with a sharing violation.
+        (proj / "pkg").rename(proj / "pkg2")
+        (proj / "a.py").unlink()
+    finally:
+        ops.close(root)
+
+
 def test_reserved_device_names_and_long_paths_are_handled_and_cleaned_up(proj, ws_root):
     d = proj
     for i in range(20):
