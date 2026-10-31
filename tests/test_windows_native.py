@@ -167,9 +167,10 @@ def test_open_dir_and_open_file_release_their_handles_when_describing_fails(proj
                 ops.open_dir(root, "pkg")
             with pytest.raises(OSError, match="describe failed"):
                 ops.open_file(root, "a.py")
-        # A leaked handle (share mode: read only) would make both of these fail with a sharing violation.
-        (proj / "pkg").rename(proj / "pkg2")
-        (proj / "a.py").unlink()
+        # An exclusive open (share mode 0) fails with a sharing violation while ANY other handle to the object is still open.
+        flags = _win.FLAG_BACKUP_SEMANTICS | _win.FLAG_OPEN_REPARSE_POINT
+        for name in ("pkg", "a.py"):
+            _win.close(_win.open_handle(str(proj / name), _win.FILE_READ_ATTRIBUTES, 0, flags=flags))
     finally:
         ops.close(root)
 
