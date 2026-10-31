@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import ui
+from . import dockerdiag, ui
 from .engine import osvdb
 from .engine.model import clean_text
 from .sandbox import SandboxError
@@ -26,6 +26,7 @@ from .sandbox import analyzer as sa
 from .sandbox import docker as dk
 from .sandbox import images as im
 from .sandbox import verify as vf
+from .sandbox import cosign_tool
 from .sandbox.signature import CosignMissing, SignatureError, verify_release_signature
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,7 +49,7 @@ COMPONENTS: tuple[Component, ...] = (
     Component("python", "Python sandbox image", "Runs the Python syntax check in a locked-down container.", ("python-syntax",), "about 190 MB"),
     Component("node", "Node.js sandbox image", "Runs the JavaScript syntax check in a locked-down container.", ("javascript-syntax",), "about 330 MB"),
     Component("analyzer", "Analyzer image (Semgrep, OSV-Scanner, rules)", "Runs the static code analysis, and holds the dependency scanner.",
-              ("python-static-analysis", "dependency-vulnerabilities"), "about 740 MB, built locally in a few minutes"),
+              ("python-static-analysis", "dependency-vulnerabilities"), "about 740 MB, a signed image download (a local build takes a few minutes)"),
     Component("osv-db", "OSV vulnerability database", "Local vulnerability data so dependency scans run offline.", ("dependency-vulnerabilities",),
               "about 260 MB download"),
 )
@@ -60,6 +61,7 @@ IMAGE_FOR = {"python": im.PYTHON_IMAGE, "node": im.NODE_IMAGE}
 HOSTS = {"image": ("registry-1.docker.io",), "build": ("pypi.org", "github.com"), "osv": ("osv-vulnerabilities.storage.googleapis.com",),
          # a published analyzer: the registry, plus the Sigstore trust root and transparency log that `cosign verify` contacts
          "release": ("ghcr.io", "tuf-repo-cdn.sigstore.dev", "rekor.sigstore.dev")}
+HOSTS_COSIGN = ("github.com",)   # the pinned cosign download (only when no cosign is installed yet)
 
 INTRO = ("SafeRun checks a project WITHOUT running it: Python/JavaScript syntax, static analysis (Semgrep) and known-vulnerable dependencies (OSV).\n"
          "Every check runs in a locked-down container and scans work offline; setup fetches what each check needs, once.")
@@ -98,6 +100,17 @@ class Status:
 # ---------------------------------------------------------------------------------------------------------- detection
 def _osv_dir() -> Path:
     return osvdb.default_dir()
+
+
+def _osv_state_line(d: Path) -> str:
+    """One sentence on what OSV data exists right now (age or the problem)."""
+    try:
+        rep = osvdb.validate(d, list(osvdb.ECOSYSTEMS))
+    except Exception:  # noqa: BLE001
+        return "The local OSV data could not be examined."
+    if not rep.ok:
+        return "No usable local OSV data (" + clean_text("; ".join(rep.problems), 160) + ")."
+    return f"Local OSV data is {rep.age_days:.0f} days old" + (" and STALE." if rep.stale else ".")
 
 
 def component_status(key: str, *, max_age_days: float = osvdb.DEFAULT_MAX_AGE_DAYS) -> Status:
@@ -262,13 +275,15 @@ class Setup:
 
     def __init__(self, *, out=None, err=None, ask=input, interactive=False, tty=False, status=component_status, online=network_ok,
                  pull=docker_pull, build=build_analyzer, osv_update=None, free_bytes=None, daemon_check=None, theme=None,
-                 verify_signature=verify_release_signature, build_local=False):
+                 verify_signature=verify_release_signature, build_local=False, ensure_cosign=None, diagnose=None):
         self.out, self.err = out or sys.stdout, err or sys.stderr
         self.th = theme or ui.PLAIN
         self.ask, self.interactive, self.tty = ask, interactive, tty
         self.status, self.online, self.pull, self.build = status, online, pull, build
         self.verify_signature, self.build_local = verify_signature, build_local   # build_local: --build-local, never chosen automatically
         self.osv_update = osv_update or self._osv_update
+        self.ensure_cosign = ensure_cosign or self._ensure_cosign
+        self.diagnose = diagnose or (dockerdiag.diagnose if daemon_check is None else None)   # an injected daemon_check (tests) replaces the real probe
         self.free_bytes = free_bytes or (lambda p: shutil.disk_usage(p).free)
         self.daemon_check = daemon_check or dk.check_local_daemon
 
@@ -282,7 +297,23 @@ class Setup:
 
     # -- individual installers: return an error string, or "" on success (the caller re-verifies afterwards)
     def _osv_update(self, directory: Path, progress) -> None:
-        osvdb.update(directory, progress=progress)
+        """Download only the ecosystems that are missing, invalid or stale; a valid, fresh one is left alone (no needless 260 MB download)."""
+        need = osvdb.stale_ecosystems(directory)
+        if need:
+            self.say(f"    refreshing: {', '.join(need)}" + (f" (kept as is: {', '.join(e for e in osvdb.ECOSYSTEMS if e not in need)})" if len(need) < len(osvdb.ECOSYSTEMS) else ""))
+            osvdb.update(directory, need, progress=progress)
+
+    def _has_cosign(self) -> bool:
+        from .sandbox.signature import find_cosign
+        return bool(find_cosign())
+
+    def _ensure_cosign(self) -> None:
+        """Make sure a verifiable cosign exists: a managed or PATH copy is used as is, otherwise the pinned, hash-checked one is fetched."""
+        from .sandbox.signature import find_cosign
+        if find_cosign():
+            return
+        self.say("    cosign is not installed: fetching SafeRun's pinned copy (SHA-256 checked against the value in the source) …")
+        cosign_tool.ensure_cosign()
 
     def _install_image(self, key: str) -> str:
         img = IMAGE_FOR[key]
@@ -313,6 +344,11 @@ class Setup:
         is pulled, then pull by digest, check the digest again, verify labels/tools/rules like a local build, then lock. Any failure leaves
         the image untrusted; there is no unsigned install and no automatic fallback to the local build."""
         ref = rel.reference
+        try:
+            self.ensure_cosign()
+        except SandboxError as e:
+            return (f"cosign is unavailable and could not be fetched ({clean_text(e, 300)}). Nothing was pulled. Install cosign yourself, "
+                    "or build the analyzer with `saferun init --only analyzer --build-local`")
         self.say(f"    verifying the cosign signature of {ref} (expected signer: this repository's release workflow) …")
         try:
             self.verify_signature(rel)
@@ -358,7 +394,8 @@ class Setup:
         except KeyboardInterrupt:
             raise
         except Exception as e:  # noqa: BLE001 - old data stays in place; say why
-            return f"{type(e).__name__}: {clean_text(e, 300)} (existing data, if any, was left untouched)"
+            return (f"{type(e).__name__}: {clean_text(e, 300)}. {_osv_state_line(d)} Existing data was left untouched; "
+                    "scans stay INCOMPLETE (never PASS) until the data is current. Retry later: saferun osv-db update")
         return ""
 
     # -- the loop
@@ -367,10 +404,14 @@ class Setup:
         needs_docker = any(k in IMAGE_FOR or k == "analyzer" for k in selected)
         docker_error = ""
         if needs_docker:
-            try:
-                self.daemon_check()
-            except SandboxError as e:
-                docker_error = str(e)
+            d = self.diagnose() if self.diagnose else None
+            if d is not None and not d.ok:
+                docker_error = d.message()
+            else:
+                try:
+                    self.daemon_check()
+                except SandboxError as e:
+                    docker_error = str(e)
         if self.interactive:
             self.say()                                   # space after the answer the user just typed
         self.say(self.th.paint("Checking what is already installed:", "bold", "cyan"))
@@ -383,10 +424,10 @@ class Setup:
             s = statuses[k]
             c = BY_KEY[k]
             if s.ready:
-                results[k] = "skipped (already installed and verified)"
+                results[k] = "skipped (already installed and verified" + (f"; {s.detail}" if k == "osv-db" and s.detail else "") + ")"
                 continue
             if k != "osv-db" and docker_error:
-                results[k] = f"not installed: Docker is unusable ({clean_text(docker_error, 160)})"
+                results[k] = f"not installed: Docker is unusable ({clean_text(docker_error, 400)})"
                 continue
             if s.state == UNKNOWN:
                 results[k] = f"not installed: could not be examined ({clean_text(s.detail, 160)})"
@@ -403,10 +444,10 @@ class Setup:
                 self.say("  " + self._outcome(results[k]))
                 continue
             hosts = (HOSTS["osv"] if k == "osv-db"
-                     else (HOSTS["release"] if self._release() is not None else HOSTS["build"]) if k == "analyzer" else HOSTS["image"])
+                     else (HOSTS["release"] + (HOSTS_COSIGN if not self._has_cosign() else ()) if self._release() is not None else HOSTS["build"]) if k == "analyzer" else HOSTS["image"])
             if not all(self.online(h) for h in hosts):
                 offline.append(k)
-                results[k] = "not installed: no internet access"
+                results[k] = "not installed: no internet access" + (f". {_osv_state_line(_osv_dir())} Scans stay INCOMPLETE until it is current" if k == "osv-db" else "")
                 self.say("  " + self._outcome(results[k]))
                 continue
             if not asked:                                # after a "[Y/n]" question the same line would only repeat it

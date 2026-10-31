@@ -2,34 +2,30 @@
 
 Everything below is a *procedure*. None of it has been recorded as run for this repository yet (see `IMPLEMENTATION.md`): run it, then note the real results.
 
-## Supported installation: a source checkout
+## Install
 
-Decision (pre-validation review): SafeRun is supported **only when installed from a source checkout** (`pip install -e .`). The wheel is *not* a supported way to run it, because one thing SafeRun needs lives outside the Python package:
+SafeRun is published as the PyPI package **`saferun-cli`** (the name `saferun` belongs to an unrelated project); it installs the command **`saferun`**. Python 3.12+; no Python dependencies.
 
-| Needed by | Location | In the wheel? |
-|---|---|---|
-| `saferun init` (local analyzer build) | `docker/analyzer/` (found relative to the checkout by `saferun/setup.py`) | no |
-| Semgrep rules, CLI, engine | `saferun/` | yes |
+```bash
+pip install saferun-cli          # or: pipx install saferun-cli · uv tool install saferun-cli · poetry add saferun-cli
+saferun init                     # Docker check, verified cosign, signed analyzer image, OSV data (~260 MB)
+saferun doctor                   # PASS / WARNING / FAIL
+saferun run my_script.py         # scan, then run only inside the sandbox
+```
+A wheel is a supported install: everything `saferun init` needs from the package (CLI, engine, Semgrep rules) is inside it, and the analyzer comes from the signed registry image. Only `saferun init --build-local` needs the build recipe (`docker/`), which is in the sdist and the repository but not in the wheel; without it `init` says so. You do not install cosign or the OSV data yourself. Docker is the only prerequisite (Windows and macOS: see [platforms.md](platforms.md)). Setup needs internet access to the Docker registries, `ghcr.io`, `github.com` (only to fetch cosign when you have none), the Sigstore TUF root and transparency log, and `osv-vulnerabilities.storage.googleapis.com`; scans never use the network.
 
-What happens on a wheel install: the CLI starts; `saferun init` explains that the build recipe is missing. Nothing breaks silently, but the product is not usable end to end, so we do not claim wheel support. CI still builds the wheel and sdist and installs the wheel into a clean venv, as a **packaging sanity check** (metadata, bundled rules, entry point), not as a statement of support.
+Prerequisites per platform: Linux: Docker Engine and membership of the `docker` group · macOS: Docker Desktop (or Colima/OrbStack) running · Windows: Docker Desktop, Linux containers, WSL 2 backend. `saferun doctor` diagnoses each of these.
 
-The sdist additionally contains `docker/`, the `web/` website sources (no `node_modules`/`dist`), `docs/`, `tests/` and `.github/`, so an unpacked sdist behaves like a checkout.
-
-**Decision for the owner:** wheel support would need either (a) moving the analyzer recipe into the package (for example `saferun/analyzer_recipe/`) (touches `saferun/setup.py`, `docker/analyzer/build.sh`, the release workflow's staging step and several tests), or (b) nothing, if you are happy with source installs. Note that once a signed analyzer release exists, `init` no longer needs `docker/`, so a wheel could then run the CLI scans.
-
-## Install from a fresh clone
-
-Requirements (Windows and macOS: see [platforms.md](platforms.md) for prerequisites and limitations): Python 3.12+ with `venv`, a local Docker Engine reachable by your user (cgroup limits and seccomp enabled), internet for the one-time setup.
+## Install from a fresh clone (development)
 
 ```bash
 git clone https://github.com/vinay-repalle/saferun.git && cd saferun
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-.venv/bin/saferun init --all          # pulls the pinned python/node images, installs the signed analyzer (cosign-verified, by digest), downloads the OSV data (~260 MB)
-.venv/bin/saferun status              # exit 0 only if everything is ready
+.venv/bin/saferun init --all          # pulls the pinned python/node images, installs the signed analyzer (cosign fetched and verified, by digest), downloads the OSV data (~260 MB)
+.venv/bin/saferun doctor              # exit 0 if nothing FAILED
 .venv/bin/saferun scan ./some-project
 ```
-
-The analyzer release `analyzer-v1.0.1` is recorded in `ANALYZER_RELEASE`, so `init` installs it after verifying its cosign signature: **cosign 2.2+ must be on your PATH** (see `docs/release-images.md`). Add `--build-local` to build the analyzer locally instead (no cosign needed).
+The analyzer release `analyzer-v1.0.1` is recorded in `ANALYZER_RELEASE`, so `init` installs it after verifying its cosign signature (see `docs/release-images.md`). Add `--build-local` to build the analyzer from `docker/` instead (no cosign needed).
 
 ## Validate (run these yourself; nothing here has been run for you)
 
@@ -43,11 +39,11 @@ SAFERUN_REQUIRE_DOCKER=1 .venv/bin/python -m pytest -q -ra
 # 3. website (optional)
 (cd web && npm ci --ignore-scripts && npm test && npm run build)
 
-# 4. packaging sanity check (wheels are not a supported install): build, inspect, install into a clean environment
-.venv/bin/python -m build
+# 4. packaging: build, check metadata, inspect, install into a clean environment
+.venv/bin/python -m build && .venv/bin/python -m twine check dist/*
 python3 -m zipfile -l dist/*.whl | grep -E 'rules/python.yml|saferun/cli.py'
 tar tzf dist/*.tar.gz | grep docker/analyzer/Dockerfile
-python3 -m venv /tmp/clean-wheel && /tmp/clean-wheel/bin/pip install dist/*.whl && (cd /tmp && /tmp/clean-wheel/bin/saferun --help)
+python3 -m venv /tmp/clean-wheel && /tmp/clean-wheel/bin/pip install dist/*.whl && (cd /tmp && /tmp/clean-wheel/bin/saferun --version && /tmp/clean-wheel/bin/saferun doctor)
 ```
 
 ## Continuous integration (`.github/workflows/ci.yml`)
@@ -58,7 +54,7 @@ Runs on every pull request and every push to `main`. Read-only token, no secrets
 |---|---|---|
 | `python` | yes | `pip install -e '.[dev]'`, `compileall`, `sh -n` on the build script, `pytest -m "not docker"` |
 | `web` | yes | `npm ci --ignore-scripts`, `npm test`, `npm run build` |
-| `package` | yes | `python -m build`, checks wheel and sdist contents, installs the wheel into a clean venv and starts the CLI (packaging sanity check only; wheels are not a supported install, see above) |
+| `package` | yes | `python -m build`, checks wheel and sdist contents, installs the wheel into a clean venv and starts the CLI (a built wheel is the supported install, see above) |
 | `audit` | no (advisory) | `npm audit` (website production dependencies) |
 | `docker` | no (advisory) | `saferun init --only python,node,analyzer --build-local`, then `pytest -m docker` on the runner's Docker daemon |
 

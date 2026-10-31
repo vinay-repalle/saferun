@@ -2,9 +2,11 @@
 
 ## Install and set up
 ```bash
-.venv/bin/pip install -e '.[dev]'    # installs the `saferun` command; `python -m saferun` also works
-saferun init                         # first-run setup (interactive); `saferun status` shows the result
+pip install saferun-cli              # installs the `saferun` command (`python -m saferun` also works); pipx, uv tool and Poetry work too
+saferun init                         # first-run setup (interactive); `saferun doctor` / `saferun status` show the result
+saferun --version
 ```
+From a source checkout: `pip install -e '.[dev]'`.
 Semgrep and OSV-Scanner are **not** installed on the host and a host copy is never used. Without the analyzer image those checks are `unavailable`; without valid OSV data the dependency check is `error`
 (verdict at best WARNING). Docker is required for every sandboxed check.
 
@@ -15,8 +17,14 @@ Prints a two-line introduction, shows the components with their state, size and 
 |---|---|---|---|
 | 1 `python` | Python sandbox image | `python-syntax` | `docker pull python@sha256:…` (pinned digest) |
 | 2 `node` | Node.js sandbox image | `javascript-syntax` | `docker pull node@sha256:…` (pinned digest) |
-| 3 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, rules | `python-static-analysis`, `dependency-vulnerabilities` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest (needs `cosign` 2.2+), or, with `--build-local`, a local build (`docker/analyzer/build.sh`), see [release-images.md](release-images.md) |
-| 4 `osv-db` | Local OSV vulnerability data | `dependency-vulnerabilities` | `saferun osv-db update` (~260 MB) |
+| 3 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, rules | `python-static-analysis`, `dependency-vulnerabilities` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest. cosign is obtained automatically (see below); with `--build-local` a local build instead (`docker/analyzer/build.py`, source checkout only), see [release-images.md](release-images.md) |
+| 4 `osv-db` | Local OSV vulnerability data | `dependency-vulnerabilities` | the `saferun osv-db update` download (~260 MB); only missing, invalid or stale ecosystems are fetched |
+
+**Docker first.** Before pulling anything `init` diagnoses Docker: not installed, daemon not running, permission denied, or a remote endpoint. It prints platform-specific guidance (Linux: Docker Engine and the `docker` group; macOS and Windows: Docker Desktop) and installs nothing while Docker is unusable.
+
+**cosign is provisioned automatically.** If neither SafeRun's own copy nor a `cosign` on PATH exists, `init` downloads cosign 2.4.3 for your platform (Linux/macOS amd64+arm64, Windows amd64) over HTTPS into `<user data dir>/saferun/bin/` and keeps it only if its SHA-256 equals the pin written in `saferun/sandbox/cosign_tool.py`; otherwise it is discarded and the analyzer is not pulled. The file is re-hashed on every use and a changed file is ignored. The image signature check itself (identity, issuer, digest, repository) is unchanged.
+
+**OSV data.** `init` checks the database like every scan does (integrity manifest, age limit 30 days). A current database is skipped (its age is shown); a missing, invalid or stale one is downloaded, per ecosystem. If the network fails, `init` reports the state of the existing data (age or problem), leaves it untouched and exits 1; scans stay INCOMPLETE (never PASS) until it is current.
 
 Answer with numbers or names (`1,3`, `all`, `all -osv-db`, `-2`); Enter = all. **Before anything is fetched** each component is verified with the existing checks (image registry digest, analyzer lock + labels + rules hash, OSV
 manifest hashes and age); a valid one is skipped and never rebuilt or re-downloaded, and a tag that merely exists locally is not trusted. Missing, invalid or outdated components are offered for install/repair/update; everything
@@ -25,6 +33,9 @@ installed is verified again afterwards, and a component that does not verify is 
 Scripts and CI (no prompts): `saferun init --all`, `--only python,node` (several), `--skip osv-db` (everything except), `--yes` (confirm prompts), `--build-local` (build the analyzer locally even when a signed release exists), `--repair` (allow rebuilding an analyzer image that FAILED verification:
 this replaces the image and its lock, so it is never done silently). Without a flag and without a terminal the command exits 64. Exit codes: 0 every selected component is ready · 1 at least one is not · 64 usage ·
 70 reserved for fatal errors · 130 interrupted. Offline: components that need a download are listed as "no internet access" with preload instructions; valid ones are still used, and nothing else is claimed ready.
+
+### `saferun doctor [--online] [--format json]`
+Read-only diagnosis, one line per check, `PASS` / `WARNING` / `FAIL`, and a fix for every problem: SafeRun version, Python (3.12+), operating system, Docker state (as above), the python and node sandbox images (pinned digest), the analyzer image (lock, labels, rules hash), cosign (SafeRun's pinned copy or PATH), the OSV database (integrity and age; stale = WARNING, missing or invalid = FAIL), the data directory (writable) and `SAFERUN_*` overrides. `--online` also verifies the cosign signature of the published analyzer release. A check that cannot be carried out is never a PASS (with Docker unusable, the image checks FAIL). Exit 0 when nothing FAILED (warnings allowed), 1 otherwise. JSON: `{"schema_version": 1, "ok": bool, "checks": [{"name", "level", "detail", "fix"}]}`.
 
 ### `saferun status [--only a,b] [--format json]`
 Verifies every component now and prints state (`ready`, `missing`, `invalid`, `outdated`, `unknown`), what it enables and the exact fix. Exit 0 only if all selected components are ready. JSON:
@@ -78,21 +89,44 @@ Findings are listed most severe first as `[HIGH] rule-id  path:line`. The CLI in
 unsupported/unverified lockfile formats, no transitive resolution); PASS is not a proof that code is safe.
 
 
+## `saferun run [--timeout S] [--project-dir DIR] [--allow-warnings] SCRIPT [-- ARGS...]`
+Scans a Python script (`.py`; symlinks refused), then runs it **only inside the sandbox** (pinned `python:3.12-slim` by digest, no network, read-only root and project, non-root, no capabilities, resource limits, output cap, secrets redacted). Never on the host.
+By default only the script is copied to a private temporary directory and scanned; `--project-dir` stages the whole directory (the script must be inside it). saferun options must precede `SCRIPT`; everything after it goes to the script.
+The command is `python -I /workspace/<script> ARGS…` as an argument list (no shell).
+
+| Scan result | `run` |
+|---|---|
+| PASS | runs the script |
+| FAIL | refuses, exit 1; `--allow-warnings` does not change this |
+| WARNING | refuses, exit 2. With `--allow-warnings` it runs only if the scan is **complete**, every check finished (passed / findings / not applicable) and no finding is high or critical; an incomplete, errored, timed-out, skipped or unavailable check is never overridden |
+| scan impossible (Docker, analyzer, internal error) | refuses, exit 70 |
+
+| Exit code | Meaning |
+|---|---|
+| 0 | the script ran and exited 0 |
+| 1 / 2 | refused: FAIL / WARNING (the script did not run) |
+| 3 | the script ran but exited non-zero, timed out (`--timeout`, default 30 s, max 3600) or was killed for memory |
+| 64 | usage (missing file, not `.py`, symlink, script outside `--project-dir`) |
+| 70 | no verdict or the sandbox could not start; the script did not run |
+| 130 | interrupted |
+
+A passing scan is not proof that a script is safe. Output is shown after the script finishes (not streamed) and is capped; scripts that need the network or third-party packages fail inside the sandbox.
+
 ## `saferun verify-images`
 Checks that the container images SafeRun runs are present locally with the digests pinned in `saferun/sandbox/images.py`
 (read-only: nothing is pulled, no container is started). `--format json` prints `{schema_version, ok, images[{name, reference,
 pinned_digest, status, detail}]}`; `status` is `verified`, `missing` (the detail gives the exact `docker pull`), `mismatch` or `error`.
 Exit codes: 0 all verified; 1 any image missing, mismatched or uninspectable; 64 usage; 70 Docker unusable (e.g. remote endpoint).
 `saferun scan` itself refuses to start a sandbox run when the image digest does not match (exit 70, no verdict).
-`--signature` (online, needs `cosign` 2.2+) additionally verifies the cosign signature of the published analyzer release (`ANALYZER_RELEASE`, currently `analyzer-v1.0.1`; with no release configured it reports that there is nothing to verify and exits 1): it must come from this repository's
+`--signature` (online; uses SafeRun's own verified cosign or one on PATH) additionally verifies the cosign signature of the published analyzer release (`ANALYZER_RELEASE`, currently `analyzer-v1.0.1`; with no release configured it reports that there is nothing to verify and exits 1): it must come from this repository's
 release workflow on an `analyzer-v*` tag and name exactly the pinned repository and digest. JSON gains a `signature` object `{ok, reference, detail}` only when the flag is given; any failure
 (including cosign missing) makes the exit code 1. See [release-images.md](release-images.md).
 
 See [engine.md](engine.md) for the checks, statuses and verdict rules, and [PROJECT.md](../PROJECT.md) for limitations.
 
 ## `saferun osv-db`
-`update [--dir D] [--allow-unverified]` downloads `PyPI` and `npm` data (HTTPS). It refuses a download when the server sends no usable MD5 hash (unless `--allow-unverified`, which is recorded and shown in every
-later scan), refuses archives that are unreadable or list fewer advisories than a sanity floor (PyPI 5 000, npm 40 000; October 2026: 26 726 / 230 914), then records SHA-256, size, advisory count and time in
+`update [--dir D] [--allow-unverified] [--if-stale] [--max-age-days N]` downloads `PyPI` and `npm` data (HTTPS). It refuses a download when the server sends no usable MD5 hash (unless `--allow-unverified`, which is recorded and shown in every
+later scan), refuses archives that are unreadable or list fewer advisories than a sanity floor (PyPI 5 000, npm 40 000; October 2026: 26 726 / 230 914), (connection failures and HTTP 408/429/5xx are retried three times with a back-off; any other failure keeps the previous file and manifest, and the data does not become "fresher"). `--if-stale` downloads only when the data is missing, invalid or older than `--max-age-days` (default 30). It records SHA-256, size, advisory count and time in
 `manifest.json`. An existing directory passed with `--dir` is **never chmod'ed**; directories it creates are 0755 so the analyzer container (uid 65534) can read them. `status [--dir D] [--max-age-days N]` validates the data and prints
 its age (exit 0 usable and fresh, 1 otherwise). Every scan re-validates: manifest present and well-formed, SHA-256 and size equal the recorded values, no symlinks, readable by the container user, advisory count above the floor, timestamp not
 in the future. Any failure -> the dependency check is `error`; valid but older than 30 days -> `incomplete` (findings are still reported).

@@ -26,7 +26,7 @@ from .engine import ValidationOptions, ValidationReport, Verdict, validate_proje
 from .engine.model import CheckResult, clean_text
 from .sandbox import SandboxError
 from .sandbox.verify import verify_images
-from . import hostos
+from . import __version__, hostos
 from . import setup as setup_mod
 from . import ui
 
@@ -39,6 +39,8 @@ examples:
   saferun scan ./my-project                 human-readable report
   saferun scan ./my-project --format json   machine-readable report (schema_version 1)
   saferun init                              first-run setup: install and verify what the checks need (--all for scripts/CI)
+  saferun run script.py                     scan a script, then run it ONLY inside the sandbox (refused on FAIL)
+  saferun doctor                            diagnose the installation (PASS / WARNING / FAIL)
   saferun status                            show which components are installed and verified
   saferun osv-db update                     download the offline OSV vulnerability data used by the dependency scan
   saferun scan . --no-javascript-check --timeout 60
@@ -69,8 +71,9 @@ def _timeout(value: str) -> float:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = _Parser(prog="saferun", description="SafeRun: static validation of a local project, without running it.",
+    p = _Parser(prog="saferun", description="SafeRun: static validation of a local project (scan), and sandboxed execution of a script that passed it (run).",
                 epilog=EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--version", action="version", version=f"saferun {__version__}")
     sub = p.add_subparsers(dest="command", metavar="COMMAND", parser_class=_Parser)
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--color", choices=("auto", "always", "never"), default="auto",
@@ -99,6 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
         "osv-vulnerabilities.storage.googleapis.com; nothing about any project is sent)."))
     dsub = d.add_subparsers(dest="osv_db_command", metavar="ACTION", parser_class=_Parser)
     u = dsub.add_parser("update", help="download/refresh the OSV data for PyPI and npm")
+    u.add_argument("--if-stale", action="store_true", help="only download when the local data is missing, invalid or older than --max-age-days")
+    u.add_argument("--max-age-days", type=float, default=osvdb.DEFAULT_MAX_AGE_DAYS, help="age limit used by --if-stale (default: 30)")
     u.add_argument("--dir", help="database directory (default: $SAFERUN_OSV_DB or ~/.local/share/saferun/osv-db)")
     u.add_argument("--allow-unverified", action="store_true",
                    help="accept a download for which the server sent no MD5 hash (refused by default); it is recorded as unverified")
@@ -120,6 +125,19 @@ def build_parser() -> argparse.ArgumentParser:
     ini.add_argument("--build-local", action="store_true", help="build the analyzer image locally (docker/analyzer/build.py) instead of installing the "
                      "signed published image when a signed release exists (today init always builds locally); never done automatically")
     ini.add_argument("--repair", action="store_true", help="allow rebuilding an analyzer image that failed verification (it replaces the image and its lock)")
+    r = sub.add_parser("run", help="scan a Python script and, if the scan allows it, run it inside the sandbox", description=(
+        "Scans the script, refuses to run it on FAIL (or on WARNING unless --allow-warnings), otherwise runs it ONLY inside the hardened Docker sandbox "
+        "(no network, read-only filesystem, non-root, resource limits). It never runs on the host. A passing scan is not proof of safety."), parents=[common])
+    r.add_argument("script", help="Python script (.py) to scan and run")
+    r.add_argument("script_args", nargs=argparse.REMAINDER, help="arguments for the script; saferun options must come BEFORE the script name")
+    r.add_argument("--project-dir", metavar="DIR", help="stage and scan this whole directory (it must contain the script) instead of only the script")
+    r.add_argument("--timeout", type=_timeout, default=30.0, metavar="SECONDS", help="run time limit inside the sandbox (default: 30)")
+    r.add_argument("--allow-warnings", action="store_true", help="run despite a WARNING that comes from a COMPLETE scan with no high/critical finding (never on FAIL, an incomplete check or a serious finding)")
+    dc = sub.add_parser("doctor", help="diagnose the installation (read-only): PASS / WARNING / FAIL per check", description=(
+        "Checks Python, the operating system, Docker, the sandbox and analyzer images, cosign, the OSV data (age and integrity) and the data directory. "
+        "Changes nothing. Exit 0 if nothing FAILED, 1 otherwise."), parents=[common])
+    dc.add_argument("--online", action="store_true", help="also verify the cosign signature of the published analyzer release (uses the network)")
+    dc.add_argument("--format", choices=("text", "json"), default="text", help="output format (default: text)")
     st = sub.add_parser("status", help="show which components are installed and verified", description=(
         "Verifies every component now (image digests, analyzer lock/labels/rules, OSV data integrity and age). Exit 0 if all selected are ready, 1 otherwise."), parents=[common])
     st.add_argument("--only", metavar="COMPONENT[,COMPONENT]", help=f"only these components ({', '.join(setup_mod.KEYS)})")
@@ -341,6 +359,13 @@ def _osv_db(args) -> int:
         return EXIT_PASS if rep.ok and not rep.stale else EXIT_FAIL
     if args.osv_db_command != "update":
         return _fail("usage: saferun osv-db update|status [--dir DIR]", EXIT_USAGE)
+    if args.if_stale:
+        if not math.isfinite(args.max_age_days) or args.max_age_days <= 0:
+            return _fail("--max-age-days must be a positive number", EXIT_USAGE)
+        rep = osvdb.validate(db_dir, list(osvdb.ECOSYSTEMS), max_age_days=args.max_age_days)
+        if rep.ok and not rep.stale:
+            print(f"OSV database is current ({rep.age_days:.1f} days old); nothing to do")
+            return EXIT_PASS
     try:
         result = osvdb.update(db_dir, allow_unverified=args.allow_unverified)
     except KeyboardInterrupt:
@@ -448,6 +473,21 @@ def main(argv: list[str] | None = None) -> int:
         return _init(args)
     if args.command == "status":
         return _status(args)
+    if args.command == "run":
+        from . import runcmd
+        rest = args.script_args[1:] if args.script_args[:1] == ["--"] else args.script_args
+        th = ui.theme_for(sys.stdout, args.color)
+        try:
+            return runcmd.run_script(args.script, rest, project_dir=args.project_dir, timeout_s=args.timeout, allow_warnings=args.allow_warnings,
+                                     out=sys.stdout, err=sys.stderr,
+                                     render=lambda rep: (render_styled(rep, args.script, th) if th.on else render_text(rep, args.script)) + "\n")
+        except KeyboardInterrupt:
+            return _fail("interrupted", EXIT_INTERRUPTED)
+    if args.command == "doctor":
+        from . import doctor
+        checks = doctor.run_checks(online=args.online)
+        sys.stdout.write((doctor.render_json(checks) if args.format == "json" else doctor.render_text(checks)) + "\n")
+        return doctor.exit_code(checks)
     if args.command == "osv-db":
         return _osv_db(args)
     if args.command == "verify-images":

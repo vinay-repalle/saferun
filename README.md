@@ -2,10 +2,20 @@
 
 Checks AI-generated code before you run or trust it. Executing untrusted code in a sandbox **limits the impact** of that
 code; it does **not** prove the code is safe, and a passing scan does not guarantee security.
-Status: Phases 1-4 and 5A-5E are implemented and committed (not independently certified). The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature (`analyzer-v1.0.0` predates the license notices and is not used); see [docs/release-images.md](docs/release-images.md). Not yet done: a clean-machine install test, CI, a built-wheel install test, a detection-quality benchmark and broader JavaScript rules (see *Remaining work* in [PROJECT.md](PROJECT.md)). **The CLI is the product**; `web/` is a static informational website.
+Status: alpha (not independently certified). The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Not yet done: a detection-quality benchmark, broader JavaScript rules, and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
+
+## Install in four commands
+```bash
+pip install saferun-cli     # the PyPI package is saferun-cli; the command it installs is `saferun`
+saferun init                # one-time setup: checks Docker, fetches a verified cosign, installs the signed analyzer image, downloads the OSV data
+saferun doctor              # read-only diagnosis: PASS / WARNING / FAIL per check, with the fix for each problem
+saferun run my_script.py    # scan the script; run it only inside the hardened sandbox if the scan allows it
+```
+You do **not** install cosign or download the OSV database yourself. **Docker is the only prerequisite you install separately.**
+`pipx install saferun-cli`, `uv tool install saferun-cli` and `poetry add saferun-cli` work as well; Python 3.12 or newer.
 
 ## License
-SafeRun is released under the [MIT License](LICENSE) (Copyright (c) 2026 Vinay Repalle). The analyzer image also redistributes third-party software under its own licenses (Semgrep, OSV-Scanner and others); their notices are in [docker/analyzer/THIRD_PARTY_NOTICES.md](docker/analyzer/THIRD_PARTY_NOTICES.md) and inside the image.
+SafeRun is released under the [MIT License](https://github.com/vinay-repalle/saferun/blob/main/LICENSE) (Copyright (c) 2026 Vinay Repalle). The analyzer image also redistributes third-party software under its own licenses (Semgrep, OSV-Scanner and others); their notices are in [docker/analyzer/THIRD_PARTY_NOTICES.md](https://github.com/vinay-repalle/saferun/blob/main/docker/analyzer/THIRD_PARTY_NOTICES.md) and inside the image.
 
 ## Key features
 - **Restricted Docker sandbox** (Phase 1): read-only sanitized project copy, no network, non-root, no capabilities, resource limits, verified at run time.
@@ -13,43 +23,51 @@ SafeRun is released under the [MIT License](LICENSE) (Copyright (c) 2026 Vinay R
 - **CLI** (Phase 3): `saferun scan PATH`, text or JSON output, deterministic exit codes. Incomplete scans never report PASS.
 
 ## Prerequisites
-Python 3.12+ and a **local** Docker that runs Linux containers, reachable by your user (remote endpoints are refused), with cgroup limits (memory, swap, pids, CPU) and seccomp enabled in the daemon. Linux is the fully tested platform; native Windows and macOS support is new and only partly verified, see [docs/platforms.md](docs/platforms.md) for what is tested and the limitations.
-`saferun init` installs the rest (the images are pulled by pinned digest; SafeRun never pulls on its own during a scan). Manual equivalent:
-```bash
-docker pull python@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea   # Python profile
-docker pull node@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da       # Node.js profile
-saferun verify-images --base-only
-```
-Images must provide `timeout` and `sh`, and must not declare `VOLUME`.
+**Docker, running Linux containers and reachable by your user.** Remote Docker endpoints are refused (the project is bind-mounted by host path). The daemon must provide cgroup limits (memory, swap, pids, CPU) and seccomp.
+
+| Platform | Install Docker | Notes |
+|---|---|---|
+| Linux | [Docker Engine](https://docs.docker.com/engine/install/); then `sudo usermod -aG docker $USER` and log in again | Fully tested platform. |
+| macOS | [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) (or Colima / OrbStack); start it once | Host code tested in CI; Docker Desktop integration not verified. |
+| Windows 10/11 | [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) with the WSL 2 backend, **Linux containers** mode | Native Windows host code, no WSL needed for SafeRun itself; Docker Desktop integration not verified. |
+
+`saferun init` and `saferun doctor` tell you exactly which of these is wrong (Docker missing, daemon not running, permission denied, remote endpoint) and what to do. Details: [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md).
 
 ## Install and set up
-**Supported: install from a source checkout** (below). A built wheel contains only the `saferun` package (CLI, engine, bundled rules); it does **not** contain the analyzer build recipe (`docker/`), so `saferun init --build-local` cannot work from a wheel. Wheels are built in CI as a packaging check only. Details: [docs/install-and-test.md](docs/install-and-test.md).
-
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # needs python3-venv/pip; Semgrep and OSV-Scanner are NOT needed on the host
-saferun init                      # first run: logo (on a colour terminal), short intro, pick components, installs only what is missing or invalid
-saferun status                    # what is installed and verified (exit 0 only if everything is ready)
+pip install saferun-cli
+saferun init            # interactive: shows what is installed, offers the rest. For scripts/CI: saferun init --all   (also --only, --skip, --yes, --repair)
+saferun doctor          # PASS / WARNING / FAIL, exit 1 if anything FAILED. --online also re-verifies the release signature; --format json for tools
+saferun status          # which components are installed and verified (exit 0 only if everything is ready)
 ```
-`saferun init` detects what is already installed (images by pinned digest, the analyzer by lock/labels/rules hash, OSV data by integrity manifest and age), skips what is valid, and offers to install,
-repair or update the rest. For scripts/CI: `saferun init --all`, `--only python,node`, `--skip osv-db`, `--yes`, `--repair` (see [docs/cli.md](docs/cli.md)). The sandbox images are pulled **by
-pinned digest**; the analyzer image is **the cosign-signed release recorded in `ANALYZER_RELEASE`** (`analyzer-v1.0.1`, pinned by digest), installed after its signature is verified (needs `cosign` 2.2+ on your PATH; SafeRun does not install it); `--build-local` builds it locally with `docker/analyzer/build.sh` instead; see [docs/release-images.md](docs/release-images.md); the OSV data is downloaded once
-(about 260 MB) and every scan then runs offline. Developers can still use `docker/analyzer/build.sh` and `saferun osv-db update` directly.
-```bash
-.venv/bin/pytest -q                        # Docker tests skip (loudly) if Docker is missing
-SAFERUN_REQUIRE_DOCKER=1 .venv/bin/pytest  # ...or fail instead of skipping (use this to prove a full run)
-```
+What `saferun init` does, in order, and what it never does:
+1. **Checks the host and Docker** (OS, installed, daemon running, permissions, local endpoint) and prints platform-specific guidance if something is missing. If Docker is unusable nothing is installed.
+2. **Pulls the sandbox images by pinned digest** (python, node) and re-checks the digest afterwards.
+3. **Installs the analyzer image** (Semgrep, OSV-Scanner, rules): it first obtains **cosign** by itself if you have none (a pinned release, downloaded over HTTPS into SafeRun's own data directory and accepted only if its SHA-256 equals the value written in SafeRun's source; it is re-hashed on every use), then verifies the image's **signature and identity** (this repository's release workflow on an `analyzer-v*` tag) **before anything is pulled**, pulls it by digest, checks digest, labels, tool versions and rules hash, and locks it. There is no unsigned install; `--build-local` is the explicit alternative and needs a source checkout.
+4. **Downloads and caches the OSV vulnerability data** (about 260 MB, public data from `osv-vulnerabilities.storage.googleapis.com`, nothing about your projects is sent) into your user data directory with integrity hashes. Only what is missing, invalid or older than 30 days is downloaded; a current database is left alone. Failed downloads are retried and never replace good data. If the data cannot be refreshed, `init` says how old the existing data is and scans report the dependency check as INCOMPLETE; **stale data is never treated as current**. Refresh later with `saferun osv-db update` (`--if-stale` to skip when it is current).
+5. **Verifies everything again** and prints a result per component.
 
-**Clean-environment install and validation, and what the CI runs:** [docs/install-and-test.md](docs/install-and-test.md).
+`saferun init` skips what is already valid, so it is safe to re-run (for example after an analyzer release). Developers working from a checkout: `pip install -e '.[dev]'`, then `pytest -q` (Docker tests skip loudly without Docker; `SAFERUN_REQUIRE_DOCKER=1` makes them fail instead).
+
+**Clean-environment install and validation, and what the CI runs:** [docs/install-and-test.md](https://github.com/vinay-repalle/saferun/blob/main/docs/install-and-test.md).
 
 ## Quick start
 ```bash
-saferun scan ./my-project                 # human-readable report
+saferun scan ./my-project                 # human-readable report; nothing is executed
 saferun scan ./my-project --format json   # machine-readable report (schema_version 1)
-saferun scan ./my-project --osv-offline   # accepted for compatibility: scans are ALWAYS offline
+saferun run my_script.py -- arg1 arg2     # scan first, then run inside the sandbox only if allowed
 ```
-Exit codes: **0** PASS · **1** FAIL · **2** WARNING (including any incomplete scan) · **64** invalid usage/path · **70** fatal · **130** interrupted.
+Exit codes of `scan`: **0** PASS · **1** FAIL · **2** WARNING (including any incomplete scan) · **64** invalid usage/path · **70** fatal · **130** interrupted.
 
-> **Privacy / network:** scans never use the network. Semgrep and OSV-Scanner run in a container without network access, and OSV-Scanner reads a local copy of the OSV data (`saferun osv-db update`, an explicit download of public data that contains nothing about your project). Without that data the dependency check reports `error` (verdict at best WARNING). Per-scan *online* OSV queries were removed in Phase 5B, see [PROJECT.md](PROJECT.md).
+### `saferun run`: what it does and what it guarantees
+`saferun run SCRIPT [-- ARGS...]` scans the Python script with the normal checks and then runs it **only inside the same hardened Docker sandbox** used for checks: pinned `python:3.12-slim` image, **no network**, read-only root and project, non-root user, no capabilities, memory/CPU/pids/time limits, output cap, secrets redacted from output. It never runs anything on the host.
+- Only the script itself is copied and scanned (`--project-dir DIR` scans and mounts a whole directory that contains it). Options go **before** the script name (`--timeout SECONDS`, default 30).
+- **PASS** → it runs. **FAIL** → refused (exit 1). **WARNING** → refused (exit 2) by default. `--allow-warnings` accepts a WARNING only from a **complete** scan with no high/critical finding; an incomplete, errored, timed-out, skipped or unavailable check is never overridden, and neither is a FAIL.
+- If the scan cannot be carried out (analyzer or Docker unusable, internal error) the script is **not** run (exit 70).
+- A PASS means the checks found nothing they know about; it is **not** proof that the script is safe. The sandbox limits the impact of the code, it does not make it harmless. Scripts that need the network or third-party packages will fail inside it.
+- Exit codes: **0** the script ran and exited 0 · **1** refused: FAIL · **2** refused: WARNING · **3** the script ran but exited non-zero, timed out or was killed · **64** usage · **70** could not scan or sandbox · **130** interrupted.
+
+> **Privacy / network:** scans never use the network. Semgrep and OSV-Scanner run in a container without network access, and OSV-Scanner reads a local copy of the OSV data (`saferun osv-db update`, an explicit download of public data that contains nothing about your project). Without that data the dependency check reports `error` (verdict at best WARNING). Per-scan *online* OSV queries were removed in Phase 5B, see [PROJECT.md](https://github.com/vinay-repalle/saferun/blob/main/PROJECT.md).
 >
 > **Limits of the OSV data checks:** the download is checked against the server's MD5 header (refused if absent) and a SHA-256 is recorded locally and re-checked before every scan. That detects corruption and later modification of the files. It does **not** authenticate the download (the hash comes from the same server, or from your own disk), and someone who can write the data directory can rewrite the manifest too. Data older than 30 days makes the dependency check `incomplete`.
 
@@ -79,8 +97,8 @@ Pages are switched by the URL hash, so no redirect rules are needed.
 | JavaScript / Node.js | `node:22-slim` | sandbox, `node --check` and npm lockfile scan implemented; **dependency installation, test runners and JS Semgrep rules are not implemented** |
 
 ## Documentation
-- [docs/cli.md](docs/cli.md) — CLI options, exit codes, output examples
-- [docs/engine.md](docs/engine.md) — validation engine: checks, dependency coverage, statuses, verdict rules
-- [docs/sandbox.md](docs/sandbox.md) — sandbox library usage and guarantees
-- [PROJECT.md](PROJECT.md) — goals, architecture, threat model, known exposures (**read before relying on the sandbox**), phases
-- [IMPLEMENTATION.md](IMPLEMENTATION.md) — status, test evidence, limitations, technical notes
+- [docs/cli.md](https://github.com/vinay-repalle/saferun/blob/main/docs/cli.md) — CLI options, exit codes, output examples
+- [docs/engine.md](https://github.com/vinay-repalle/saferun/blob/main/docs/engine.md) — validation engine: checks, dependency coverage, statuses, verdict rules
+- [docs/sandbox.md](https://github.com/vinay-repalle/saferun/blob/main/docs/sandbox.md) — sandbox library usage and guarantees
+- [PROJECT.md](https://github.com/vinay-repalle/saferun/blob/main/PROJECT.md) — goals, architecture, threat model, known exposures (**read before relying on the sandbox**), phases
+- [IMPLEMENTATION.md](https://github.com/vinay-repalle/saferun/blob/main/IMPLEMENTATION.md) — status, test evidence, limitations, technical notes

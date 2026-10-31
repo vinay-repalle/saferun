@@ -2,8 +2,7 @@
 
 What is verified: that `<repository>@<digest>` carries a Sigstore "keyless" signature whose certificate was issued to the expected
 GitHub Actions identity (`AnalyzerRelease.signer_identity_regexp`, issuer `oidc_issuer`) and that the signed payload names exactly
-that repository and digest. The check is made by the `cosign` command line tool (not bundled: install it from
-https://docs.sigstore.dev/cosign/system_config/installation/, version 2.2 or newer), which also checks the transparency log (Rekor).
+that repository and digest. The check is made by the `cosign` command line tool (`saferun init` fetches a pinned, hash-verified copy itself, see cosign_tool.py; a cosign 2.2+ on PATH is used if that copy is absent), which also checks the transparency log (Rekor).
 
 How it is run: argv list (no shell), absolute path of the executable, minimal environment (no tokens or credentials), a private
 HOME (so nothing is read from or written to the user's home), a hard timeout and an output cap. This runs on the HOST: cosign parses
@@ -23,13 +22,14 @@ import tempfile
 from pathlib import Path
 
 from .. import hostos
+from . import cosign_tool
 from . import docker as dk
 from .config import SandboxError
 from .images import DIGEST_RE, AnalyzerRelease
 
 COSIGN_TIMEOUT_S = 120
 MAX_OUTPUT = 1024 * 1024
-INSTALL_HINT = "install cosign 2.2 or newer (https://docs.sigstore.dev/cosign/system_config/installation/)"
+INSTALL_HINT = "run `saferun init --only analyzer` (it fetches a verified cosign) or install cosign 2.2+ (https://docs.sigstore.dev/cosign/system_config/installation/)"
 _ENV_KEEP = ("PATH", "LANG", "LC_ALL", "TZ", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
              "SSL_CERT_FILE", "SSL_CERT_DIR")
 
@@ -43,6 +43,10 @@ class CosignMissing(SignatureError):
 
 
 def find_cosign() -> str | None:
+    """The cosign to use: SafeRun's own pinned, hash-verified copy (cosign_tool.py) if it is installed, else a cosign on PATH."""
+    managed = cosign_tool.managed_cosign()
+    if managed:
+        return managed
     path = shutil.which("cosign")
     return os.path.abspath(path) if path else None
 

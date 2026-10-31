@@ -31,6 +31,7 @@ import os
 import stat
 import tempfile
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import dataclass, field
@@ -212,6 +213,17 @@ def validate(db_dir: Path, needed=None, *, max_age_days: float = DEFAULT_MAX_AGE
     return rep
 
 
+def stale_ecosystems(db_dir: Path, *, max_age_days: float = DEFAULT_MAX_AGE_DAYS, now: float | None = None) -> list[str]:
+    """Ecosystems that must be (re)downloaded: missing, failing validation, or older than the limit. An ecosystem that is valid and
+    fresh is not listed, so it is not downloaded again. Never raises."""
+    out = []
+    for eco in ECOSYSTEMS:
+        rep = validate(Path(db_dir), [eco], max_age_days=max_age_days, now=now)
+        if not rep.ok or rep.stale:
+            out.append(eco)
+    return out
+
+
 # ---------------------------------------------------------------------------------------------------- update
 def _ensure_dir(path: Path) -> bool:
     """Create `path` (mode 0755) if it is missing. Returns True if it was created. An EXISTING directory is never chmod'ed;
@@ -222,6 +234,8 @@ def _ensure_dir(path: Path) -> bool:
         if not path.is_dir():
             raise ValueError(f"not a directory: {path}")
         return False
+    if path == default_dir():
+        hostos.ensure_private_dir(path.parent)   # <data>/saferun also holds the analyzer lock, which requires it to be owner-only
     path.parent.mkdir(parents=True, exist_ok=True)
     path.mkdir(mode=0o755)
     os.chmod(path, 0o755)         # only a directory created just now; the umask may have narrowed it
@@ -247,8 +261,34 @@ def _write_manifest(db_dir: Path, base_url: str, eco: str, entry: dict) -> None:
         raise
 
 
+class OsvNetworkError(OSError):
+    """The OSV server could not be reached (or kept failing). The existing data and manifest are untouched, and are NOT made fresher by this."""
+
+
+OPEN_ATTEMPTS = 3
+RETRY_STATUS = frozenset({408, 429, 500, 502, 503, 504})
+
+
+def _open(opener, url: str, *, sleep=time.sleep, attempts: int = OPEN_ATTEMPTS):
+    """Open `url`, retrying transient failures (no connection, timeout, 408/429/5xx) with a short back-off. Other HTTP errors fail at once."""
+    last = None
+    for i in range(attempts):
+        try:
+            return opener(url, timeout=120)
+        except urllib.error.HTTPError as e:
+            if e.code not in RETRY_STATUS:
+                raise OsvNetworkError(f"the OSV server answered HTTP {e.code} for {url}") from None
+            last = f"HTTP {e.code}"
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            last = str(getattr(e, "reason", e))
+        if i + 1 < attempts:
+            sleep(2 ** i)
+    raise OsvNetworkError(f"cannot reach the OSV server ({last}) after {attempts} attempts; check your internet connection or proxy. "
+                          "Existing data was left untouched and keeps its original age")
+
+
 def update(db_dir: Path, ecosystems=ECOSYSTEMS, *, base_url: str = BASE_URL, opener=None,
-           allow_unverified: bool = False, clock=time.time, progress=None) -> dict[str, dict]:
+           allow_unverified: bool = False, clock=time.time, progress=None, sleep=time.sleep) -> dict[str, dict]:
     """Download `all.zip` for each ecosystem into `db_dir` and record it in the manifest. Returns {ecosystem: manifest entry}.
     Atomic per file; raises on any problem (including an interrupted download) and leaves the previous file and manifest entry in place.
     Never changes the permissions of a directory that already existed. `progress(ecosystem, bytes_done, total_or_None)` is called about once per MiB."""
@@ -268,7 +308,7 @@ def update(db_dir: Path, ecosystems=ECOSYSTEMS, *, base_url: str = BASE_URL, ope
         fd, tmp = tempfile.mkstemp(dir=target_dir, prefix=".dl-")
         try:
             md5, sha, size = hashlib.md5(usedforsecurity=False), hashlib.sha256(), 0
-            with os.fdopen(fd, "wb") as out, opener(f"{base_url}/{eco}/all.zip", timeout=120) as resp:  # noqa: S310 - https enforced
+            with os.fdopen(fd, "wb") as out, _open(opener, f"{base_url}/{eco}/all.zip", sleep=sleep) as resp:  # noqa: S310 - https enforced
                 expected_md5 = _goog_md5(_header_values(resp.headers, "x-goog-hash"))
                 if not expected_md5 and not allow_unverified:
                     raise ValueError(f"{eco}: the server sent no usable MD5 header, so the download cannot be integrity-checked; "

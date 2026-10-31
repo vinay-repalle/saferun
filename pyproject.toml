@@ -3,34 +3,48 @@ requires = ["setuptools>=77"]      # >=77: SPDX `license` expression and `licens
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "saferun"
-version = "0.0.1"
+name = "saferun-cli"   # PyPI name ("saferun" is taken by an unrelated project); the import package and the command stay `saferun`
+dynamic = ["version"]   # single source: saferun/__init__.py (__version__)
 description = "Secure verification of AI-generated code"
 readme = "README.md"
+authors = [{ name = "Vinay Repalle" }]
+keywords = ["security", "sandbox", "docker", "ai-generated-code", "static-analysis", "semgrep", "osv", "cosign", "supply-chain"]
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = []
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
     "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
 ]
 
 [project.urls]
 Homepage = "https://github.com/vinay-repalle/saferun"
+Repository = "https://github.com/vinay-repalle/saferun"
+Documentation = "https://github.com/vinay-repalle/saferun/tree/main/docs"
 Issues = "https://github.com/vinay-repalle/saferun/issues"
 
 [project.scripts]
 saferun = "saferun.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruamel.yaml>=0.18", "build>=1.2"]   # ruamel.yaml: validates the release workflow YAML in tests; build: wheel/sdist check
+dev = ["pytest>=8", "ruamel.yaml>=0.18", "build>=1.2", "twine>=5"]   # ruamel.yaml: validates the release workflow YAML in tests; build, twine: wheel/sdist build and metadata check
 # no "analysis" extra: Semgrep and OSV-Scanner run only inside the analyzer container (docker/analyzer/build.sh), never from the host environment
 
-# Supported installation is from a source checkout (`pip install -e .`): the analyzer build recipe (docker/) lives
-# outside the `saferun` package and are not included in the wheel. See docs/install-and-test.md.
+# The wheel is the supported install (`pip install saferun-cli`): `saferun init` installs the signed analyzer image and needs nothing outside the package.
+# Only `saferun init --build-local` needs the build recipe (docker/), which lives outside the package, so it works from a source checkout/sdist only.
+[tool.setuptools.dynamic]
+version = { attr = "saferun.__version__" }
+
 [tool.setuptools.packages.find]
 include = ["saferun*"]
 

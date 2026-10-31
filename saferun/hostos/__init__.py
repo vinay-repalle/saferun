@@ -128,6 +128,21 @@ def restrict_to_owner(path: Path) -> None:
     _win.restrict_to_user(str(path), _win.current_token()[1])
 
 
+def ensure_private_dir(path: Path) -> bool:
+    """Create `path` owner-only (POSIX 0700, Windows protected DACL) if it is missing; missing ancestors are created normally. Returns True if it was
+    created. An EXISTING directory is never changed. Needed because SafeRun's per-user directory also holds the analyzer lock, whose trust rules
+    demand an owner-only directory: whichever SafeRun code creates it first must not leave it wider than that."""
+    if path.exists() or path.is_symlink():
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.mkdir(mode=0o700)
+    if IS_WINDOWS:
+        restrict_to_owner(path)
+    else:
+        os.chmod(path, 0o700)      # the umask may have narrowed it, never widened; make it exact
+    return True
+
+
 def owned_by_current_user(path: Path) -> bool:
     """Windows counterpart of `st_uid == os.getuid()` (used before the reaper deletes a leftover workspace)."""
     from . import acl

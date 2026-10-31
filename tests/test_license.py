@@ -21,5 +21,6 @@ def test_package_metadata_declares_the_same_license():
 
 
 def test_readme_and_sdist_reference_the_license():
-    assert "[MIT License](LICENSE)" in (ROOT / "README.md").read_text()
+    # an absolute URL: PyPI renders the README outside the repository, where a relative link would be broken
+    assert "[MIT License](https://github.com/vinay-repalle/saferun/blob/main/LICENSE)" in (ROOT / "README.md").read_text()
     assert "LICENSE" in (ROOT / "MANIFEST.in").read_text()

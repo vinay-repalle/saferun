@@ -140,8 +140,9 @@ jobs:
 
       - name: Build
         run: |
-          python -m pip install 'build>=1.2'
+          python -m pip install 'build>=1.2' 'twine>=5'
           python -m build
+          python -m twine check dist/*
 
       - name: Check the contents of both distributions
         run: |
@@ -149,17 +150,24 @@ jobs:
           wheel=$(ls dist/*.whl)
           python -m zipfile -l "$wheel" | grep -q 'saferun/engine/rules/python.yml'
           python -m zipfile -l "$wheel" | grep -q 'saferun/cli.py'
+          python -m zipfile -l "$wheel" | grep -q 'saferun/doctor.py'
+          for bad in 'docker/' 'tests/' 'web/' 'node_modules' '\.venv'; do
+            if python -m zipfile -l "$wheel" | grep -q "$bad"; then echo "wheel contains $bad" >&2; exit 1; fi
+          done
           tar tzf dist/*.tar.gz | grep -q 'docker/analyzer/Dockerfile'
           tar tzf dist/*.tar.gz | grep -q 'web/package-lock.json'
           if tar tzf dist/*.tar.gz | grep -q 'node_modules/'; then echo "sdist contains node_modules" >&2; exit 1; fi
 
-      - name: Install the wheel into a clean virtual environment and start the CLI (sanity check, not a supported install)
+      - name: Install the wheel into a clean virtual environment and run the CLI away from the checkout
         run: |
           set -eu
           python -m venv "$RUNNER_TEMP/clean"
           "$RUNNER_TEMP/clean/bin/pip" install dist/*.whl
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/clean/bin/saferun" --help > /dev/null
+          "$RUNNER_TEMP/clean/bin/saferun" --version
+          # doctor exits 1 on a runner without Docker/analyzer, which is expected; it must still run and print its checks
+          "$RUNNER_TEMP/clean/bin/saferun" doctor --format json | python -c "import json,sys; d=json.load(sys.stdin); assert d['checks']"
           "$RUNNER_TEMP/clean/bin/python" -c "import saferun.engine.semgrep as s; assert s.RULES_FILE.is_file(), s.RULES_FILE"
 
   audit:
