@@ -3,16 +3,16 @@ import { useEffect, useState } from 'react'
 import { Mark } from '../../components/Mark/Mark'
 import { SiteFooter } from '../../components/SiteFooter/SiteFooter'
 import { SiteNav } from '../../components/SiteNav/SiteNav'
-import { HONEST_LIMITS, REQUIREMENTS, SAFETY, STEPS, TRUST, VERDICTS } from '../../content/site'
+import { DOCS, HONEST_LIMITS, PLATFORMS, REQUIREMENTS, SAFETY, STEPS, TRUST, VERDICTS } from '../../content/site'
 import './GuidePage.css'
 
 const TOC = [
-  ['quick-start', 'Quick start'], ['setup', 'Full setup'], ['concepts', 'How it fits'], ['components', 'What gets installed'], ['commands', 'Commands'], ['checks', 'Checks'],
+  ['quick-start', 'Quick start'], ['platforms', 'Platforms'], ['setup', 'Full setup'], ['concepts', 'How it fits'], ['components', 'What gets installed'], ['commands', 'Commands'], ['checks', 'Checks'],
   ['verdicts', 'Verdicts'], ['fix', 'If something is missing'], ['offline', 'Offline'], ['safety', 'How it stays safe'],
 ]
 
-// [title, text, commands, note]
-const WALK = [
+// [title, text, commands, note]. One list per platform; the Ubuntu one is the original walkthrough.
+const WALK_LINUX = [
   ['Install Python 3.12 or newer', 'Check what you have. If it is older than 3.12, install a newer one with your package manager.',
     ['python3 --version', 'sudo apt install python3 python3-venv python3-pip'],
     'The apt line is for Debian and Ubuntu; other distributions have their own package names. The venv package is needed for the next steps.'],
@@ -33,6 +33,64 @@ const WALK = [
   ['Run your first scan', 'Scans a local folder. Nothing in it is executed, and the scan needs no network.',
     ['saferun scan ./my-project'],
     'Exit codes: 0 PASS, 1 FAIL, 2 WARNING (including any incomplete scan), 64 bad usage, 70 fatal error.'],
+]
+
+const WALK_WINDOWS = [
+  ['Install Python 3.12 or newer', 'Download it from python.org if you do not have it. Tick "Add python.exe to PATH" in the installer, or use the py launcher.',
+    ['py -3.12 --version'], 'Run the commands in PowerShell or Command Prompt.'],
+  ['Install Docker Desktop and use Linux containers', 'Install Docker Desktop and start it. It must run Linux containers: right-click the Docker tray icon and choose "Switch to Linux containers" if you see that option.',
+    ['docker version', 'docker info --format "{{.OSType}}"'],
+    'The second command must print linux. Official instructions: https://docs.docker.com/desktop/setup/install/windows-install/. SafeRun itself does not need WSL. Docker Desktop integration on Windows has not yet been manually verified.'],
+  ['Install SafeRun from the repository', 'SafeRun is installed from a checkout. It is not published on PyPI.',
+    ['git clone https://github.com/vinay-repalle/saferun.git', 'cd saferun', 'py -3.12 -m venv .venv', '.venv\\Scripts\\pip install -e .', '.venv\\Scripts\\Activate.ps1', 'saferun --help'],
+    'In Command Prompt activate with .venv\\Scripts\\activate.bat instead. If PowerShell blocks the script, use Command Prompt or call .venv\\Scripts\\saferun.exe directly.'],
+  ['Cosign (optional)', 'The default setup checks the signed analyzer with Cosign 2.2 or newer (cosign.exe on your PATH). Install it from the official page. If you would rather not, build the analyzer locally in the next step.',
+    ['cosign version'], 'Official page: https://docs.sigstore.dev/cosign/system_config/installation/. SafeRun never downloads cosign for you.'],
+  ['Set SafeRun up', 'Pulls the pinned Python and Node.js images, installs the signed analyzer (about 740 MB) and downloads the OSV data (about 260 MB).',
+    ['saferun init --all'], 'No Cosign? Use saferun init --only analyzer --build-local instead. The local build needs the checkout and internet.'],
+  ['Check, then scan', 'Every component should say ready. Then scan a local folder; nothing in it is executed.',
+    ['saferun status', 'saferun scan .\\my-project'], 'Keep the project on a local drive that Docker Desktop shares (C:\\Users by default). Network (UNC) paths are refused.'],
+]
+
+const WALK_MACOS = [
+  ['Install Python 3.12 or newer', 'Check what you have. If it is older, install a newer one from python.org or with Homebrew.',
+    ['python3 --version', 'brew install python@3.12'], 'The brew line is only needed if you use Homebrew and your Python is too old.'],
+  ['Install Docker Desktop and start it', 'Install Docker Desktop (Apple Silicon or Intel) and open it once so the engine runs. It must use Linux containers, which is the macOS default.',
+    ['docker version', 'docker info --format "{{.OSType}}"'],
+    'The second command must print linux. Official instructions: https://docs.docker.com/desktop/setup/install/mac-install/. Docker Desktop integration on macOS has not yet been manually verified.'],
+  ['Install SafeRun from the repository', 'SafeRun is installed from a checkout. It is not published on PyPI.',
+    ['git clone https://github.com/vinay-repalle/saferun.git', 'cd saferun', 'python3 -m venv .venv', '.venv/bin/pip install -e .', 'source .venv/bin/activate', 'saferun --help'],
+    'Activate the virtual environment in every new terminal.'],
+  ['Cosign (optional)', 'The default setup checks the signed analyzer with Cosign 2.2 or newer on your PATH. If you would rather not, build the analyzer locally in the next step.',
+    ['brew install cosign', 'cosign version'], 'Homebrew is one way; the official page lists others: https://docs.sigstore.dev/cosign/system_config/installation/. SafeRun never downloads cosign for you.'],
+  ['Set SafeRun up', 'Pulls the pinned Python and Node.js images, installs the signed analyzer (about 740 MB) and downloads the OSV data (about 260 MB).',
+    ['saferun init --all'], 'No Cosign? Use saferun init --only analyzer --build-local instead. The local build needs the checkout and internet.'],
+  ['Check, then scan', 'Every component should say ready. Then scan a local folder; nothing in it is executed.',
+    ['saferun status', 'saferun scan ./my-project'], 'Docker Desktop shares /Users, /private and /var/folders by default. With Colima or Lima, set TMPDIR to a shared folder.'],
+]
+
+// [id, tab label, walkthrough, intro line]
+const OSES = [
+  ['linux', 'Ubuntu / Linux', WALK_LINUX, 'Debian and Ubuntu commands. Other distributions use their own package names.'],
+  ['windows', 'Windows', WALK_WINDOWS, 'Native Windows 10/11 with PowerShell or Command Prompt. WSL is not needed for SafeRun itself.'],
+  ['macos', 'macOS', WALK_MACOS, 'Apple Silicon and Intel.'],
+]
+
+// [what, Ubuntu / Linux, Windows, macOS]
+const DIFFS = [
+  ['Docker', 'Docker Engine', 'Docker Desktop, Linux containers', 'Docker Desktop, Linux containers'],
+  ['Analyzer image', 'linux/amd64, native', 'linux/amd64 (emulated on ARM)', 'linux/amd64 (emulated on Apple Silicon)'],
+  ['Per-user data', '~/.local/share/saferun', '%LOCALAPPDATA%\\saferun', '~/Library/Application Support/saferun'],
+  ['Special files', 'Symlinks are never followed', 'Symlinks, junctions and alternate data streams are skipped and reported', 'Symlinks are never followed'],
+  ['Private files', 'Withheld unless world-readable', 'Withheld unless everyone who can read the project can read them', 'Withheld unless world-readable'],
+  ['Verification', 'Full suite including Docker tests', 'Non-Docker tests in CI; Docker Desktop not yet manually verified', 'Non-Docker tests in CI; Docker Desktop not yet manually verified'],
+]
+
+const ARCH = [
+  ['One shared core', 'The sandbox policy, the preflight, the signature check and the verdict logic are the same on every platform.'],
+  ['One place that knows the OS', 'Only the host layer (saferun/hostos/) branches on the platform: file copying, locks, permissions and process cleanup.'],
+  ['Linux containers everywhere', 'Untrusted code never runs on your computer. On Windows and macOS the checks run in Linux containers through Docker Desktop.'],
+  ['Fails closed', 'Where a safe copy or a security check cannot be done on a platform, SafeRun withholds the file or refuses to run and says so in the report.'],
 ]
 
 // Not part of the walkthrough: an optional check you can repeat at any time.
@@ -82,8 +140,10 @@ const CHECKS = [
 ]
 
 const FIXES = [
-  ['Setup says Docker is unusable, or docker: command not found', 'Install Docker Engine and start it (sudo systemctl enable --now docker). docker info must work for your user. SafeRun only uses a local daemon and refuses remote ones.'],
-  ['Docker says permission denied', 'Your user is not in the docker group, or the group change is not active yet. Run sudo usermod -aG docker $USER, then log out and back in.'],
+  ['Setup says Docker is unusable, or docker: command not found (Linux)', 'Install Docker Engine and start it (sudo systemctl enable --now docker). docker info must work for your user. SafeRun only uses a local daemon and refuses remote ones.'],
+  ['Docker says permission denied (Linux)', 'Your user is not in the docker group, or the group change is not active yet. Run sudo usermod -aG docker $USER, then log out and back in.'],
+  ['Windows or macOS: SafeRun says it needs Linux containers, or Docker is unusable', 'Start Docker Desktop and make sure it runs Linux containers (on Windows: tray icon, Switch to Linux containers). docker info --format "{{.OSType}}" must print linux. Docker Desktop integration has not yet been manually verified, so please report what you see.'],
+  ['Windows or macOS: the project folder is refused or cannot be mounted', 'Keep the project on a local drive that Docker Desktop shares. Windows: network (UNC) and \\?\\ paths are refused. macOS: /Users is shared by default; with Colima or Lima set TMPDIR to a shared folder.'],
   ['cosign: command not found, although you installed it', 'Its folder is not on your PATH in this terminal. Run export PATH="$HOME/.local/bin:$PATH", check with cosign version, and add the line to ~/.bashrc to keep it.'],
   ['saferun status shows an image as INVALID', 'Docker does not report the pinned digest for it (for example a tag that moved or an image loaded without its digest). Run saferun init --only python,node to pull the pinned one. Do not ignore an INVALID analyzer: see the --repair entry above.'],
   ['A check says "unavailable", "error" or "incomplete"', 'Run saferun status. It names the component and prints the exact fix, for example saferun init --only osv-db. A scan also prints that fix on stderr.'],
@@ -106,6 +166,16 @@ const PRELOAD = [
   ['Analyzer image', 'Cannot be installed without internet yet: the signed download needs ghcr.io, sigstore.dev and cosign (a local build needs PyPI and GitHub). Run saferun init --only analyzer once while online.'],
 ]
 
+function tabKey(e, os, setOs) {
+  const i = OSES.findIndex(([id]) => id === os)
+  const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+  if (!step) return
+  e.preventDefault()
+  const next = OSES[(i + step + OSES.length) % OSES.length][0]
+  setOs(next)
+  document.getElementById('tab-' + next)?.focus()
+}
+
 function jump(id) {
   const el = document.getElementById(id)
   if (!el) return
@@ -115,6 +185,8 @@ function jump(id) {
 
 export function GuidePage() {
   const [active, setActive] = useState('quick-start')
+  const [os, setOs] = useState('linux')
+  const [, , walk, osIntro] = OSES.find(([id]) => id === os)
   // Highlight the section being read. Skipped where IntersectionObserver is missing (the sidebar still works by click).
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return undefined
@@ -160,16 +232,45 @@ export function GuidePage() {
               </li>
             ))}
           </ol>
-          <p className="fine">Needs Linux, Python 3.12+, a local Docker Engine and internet access for setup (the signed analyzer is checked with cosign 2.2+): see Full setup below.</p>
+          <p className="fine">Needs Python 3.12+, a local Docker that runs Linux containers and internet access for setup (the signed analyzer is checked with cosign 2.2+). Pick your platform under Full setup below.</p>
+        </section>
+
+        <section id="platforms" className="card g-section">
+          <h2>Platforms</h2>
+          <p>SafeRun runs on Ubuntu/Linux, native Windows and macOS. Every platform needs a local Docker that runs Linux containers; installing SafeRun does not install Docker.</p>
+          <div className="g-grid">
+            {PLATFORMS.map(([name, status, note]) => (
+              <article key={name} className="g-comp g-plat"><h3>{name}</h3><p className="g-enables"><span className="g-pill">{status}</span></p><p>{note}</p></article>
+            ))}
+          </div>
+          <p className="notice">Docker Desktop integration on Windows and macOS has not yet been manually verified. CI cannot run Linux containers on those systems, so the sandbox and analyzer tests there were not run.</p>
+          <h3>How it works across platforms</h3>
+          <dl className="g-defs">{ARCH.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
+          <h3>Differences and limitations</h3>
+          <div className="g-scroll">
+            <table>
+              <thead><tr><th></th>{OSES.map(([id, label]) => <th key={id}>{label}</th>)}</tr></thead>
+              <tbody>{DIFFS.map(([what, ...cells]) => <tr key={what}><th scope="row">{what}</th>{cells.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+          <p className="fine">Windows: the project and the temp folder must be on a local drive shared with Docker Desktop; Windows containers mode is refused. Details: <a href={DOCS + 'platforms.md'} target="_blank" rel="noreferrer noopener">platform status</a>.</p>
         </section>
 
         <section id="setup" className="card g-section">
           <h2>Full setup, step by step</h2>
-          <p>New to this? Follow these in order. Each command can be copied with its button.</p>
+          <p>New to this? Choose your platform, then follow the steps in order. Each command can be copied with its button.</p>
+          <div className="g-tabs" role="tablist" aria-label="Platform">
+            {OSES.map(([id, label]) => (
+              <button key={id} type="button" role="tab" id={'tab-' + id} aria-selected={os === id} aria-controls="os-panel" tabIndex={os === id ? 0 : -1}
+                className={os === id ? 'on' : undefined} onClick={() => setOs(id)} onKeyDown={(e) => tabKey(e, os, setOs)}>{label}</button>
+            ))}
+          </div>
+          <div id="os-panel" role="tabpanel" aria-labelledby={'tab-' + os}>
+          <p className="fine">{osIntro}</p>
           <h3>What you need</h3>
           <dl className="g-defs">{REQUIREMENTS.map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
           <ol className="g-walk">
-            {WALK.map(([title, text, cmds, note], i) => (
+            {walk.map(([title, text, cmds, note], i) => (
               <li key={title}>
                 <span className="g-num" aria-hidden="true">{i + 1}</span>
                 <div>
@@ -181,6 +282,7 @@ export function GuidePage() {
               </li>
             ))}
           </ol>
+          </div>
           <div className="g-future">
             <h3>Verify the signed analyzer release</h3>
             <p className="fine">Optional: repeat the signature check whenever you like. It needs internet and cosign.</p>

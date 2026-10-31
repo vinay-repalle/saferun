@@ -101,3 +101,15 @@
 .g-future h3, .g-future h4, .g-future p { margin: 0; }
 .g-future ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
 .g-future li { display: grid; gap: .5rem; min-width: 0; }
+
+/* platform tabs and wide tables */
+.g-tabs { display: flex; gap: .3rem; margin: 1rem 0 .9rem; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.g-tabs button { flex: none; background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; margin-bottom: -1px; padding: .55rem 1rem; font-size: .92rem; font-weight: 600; color: var(--muted); }
+.g-tabs button:hover:not(:disabled) { color: var(--text); }
+.g-tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+.g-scroll { overflow-x: auto; margin-bottom: .5rem; }
+.g-scroll table { min-width: 640px; }
+.guide tbody th { font-weight: 600; white-space: nowrap; }
+.guide .g-grid + .notice { margin: 1rem 0; }
+#platforms > h3 { margin-top: 1.4rem; }
+#setup [role=tabpanel] > h3 { margin-top: .8rem; }

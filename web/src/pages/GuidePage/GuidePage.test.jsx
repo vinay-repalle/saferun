@@ -58,7 +58,7 @@ describe('Guide page', () => {
     expect(container.querySelectorAll('.g-steps > li')).toHaveLength(3)
     for (const s of ['READY', 'MISSING', 'INVALID', 'OUTDATED']) expect(container.querySelector('.g-states').textContent).toContain(s)
     expect([...container.querySelectorAll('.g-verdict h3')].map((n) => n.textContent)).toEqual(['PASS', 'WARNING', 'FAIL'])
-    expect(container.querySelectorAll('.g-comp')).toHaveLength(4)
+    expect(container.querySelectorAll('#components .g-comp')).toHaveLength(4)
   })
 
   it('states the honest limits next to the safety claims', () => {
@@ -89,7 +89,7 @@ describe('Guide page', () => {
     window.HTMLElement.prototype.scrollIntoView = scroll
     const before = window.location.hash
     const { container } = render(<GuidePage />)
-    const ids = ['quick-start', 'setup', 'concepts', 'components', 'commands', 'checks', 'verdicts', 'fix', 'offline', 'safety']
+    const ids = ['quick-start', 'platforms', 'setup', 'concepts', 'components', 'commands', 'checks', 'verdicts', 'fix', 'offline', 'safety']
     const buttons = [...container.querySelectorAll('.g-toc button')]
     expect(buttons).toHaveLength(ids.length)
     for (const id of ids) expect(container.querySelector('#' + id)).not.toBeNull()
@@ -102,5 +102,40 @@ describe('Guide page', () => {
     const { container } = render(<GuidePage />)
     expect(container.querySelectorAll('[style]')).toHaveLength(0)
     expect(container.querySelectorAll('script')).toHaveLength(0)
+  })
+
+  it('presents Ubuntu/Linux, Windows and macOS as tabs on one page, one walkthrough at a time', () => {
+    const { container } = render(<GuidePage />)
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['Ubuntu / Linux', 'Windows', 'macOS'])
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true')
+    expect(container.querySelector('#os-panel').textContent).toContain('sudo apt install')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Windows' }))
+    const win = container.querySelector('#os-panel').textContent
+    for (const c of ['py -3.12 --version', 'Switch to Linux containers', '.venv\\Scripts\\pip install -e .', 'saferun init --all', 'UNC']) expect(win).toContain(c)
+    expect(win).not.toContain('sudo apt install')
+    expect(container.querySelectorAll('.g-walk > li')).toHaveLength(6)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'macOS' }))
+    const mac = container.querySelector('#os-panel').textContent
+    for (const c of ['brew install cosign', 'Docker Desktop', '.venv/bin/pip install -e .', 'saferun scan ./my-project']) expect(mac).toContain(c)
+    expect(screen.getByRole('tab', { name: 'macOS' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('tabs can be switched with the arrow keys', () => {
+    render(<GuidePage />)
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Ubuntu / Linux' }), { key: 'ArrowRight' })
+    expect(screen.getByRole('tab', { name: 'Windows' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('states the platform status honestly: Docker Desktop unverified, and never says WSL is required', () => {
+    const { container } = render(<GuidePage />)
+    const text = container.textContent
+    expect(container.querySelector('#platforms').textContent).toContain('Docker Desktop integration on Windows and macOS has not yet been manually verified')
+    expect(text).toContain('Windows 10/11')
+    expect(text).not.toMatch(/requires? WSL|WSL ?2? (is|are) required|(must|need to|have to) (have |install |enable )?WSL/i)
+    for (const os of ['Windows', 'macOS']) fireEvent.click(screen.getByRole('tab', { name: os }))
+    expect(container.textContent).toMatch(/not yet been manually verified/)
   })
 })

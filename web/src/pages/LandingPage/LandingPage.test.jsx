@@ -166,4 +166,9 @@ describe('Routing', () => {
     expect(text).toContain(HONEST_LIMITS)
     for (const [, , cmd] of STEPS) expect(text).toContain(cmd)
   })
+
+  it('tells visitors which platforms are supported, with the Docker Desktop caveat', () => {
+    const text = render(<LandingPage />).container.textContent
+    for (const k of ['Ubuntu / Linux', 'Windows 10/11', 'macOS', 'Which platforms are supported?', 'has not yet been manually verified']) expect(text).toContain(k)
+  })
 })

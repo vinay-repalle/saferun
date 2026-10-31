@@ -10,6 +10,13 @@ export const TRUST = [
   ['Pinned analyzer image', 'A cosign-signed image pinned by digest (built from a hash-locked recipe), locked locally and re-checked before every scan.'],
 ]
 
+// [name, status, evidence]: what the tests have shown, nothing more.
+export const PLATFORMS = [
+  ['Ubuntu / Linux', 'Fully tested', 'The full test suite, including the Docker sandbox and analyzer tests, runs locally and in CI.'],
+  ['Windows 10/11', 'Native, partly verified', 'A native implementation (no WSL needed for SafeRun itself). Non-Docker tests pass in CI on windows-2022; Docker Desktop integration has not yet been manually verified.'],
+  ['macOS', 'Partly verified', 'Same code as Linux. Non-Docker tests pass in CI on Apple Silicon and Intel; Docker Desktop integration has not yet been manually verified.'],
+]
+
 // [title, text, command]
 export const STEPS = [
   ['Set up', 'Run saferun init once. It installs only what is missing.', 'saferun init'],
@@ -18,9 +25,9 @@ export const STEPS = [
 ]
 
 export const REQUIREMENTS = [
-  ['Operating system', 'Linux. The analyzer image is linux/amd64 only; ARM64 is not supported yet.'],
+  ['Operating system', 'Linux (Ubuntu), native Windows 10/11 or macOS. The analyzer image is linux/amd64 only, so on Apple Silicon and Windows ARM it runs under emulation.'],
   ['Python', '3.12 or newer, with venv and pip.'],
-  ['Docker', 'A local Docker Engine that your user can reach, with memory, swap, pids and CPU limits and seccomp enabled. Remote Docker endpoints are refused. Docker Desktop is not tested.'],
+  ['Docker', 'A local Docker Engine that your user can reach, with memory, swap, pids and CPU limits and seccomp enabled. Remote Docker endpoints are refused. On Windows and macOS use Docker Desktop in Linux containers mode: that integration has not yet been manually verified.'],
   ['Cosign', 'Yes, for the default setup: Cosign 2.2 or newer on your PATH verifies the signed analyzer image before it is pulled. SafeRun does not install it for you. Not needed if you build the analyzer yourself with --build-local.'],
   ['Internet', 'Only for setup (Docker Hub, the signed analyzer from ghcr.io with its Sigstore check, and the OSV data; a local analyzer build uses PyPI and GitHub instead). Scans never use the network.'],
   ['Disk space', 'About 1.5 GB for images and vulnerability data.'],

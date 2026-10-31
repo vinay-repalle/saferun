@@ -5,6 +5,7 @@ import './Faq.css'
 // Answers about requirements reuse the guide's own wording (content/site.js); the guide has the full troubleshooting list.
 const FAQ = [
   ['How do I install it?', 'Clone the repository, create a virtualenv, install with pip, then run saferun init. The setup guide has every command, with copy buttons.'],
+  ['Which platforms are supported?', 'Ubuntu/Linux is fully tested. Native Windows and macOS are supported but only partly verified: their non-Docker tests pass in CI, while Docker Desktop integration has not yet been manually verified. The guide has a section for each.'],
   ['Why does it need Docker?', requirement('Docker')],
   ['Do I need Cosign?', requirement('Cosign')],
   ['Does it need internet access?', requirement('Internet')],

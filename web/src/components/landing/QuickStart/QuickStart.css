@@ -3,3 +3,8 @@
 .qs li::before { content: counter(qs); position: absolute; left: 0; top: 0; width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid var(--accent); color: var(--accent); font: 600 .85rem var(--mono); }
 .qs h3 { font-size: 1rem; margin-bottom: .5rem; } .qs p { color: var(--muted); font-size: .88rem; margin-top: .4rem; }
 @media (max-width: 640px) { .qs li { padding-left: 0; padding-top: 2.6rem; } }
+
+.qs-plat { list-style: none; margin: 0 0 2rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .8rem; }
+.qs-plat li { border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem; background: var(--surface-2); display: grid; gap: .2rem; align-content: start; min-width: 0; }
+.qs-plat span { font-size: .75rem; font-weight: 600; color: var(--accent); }
+.qs-plat p { color: var(--muted); font-size: .85rem; margin: .2rem 0 0; }
