@@ -6,7 +6,7 @@ Installing SafeRun does not install Docker.
 | Platform | Docker you need | SafeRun host code | Evidence in this repository |
 |---|---|---|---|
 | Linux (x86-64) | Docker Engine, cgroup limits + seccomp | unchanged POSIX implementation | full test suite **including 101 Docker tests**, run locally (Ubuntu) and in CI |
-| macOS (Apple Silicon and Intel) | Docker Desktop (Linux containers) | the same POSIX implementation | non-Docker tests **passed** on `macos-14` (arm64) and `macos-15-intel` in CI (the Intel leg is advisory in the workflow). **Docker Desktop integration not verified.** |
+| macOS (Apple Silicon and Intel) | Docker Desktop (Linux containers) | the same POSIX implementation | non-Docker tests **passed** on `macos-15` (arm64) and `macos-15-intel` in CI (the Intel leg is advisory in the workflow). **Docker Desktop integration not verified.** |
 | Windows 10/11 | Docker Desktop, **Linux containers mode** (WSL 2 or Hyper-V backend) | native Windows implementation, no WSL needed for SafeRun itself | non-Docker unit, security and NTFS tests **passed** on `windows-2022` in CI. **Docker Desktop integration not verified.** |
 
 "Verified" means a test that ran. The Windows code was written on Linux and first executed in CI. CI results are evidence for the
@@ -20,7 +20,7 @@ systems, antivirus or backup software holding files open, unusual ACLs, other ma
 | Linux (Ubuntu): full test suite | passed |
 | Linux (Ubuntu): Docker sandbox and analyzer integration tests | passed |
 | Windows (`windows-2022`): native unit and security tests, Docker tests excluded | passed |
-| macOS (`macos-14`, Apple Silicon): tests, Docker tests excluded | passed |
+| macOS (`macos-15`, Apple Silicon): tests, Docker tests excluded | passed |
 | macOS (`macos-15-intel`): tests, Docker tests excluded | passed |
 | Website tests and build | passed |
 | Package build and inspection | passed |
