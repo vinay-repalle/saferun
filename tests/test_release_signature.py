@@ -257,8 +257,8 @@ def test_workflow_uses_no_secret_but_the_github_token(wf):
     assert "persist-credentials: false" in wf
 
 
-def test_workflow_stages_the_same_files_as_build_sh(wf):
-    sh = (ROOT / "docker" / "analyzer" / "build.sh").read_text()
+def test_workflow_stages_the_same_files_as_build_script(wf):
+    sh = (ROOT / "docker" / "analyzer" / "build.py").read_text()
     for name in ("Dockerfile", "fetch_verified.py", "semgrep-requirements.txt", "python.yml"):
         assert name in wf and name in sh
     assert "RULES_SHA256=" in wf and "RULES_SHA256=" in sh

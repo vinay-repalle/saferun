@@ -13,7 +13,7 @@ SafeRun is released under the [MIT License](LICENSE) (Copyright (c) 2026 Vinay R
 - **CLI** (Phase 3): `saferun scan PATH`, text or JSON output, deterministic exit codes. Incomplete scans never report PASS.
 
 ## Prerequisites
-Linux, Python 3.12+, a **local** Docker Engine reachable by your user (remote endpoints are refused), cgroup limits (memory, swap, pids, CPU) and seccomp enabled in the daemon.
+Python 3.12+ and a **local** Docker that runs Linux containers, reachable by your user (remote endpoints are refused), with cgroup limits (memory, swap, pids, CPU) and seccomp enabled in the daemon. Linux is the fully tested platform; native Windows and macOS support is new and only partly verified, see [docs/platforms.md](docs/platforms.md) for what is tested and the limitations.
 `saferun init` installs the rest (the images are pulled by pinned digest; SafeRun never pulls on its own during a scan). Manual equivalent:
 ```bash
 docker pull python@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea   # Python profile

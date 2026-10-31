@@ -9,6 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
+from .. import hostos
 from . import docker as dk
 from .config import (
     CONTAINER_LABEL, DEADLINE_LABEL, DEFAULT_IMAGE, REAP_MARGIN_S, SANDBOX_UID,
@@ -26,6 +27,9 @@ def _check_mount_path(project: Path) -> None:
     s = str(project)
     if not project.is_absolute() or any(c in s for c in ',"') or not s.isprintable():
         raise SandboxError(f"workspace path contains unsupported characters: {s!r}")
+    problem = hostos.mount_source_problem(s)
+    if problem:
+        raise SandboxError(f"cannot mount {s!r}: {problem}")
 
 
 def validate_command(command) -> list[str]:

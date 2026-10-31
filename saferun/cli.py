@@ -26,6 +26,7 @@ from .engine import ValidationOptions, ValidationReport, Verdict, validate_proje
 from .engine.model import CheckResult, clean_text
 from .sandbox import SandboxError
 from .sandbox.verify import verify_images
+from . import hostos
 from . import setup as setup_mod
 from . import ui
 
@@ -116,7 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     ini.add_argument("--only", metavar="COMPONENT[,COMPONENT]", help=f"only these components ({', '.join(setup_mod.KEYS)}), without prompts")
     ini.add_argument("--skip", metavar="COMPONENT[,COMPONENT]", help="exclude these components (everything else if --only is not given), without prompts")
     ini.add_argument("--yes", "-y", action="store_true", help="answer yes to confirmations in interactive mode")
-    ini.add_argument("--build-local", action="store_true", help="build the analyzer image locally (docker/analyzer/build.sh) instead of installing the "
+    ini.add_argument("--build-local", action="store_true", help="build the analyzer image locally (docker/analyzer/build.py) instead of installing the "
                      "signed published image when a signed release exists (today init always builds locally); never done automatically")
     ini.add_argument("--repair", action="store_true", help="allow rebuilding an analyzer image that failed verification (it replaces the image and its lock)")
     st = sub.add_parser("status", help="show which components are installed and verified", description=(
@@ -437,6 +438,7 @@ def _verify_images(fmt: str, analyzer: bool = True, only: str | None = None, sig
 
 
 def main(argv: list[str] | None = None) -> int:
+    hostos.enable_ansi()   # Windows consoles: escape sequences and a code page that cannot crash on output; no-op elsewhere
     parser = build_parser()
     try:
         args = parser.parse_args(argv)

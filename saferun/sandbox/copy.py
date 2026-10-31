@@ -41,7 +41,7 @@ from .config import (
 )
 from .secrets import LEARN_MAX, Redactor, SignatureScanner
 
-_RD = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+_RD = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)   # POSIX copy engine; Windows uses copy_windows.py (same value on Linux/macOS)
 CHUNK = 1024 * 1024
 _GONE = (errno.ELOOP, errno.ENOTDIR, errno.ENOENT)  # opening failed because the entry was replaced/removed
 _SIZE = 3  # index of st_size inside a signature

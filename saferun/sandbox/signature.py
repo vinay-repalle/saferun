@@ -22,6 +22,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .. import hostos
 from . import docker as dk
 from .config import SandboxError
 from .images import DIGEST_RE, AnalyzerRelease
@@ -95,6 +96,8 @@ def verify_release_signature(rel: AnalyzerRelease, *, which=find_cosign, run=sub
     env = {k: os.environ[k] for k in _ENV_KEEP if k in os.environ and "\0" not in os.environ[k]}
     with tempfile.TemporaryDirectory(prefix="saferun-cosign-") as home:
         env.update(HOME=home, TMPDIR=home, XDG_CACHE_HOME=str(Path(home) / "cache"), XDG_CONFIG_HOME=str(Path(home) / "config"))
+        env.update({k: os.environ[k] for k in hostos.base_env_names() if k in os.environ})   # Windows: SYSTEMROOT etc. (needed to run at all)
+        env.update(hostos.private_home_env(home))
         try:
             r = run(argv, capture_output=True, text=True, errors="replace", timeout=timeout_s, stdin=subprocess.DEVNULL,
                     env=env, cwd=home)

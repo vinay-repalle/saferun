@@ -1,16 +1,22 @@
 """Temporary, sanitized copy of an untrusted project directory."""
 from __future__ import annotations
 
-import fcntl
 import os
 import shutil
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .. import hostos
 from .config import SandboxError, SensitivePolicy, SkippedEntry, WithheldEntry, WorkspaceLimits
-from .copy import copy_tree
 from .secrets import Redactor
+
+if hostos.IS_WINDOWS:
+    from .copy_windows import copy_tree
+else:
+    import fcntl
+
+    from .copy import copy_tree
 
 WS_PREFIX = "saferun-ws-"
 LOCK_NAME = ".lock"  # flock held for the life of a run; the kernel drops it if we die
@@ -32,7 +38,11 @@ class Workspace:
     def cleanup(self) -> None:
         """Delete the workspace and release the lock. Raises if it is still there."""
         try:
-            shutil.rmtree(self.root, ignore_errors=False)
+            if hostos.IS_WINDOWS and self._lock_fd is not None:   # an open exclusive lock file cannot be deleted on Windows
+                os.close(self._lock_fd)
+                self._lock_fd = None
+            shutil.rmtree(hostos.long_path(self.root) if hostos.IS_WINDOWS else self.root, ignore_errors=False,
+                          **({"onexc": hostos.rmtree_onexc} if hostos.IS_WINDOWS else {}))
         except FileNotFoundError:
             pass
         except OSError as e:
@@ -59,8 +69,13 @@ def create_workspace(src: Path, limits: WorkspaceLimits | None = None,
     root = Path(tempfile.mkdtemp(prefix=WS_PREFIX))
     ws = Workspace(root=root, project=root / "project")
     try:
-        ws._lock_fd = os.open(root / LOCK_NAME, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
-        fcntl.flock(ws._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if hostos.IS_WINDOWS:   # POSIX: the directory is 0700 from mkdtemp; Windows: protected ACL for this user (and SYSTEM) only
+            hostos.restrict_to_owner(root)
+        if hostos.IS_WINDOWS:   # held with share mode 0: the Windows counterpart of the flock below (released by the OS if we die)
+            ws._lock_fd = hostos.create_workspace_lock(root / LOCK_NAME)
+        else:
+            ws._lock_fd = os.open(root / LOCK_NAME, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
+            fcntl.flock(ws._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         ws.project.mkdir(mode=0o755)
         r = copy_tree(str(src), str(ws.project), limits or WorkspaceLimits(), policy)
         ws.skipped, ws.withheld, ws.redactor = r.skipped, r.withheld, r.redactor

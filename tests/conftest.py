@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import textwrap
 
@@ -6,6 +7,13 @@ import pytest
 
 from saferun.sandbox import DEFAULT_IMAGE, SandboxError, SandboxLimits, run_sandboxed
 from saferun.sandbox import docker as dk
+
+# Modules that test the POSIX implementation itself (fcntl locks, O_NOFOLLOW / dir_fd copy, permission bits, symlink races, uid ownership).
+# On Windows they are skipped, visibly; the Windows equivalents are in test_windows_native.py and test_copy_windows_engine.py.
+POSIX_ONLY_MODULES = frozenset({
+    "test_workspace", "test_races", "test_hardlinks", "test_analyzer_lock", "test_osv_db_integrity", "test_sensitive", "test_adversarial",
+    "test_cleanup", "test_cleanup_hardening", "test_node_profile", "test_analyzer_isolation", "test_sandbox",
+})
 
 REQUIRE_DOCKER = os.environ.get("SAFERUN_REQUIRE_DOCKER", "").lower() in ("1", "true", "yes")
 
@@ -30,6 +38,11 @@ def pytest_report_header(config):
 
 
 def pytest_collection_modifyitems(config, items):
+    if sys.platform == "win32":
+        skip_posix = pytest.mark.skip(reason="tests the POSIX implementation; see tests/test_windows_native.py for the Windows equivalents")
+        for item in items:
+            if item.module.__name__.rpartition(".")[2] in POSIX_ONLY_MODULES:
+                item.add_marker(skip_posix)
     docker_items = [i for i in items if "docker" in i.keywords]
     if _STATUS is None or not docker_items:
         return

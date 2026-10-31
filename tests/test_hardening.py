@@ -6,6 +6,7 @@ import json
 import os
 import stat
 import subprocess
+import sys
 import threading
 from types import SimpleNamespace
 
@@ -111,7 +112,7 @@ def test_garbage_inspect_data_is_a_violation_not_a_crash():
 # ---- daemon preflight ----------------------------------------------------------
 
 def _daemon(**kw):
-    base = {"SecurityOptions": ["name=apparmor,profile=default", "name=seccomp,profile=builtin"],
+    base = {"OSType": "linux", "SecurityOptions": ["name=apparmor,profile=default", "name=seccomp,profile=builtin"],
             "MemoryLimit": True, "SwapLimit": True, "PidsLimit": True, "CpuCfsQuota": True}
     base.update(kw)
     return base
@@ -163,6 +164,24 @@ def test_missing_apparmor_is_reported_but_not_fatal(fake_daemon):
     assert "daemon-apparmor" not in REQUIRED_DAEMON
 
 
+@pytest.mark.parametrize("os_type", ["windows", "", None])
+def test_preflight_requires_a_linux_container_daemon(fake_daemon, os_type):
+    info = _daemon()
+    info["OSType"] = os_type
+    fake_daemon(info)
+    with pytest.raises(SandboxError, match="needs Linux containers"):
+        dk.preflight("python:3.12-slim")
+
+
+def test_preflight_without_an_ostype_at_all_is_refused(fake_daemon):
+    info = _daemon()
+    del info["OSType"]
+    fake_daemon(info)
+    with pytest.raises(SandboxError, match="needs Linux containers"):
+        dk.preflight("python:3.12-slim")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="on Windows a local named pipe is the accepted endpoint (tests/test_windows_platform.py)")
 @pytest.mark.parametrize("host", ["tcp://127.0.0.1:2375", "ssh://user@example.org", "npipe:////./pipe/docker_engine", ""])
 def test_remote_or_odd_docker_endpoints_are_refused(monkeypatch, host):
     monkeypatch.setenv("DOCKER_HOST", host)
@@ -170,6 +189,7 @@ def test_remote_or_odd_docker_endpoints_are_refused(monkeypatch, host):
         dk.check_local_daemon()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows accepts named pipes, not unix sockets")
 def test_local_socket_endpoint_is_accepted(monkeypatch):
     monkeypatch.setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
     dk.check_local_daemon()

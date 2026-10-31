@@ -94,7 +94,7 @@ def test_tag_only_reference_is_unchanged_single_inspect(monkeypatch):
 
 def test_preflight_mismatch_raises_before_anything_is_created(monkeypatch):
     calls = fake_docker(monkeypatch, digests=json.dumps(["python@" + OTHER]))
-    monkeypatch.setattr(dk, "daemon_info", lambda: {})
+    monkeypatch.setattr(dk, "daemon_info", lambda: {"OSType": "linux"})
     monkeypatch.setattr(dk, "daemon_controls", lambda info: [])
     with pytest.raises(SandboxError, match="digest mismatch"):
         dk.preflight(PY.reference)
@@ -234,8 +234,9 @@ def test_semgrep_lock_is_fully_hash_pinned():
 
 
 def test_build_script_verifies_images_first_and_never_pulls():
-    sh = (ANALYZER / "build.sh").read_text()
-    assert sh.index("verify-images") < sh.index("docker build") and "--pull=false" in sh
+    py = (ANALYZER / "build.py").read_text()   # the recipe (build.sh only runs it)
+    assert py.index('"verify-images"') < py.index('"build"') and '"--pull=false"' in py
+    assert 'build.py' in (ANALYZER / "build.sh").read_text()
 
 
 # --- fetch_verified (checksum verification used by the image build) ---

@@ -21,6 +21,7 @@ import stat
 import tempfile
 from pathlib import Path
 
+from .. import hostos
 from . import docker as dk
 from .config import SandboxError
 from .images import OSV_SCANNER_VERSION, SEMGREP_VERSION
@@ -44,8 +45,7 @@ def lock_path() -> Path:
     env = os.environ.get("SAFERUN_ANALYZER_LOCK")
     if env:
         return Path(env)
-    base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
-    return Path(base) / "saferun" / "analyzer-image-id"
+    return hostos.user_data_base() / "saferun" / "analyzer-image-id"
 
 
 def rules_sha256() -> str:
@@ -56,6 +56,8 @@ def rules_sha256() -> str:
 def _lock_problem(p: Path) -> str | None:
     """Why the lock file's directory or the file itself cannot be trusted, or None. Both must belong to the current user and be
     owner-only (directory 0700, file 0600), and neither may be a symlink (only the immediate parent directory is examined)."""
+    if hostos.IS_WINDOWS:   # owner + ACL instead of uid + mode bits (hostos.private_path_problem); reparse points are refused there
+        return hostos.private_path_problem(p.parent, directory=True)
     me = os.geteuid()
     try:
         dst = os.lstat(p.parent)
@@ -72,6 +74,8 @@ def _lock_problem(p: Path) -> str | None:
 
 def _read_lock() -> str:
     p = lock_path()
+    if hostos.IS_WINDOWS:
+        return _read_lock_windows(p)
     try:
         fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
     except FileNotFoundError:
@@ -101,6 +105,21 @@ def _read_lock() -> str:
     return text
 
 
+def _read_lock_windows(p: Path) -> str:
+    if not p.exists():
+        raise AnalyzerUnavailable(f"the analyzer image has not been installed (no lock file at {p}); run `saferun init --only analyzer`")
+    problem = hostos.private_path_problem(p, directory=False) or hostos.private_path_problem(p.parent, directory=True)
+    if problem:
+        raise AnalyzerIntegrityError(f"analyzer lock not trusted: {problem}")
+    try:
+        text = p.read_bytes()[:4096].decode("ascii", "replace").strip()
+    except OSError as e:
+        raise AnalyzerIntegrityError(f"cannot read the analyzer lock file {p}: {e}") from None
+    if not _ID_RE.match(text):
+        raise AnalyzerIntegrityError(f"analyzer lock file {p} is malformed")
+    return text
+
+
 def write_lock(image_id: str) -> Path:
     """Record `image_id` as the trusted analyzer image (used by docker/analyzer/build.sh). Creates the lock directory (0700) if it
     does not exist; an EXISTING directory is never chmod'ed, it must already be owner-only. The file is written 0600, atomically."""
@@ -112,7 +131,10 @@ def write_lock(image_id: str) -> Path:
     if not p.parent.exists():
         p.parent.parent.mkdir(parents=True, exist_ok=True)
         p.parent.mkdir(mode=0o700)
-        os.chmod(p.parent, 0o700)
+        if hostos.IS_WINDOWS:
+            hostos.restrict_to_owner(p.parent)
+        else:
+            os.chmod(p.parent, 0o700)
     problem = _lock_problem(p)
     if problem:
         raise SandboxError(f"not writing the analyzer lock: {problem}")
@@ -120,7 +142,10 @@ def write_lock(image_id: str) -> Path:
     try:
         with os.fdopen(fd, "w") as f:
             f.write(image_id + "\n")
-        os.chmod(tmp, 0o600)
+        if hostos.IS_WINDOWS:
+            hostos.restrict_to_owner(Path(tmp))
+        else:
+            os.chmod(tmp, 0o600)
         os.replace(tmp, p)
     except BaseException:
         if os.path.exists(tmp):

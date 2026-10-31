@@ -8,7 +8,6 @@ label (timeout + grace + margin) and workspaces are protected by a flock.
 from __future__ import annotations
 
 import errno
-import fcntl
 import os
 import shutil
 import tempfile
@@ -16,9 +15,13 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .. import hostos
 from . import docker as dk
 from .config import CONTAINER_LABEL, DEADLINE_LABEL
 from .workspace import LOCK_NAME, WS_PREFIX
+
+if not hostos.IS_WINDOWS:
+    import fcntl
 
 NO_LOCK_MIN_AGE_S = 600  # a workspace with no lock file is only reaped once this old
 
@@ -59,7 +62,30 @@ def _reap_containers(now: float, report: ReapReport) -> None:
             report.errors.append(f"container {name}: {e}")
 
 
+def _reap_workspaces_windows(now: float, tmp_root: Path, report: ReapReport) -> None:
+    """Same rules as the POSIX version: our name prefix, a real directory (no reparse point) owned by this user, and a lock file that
+    nobody holds (the owner keeps it open with share mode 0, so it cannot be opened while the run is alive)."""
+    for entry in os.scandir(tmp_root):
+        if not entry.name.startswith(WS_PREFIX):
+            continue
+        try:
+            st = entry.stat(follow_symlinks=False)
+            if entry.is_symlink() or not entry.is_dir(follow_symlinks=False) or st.st_file_attributes & 0x400:
+                continue
+            if not hostos.owned_by_current_user(Path(entry.path)):
+                continue
+            state = hostos.workspace_lock_state(os.path.join(entry.path, LOCK_NAME))
+            if state == "busy" or (state == "absent" and now - st.st_mtime < NO_LOCK_MIN_AGE_S):
+                continue
+            shutil.rmtree(hostos.long_path(entry.path), onexc=hostos.rmtree_onexc)
+            report.workspaces.append(entry.name)
+        except OSError as e:
+            report.errors.append(f"workspace {entry.name}: {e}")
+
+
 def _reap_workspaces(now: float, tmp_root: Path, report: ReapReport) -> None:
+    if hostos.IS_WINDOWS:
+        return _reap_workspaces_windows(now, tmp_root, report)
     for entry in os.scandir(tmp_root):
         if not entry.name.startswith(WS_PREFIX) or entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
             continue

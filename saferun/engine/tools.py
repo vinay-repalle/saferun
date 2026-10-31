@@ -17,6 +17,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from .. import hostos
+from ..hostos import process as hostproc
+
 MAX_ARGS, MAX_ARG_LEN = 256, 4096
 DEFAULT_MAX_OUTPUT = 8 * 1024 * 1024
 _BASE_ENV = ("PATH", "LANG", "LC_ALL", "TZ")
@@ -63,8 +66,10 @@ def build_env(home: Path, network: bool = False, extra: dict[str, str] | None = 
     env = {k: os.environ[k] for k in _BASE_ENV if k in os.environ}
     if network:
         env.update({k: os.environ[k] for k in _NET_ENV if k in os.environ})
+    env.update({k: os.environ[k] for k in hostos.base_env_names() if k in os.environ})
     env.update(HOME=str(home), XDG_CACHE_HOME=str(home / "cache"), XDG_CONFIG_HOME=str(home / "config"),
                TMPDIR=str(home))
+    env.update(hostos.private_home_env(str(home)))
     env.update(extra or {})
     return env
 
@@ -79,6 +84,8 @@ def _drain(stream, cap: int, buf: bytearray, over: threading.Event) -> None:
 
 
 def _kill_group(proc: subprocess.Popen) -> None:
+    if hostos.IS_WINDOWS:   # job object: ends the whole tree
+        return hostproc.kill_tree(proc)
     try:
         os.killpg(proc.pid, signal.SIGKILL)
     except (ProcessLookupError, PermissionError):
@@ -91,6 +98,8 @@ def _kill_group(proc: subprocess.Popen) -> None:
 
 def _interrupt_group(proc: subprocess.Popen) -> None:
     """SIGINT to the process group: lets a SafeRun CLI worker run its own cleanup (container, workspace) before it exits."""
+    if hostos.IS_WINDOWS:
+        return hostproc.interrupt_tree(proc)
     try:
         os.killpg(proc.pid, signal.SIGINT)
     except (ProcessLookupError, PermissionError):
@@ -110,7 +119,8 @@ def run_tool(argv: list[str], *, cwd: Path, env: dict[str, str], timeout_s: floa
     t0 = time.monotonic()
     try:
         proc = subprocess.Popen(argv, cwd=str(cwd), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, start_new_session=True, close_fds=True)
+                                stderr=subprocess.PIPE, **hostproc.popen_kwargs())
+        hostproc.after_spawn(proc)   # Windows: confine to a job object, then let it run; POSIX: nothing
     except OSError as e:
         raise ToolUnavailable(f"cannot start {argv[0]}: {e}") from e
     out, err, over = bytearray(), bytearray(), threading.Event()
@@ -148,6 +158,7 @@ def run_tool(argv: list[str], *, cwd: Path, env: dict[str, str], timeout_s: floa
             t.join(timeout=5)
         for s in (proc.stdout, proc.stderr):
             s.close()
+        hostproc.release(proc)   # Windows: closing the job also ends anything the tool left behind
     return ToolRun(
         argv=argv, exit_code=None if (timed_out or cancelled or over.is_set()) else proc.returncode,
         stdout=out.decode("utf-8", "replace"), stderr=err.decode("utf-8", "replace"),

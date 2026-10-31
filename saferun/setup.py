@@ -1,7 +1,7 @@
 """First-run setup (`saferun init`) and installation status (`saferun status`).
 
 This module only ORCHESTRATES things that already exist: the pinned images and their digest check (`sandbox.images`, `sandbox.verify`),
-the analyzer image/lock/label/rules verification (`sandbox.analyzer`), the local build recipe (`docker/analyzer/build.sh`) and the
+the analyzer image/lock/label/rules verification (`sandbox.analyzer`), the local build recipe (`docker/analyzer/build.py`) and the
 validated OSV data (`engine.osvdb`). It adds no new trust: a component is READY only if that existing verification passes now, never
 because a tag or a directory happens to exist, and nothing is installed that cannot then be verified.
 """
@@ -29,7 +29,7 @@ from .sandbox import verify as vf
 from .sandbox.signature import CosignMissing, SignatureError, verify_release_signature
 
 ROOT = Path(__file__).resolve().parent.parent
-BUILD_SCRIPT = ROOT / "docker" / "analyzer" / "build.sh"
+BUILD_SCRIPT = ROOT / "docker" / "analyzer" / "build.py"   # Python, so the same recipe runs on Linux, macOS and Windows
 
 READY, MISSING, INVALID, OUTDATED, UNKNOWN = "ready", "missing", "invalid", "outdated", "unknown"
 MB = 1_000_000
@@ -77,7 +77,7 @@ To set up without internet access, prepare the missing parts on a connected mach
                 verify it with:  saferun osv-db status
   * Docker images:  docker pull <image>@<digest>  (see: saferun verify-images), then docker save / docker load on the target machine. SafeRun only trusts an image
                 whose registry digest matches the pin (`saferun status` shows this); an image loaded without that digest is reported as invalid, never trusted.
-  * Analyzer:   build it where docker/analyzer/build.sh can run (needs internet once), or, if you have built it elsewhere, docker save / docker load it (or, without --build-local, install the signed release analyzer-v1.0.1; see docs/release-images.md)."""
+  * Analyzer:   build it where docker/analyzer/build.py can run (needs internet once), or, if you have built it elsewhere, docker save / docker load it (or, without --build-local, install the signed release analyzer-v1.0.1; see docs/release-images.md)."""
 
 
 @dataclass(frozen=True)
@@ -215,11 +215,11 @@ def docker_pull(ref: str) -> int:
 
 
 def build_analyzer(log) -> int:
-    """Run docker/analyzer/build.sh (the existing local build workflow), showing a heartbeat and keeping the log."""
+    """Run docker/analyzer/build.py (the local build workflow; build.sh just calls it), showing a heartbeat and keeping the log."""
     fd, path = tempfile.mkstemp(prefix="saferun-analyzer-build-", suffix=".log")
     start = time.monotonic()
     with os.fdopen(fd, "w") as out:
-        proc = subprocess.Popen(["sh", str(BUILD_SCRIPT)], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
+        proc = subprocess.Popen([sys.executable, str(BUILD_SCRIPT)], stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
                                 env={**os.environ, "PYTHON": sys.executable}, cwd=str(ROOT))
         try:
             while proc.poll() is None:
@@ -294,8 +294,8 @@ class Setup:
         rel = self._release()
         if rel is not None:
             return self._install_analyzer_release(rel)
-        self.say("    building the analyzer image locally with docker/analyzer/build.sh" if im.ANALYZER_RELEASE is not None else
-                 "    no signed prebuilt analyzer image has been published yet (docs/release-images.md): building it locally with docker/analyzer/build.sh")
+        self.say("    building the analyzer image locally with docker/analyzer/build.py" if im.ANALYZER_RELEASE is not None else
+                 "    no signed prebuilt analyzer image has been published yet (docs/release-images.md): building it locally with docker/analyzer/build.py")
         if not BUILD_SCRIPT.is_file():
             return ("this installation does not include the build recipe (docker/ is not part of the pip package): "
                     "use a SafeRun repository checkout, or run `saferun init --only analyzer` without --build-local to install the signed release")
