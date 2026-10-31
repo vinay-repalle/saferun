@@ -13,6 +13,7 @@ This module has no Windows-only imports: it runs against any `FsOps`, which is h
 """
 from __future__ import annotations
 
+import ntpath
 import os
 from collections import Counter
 
@@ -37,7 +38,9 @@ class _Sink:
 
     def _p(self, rel: str) -> str:
         p = os.path.join(self.dest, *rel.split("/"))
-        return "\\\\?\\" + os.path.abspath(p) if os.name == "nt" else p
+        # Extended-length form. Not os.path.abspath(): Win32 normalisation turns a final component such as CON into the device path \\.\CON.
+        # `dest` is absolute and `rel` comes from a directory listing, so cleaning up the string is all that is needed.
+        return "\\\\?\\" + ntpath.normpath(p) if os.name == "nt" else p
 
     def mkdir(self, rel: str) -> None:
         os.mkdir(self._p(rel))
