@@ -275,7 +275,7 @@ class Setup:
 
     def __init__(self, *, out=None, err=None, ask=input, interactive=False, tty=False, status=component_status, online=network_ok,
                  pull=docker_pull, build=build_analyzer, osv_update=None, free_bytes=None, daemon_check=None, theme=None,
-                 verify_signature=verify_release_signature, build_local=False, ensure_cosign=None, diagnose=None):
+                 verify_signature=verify_release_signature, build_local=False, ensure_cosign=None, diagnose=None, has_cosign=None):
         self.out, self.err = out or sys.stdout, err or sys.stderr
         self.th = theme or ui.PLAIN
         self.ask, self.interactive, self.tty = ask, interactive, tty
@@ -283,6 +283,7 @@ class Setup:
         self.verify_signature, self.build_local = verify_signature, build_local   # build_local: --build-local, never chosen automatically
         self.osv_update = osv_update or self._osv_update
         self.ensure_cosign = ensure_cosign or self._ensure_cosign
+        self.has_cosign = has_cosign or self._has_cosign
         self.diagnose = diagnose or (dockerdiag.diagnose if daemon_check is None else None)   # an injected daemon_check (tests) replaces the real probe
         self.free_bytes = free_bytes or (lambda p: shutil.disk_usage(p).free)
         self.daemon_check = daemon_check or dk.check_local_daemon
@@ -444,7 +445,7 @@ class Setup:
                 self.say("  " + self._outcome(results[k]))
                 continue
             hosts = (HOSTS["osv"] if k == "osv-db"
-                     else (HOSTS["release"] + (HOSTS_COSIGN if not self._has_cosign() else ()) if self._release() is not None else HOSTS["build"]) if k == "analyzer" else HOSTS["image"])
+                     else (HOSTS["release"] + (HOSTS_COSIGN if not self.has_cosign() else ()) if self._release() is not None else HOSTS["build"]) if k == "analyzer" else HOSTS["image"])
             if not all(self.online(h) for h in hosts):
                 offline.append(k)
                 results[k] = "not installed: no internet access" + (f". {_osv_state_line(_osv_dir())} Scans stay INCOMPLETE until it is current" if k == "osv-db" else "")

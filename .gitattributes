@@ -1,0 +1,5 @@
+# The analyzer image records the SHA-256 of the Semgrep rules file, and SafeRun refuses an analyzer whose rules hash differs from this checkout's file.
+# A CRLF conversion (Windows core.autocrlf) would change that hash, so the rules and the analyzer build recipe are always checked out with LF.
+saferun/engine/rules/*.yml text eol=lf
+docker/analyzer/** text eol=lf
+*.sh text eol=lf

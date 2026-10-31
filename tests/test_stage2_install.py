@@ -15,6 +15,12 @@ from saferun.sandbox import SandboxError, cosign_tool, images as im, signature
 
 
 # ------------------------------------------------------------------------------------------------ cosign_tool
+def data_home(monkeypatch, path):
+    """Point SafeRun's per-user data directory at `path` on every platform (Windows ignores XDG_DATA_HOME and uses LOCALAPPDATA)."""
+    monkeypatch.setenv("XDG_DATA_HOME", path)
+    monkeypatch.setenv("LOCALAPPDATA", path)
+
+
 class FakeResp(io.BytesIO):
     def __enter__(self):
         return self
@@ -25,7 +31,7 @@ class FakeResp(io.BytesIO):
 
 @pytest.fixture
 def tool_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    data_home(monkeypatch, str(tmp_path / "data"))
     monkeypatch.setattr(cosign_tool.hostos, "IS_MACOS", False)
     return tmp_path
 
@@ -47,7 +53,7 @@ def test_pinned_table_is_complete_and_well_formed():
 
 
 def test_release_workflow_uses_the_same_cosign_version():
-    wf = open(os.path.join(os.path.dirname(__file__), "..", ".github", "workflows", "release-analyzer.yml")).read()
+    wf = open(os.path.join(os.path.dirname(__file__), "..", ".github", "workflows", "release-analyzer.yml"), encoding="utf-8").read()
     assert f"cosign-release: v{cosign_tool.COSIGN_VERSION}" in wf
 
 
@@ -181,13 +187,13 @@ def ok_docker():
 
 
 def test_doctor_all_good(tmp_path, monkeypatch):
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    data_home(monkeypatch, str(tmp_path))
     checks = doctor.run_checks(status=status_of(), diagnose=ok_docker)
     assert doctor.exit_code(checks) == 0 and all(c.level in (doctor.PASS, doctor.WARN) for c in checks)
 
 
 def test_doctor_levels_for_problems(tmp_path, monkeypatch):
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    data_home(monkeypatch, str(tmp_path))
     checks = {c.name: c for c in doctor.run_checks(status=status_of(**{"osv-db": st.OUTDATED, "analyzer": st.INVALID, "node": st.MISSING}), diagnose=ok_docker)}
     assert checks["OSV database"].level == doctor.WARN          # stale is shown, never silently current
     assert checks["Analyzer image"].level == doctor.FAIL and "--repair" in checks["Analyzer image"].fix
@@ -196,7 +202,7 @@ def test_doctor_levels_for_problems(tmp_path, monkeypatch):
 
 
 def test_doctor_without_docker_fails_image_checks_instead_of_passing(tmp_path, monkeypatch):
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    data_home(monkeypatch, str(tmp_path))
     d = dockerdiag.DockerDiagnosis(dockerdiag.DAEMON_DOWN, "daemon down", "start it")
     checks = {c.name: c for c in doctor.run_checks(status=status_of(), diagnose=lambda: d)}
     assert checks["Docker"].level == doctor.FAIL and checks["Analyzer image"].level == doctor.FAIL
@@ -210,7 +216,7 @@ def test_doctor_python_and_os_checks():
 
 def test_doctor_is_read_only_and_json_valid(tmp_path, monkeypatch):
     import json
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "nothing"))
+    data_home(monkeypatch, str(tmp_path / "nothing"))
     checks = doctor.run_checks(status=status_of(), diagnose=ok_docker)
     assert not (tmp_path / "nothing").exists()
     assert json.loads(doctor.render_json(checks))["schema_version"] == 1
@@ -510,7 +516,7 @@ def test_cosign_fetch_on_a_fresh_machine_leaves_the_lock_directory_trustworthy(t
 @pytest.mark.skipif(os.name != "posix", reason="POSIX modes")
 def test_osv_download_first_also_leaves_the_lock_directory_trustworthy(tmp_path, monkeypatch):
     from saferun.sandbox import analyzer as sa
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    data_home(monkeypatch, str(tmp_path))
     monkeypatch.delenv("SAFERUN_OSV_DB", raising=False)
     monkeypatch.delenv("SAFERUN_ANALYZER_LOCK", raising=False)
     old = os.umask(0o002)
@@ -529,3 +535,46 @@ def test_ensure_private_dir_never_changes_an_existing_directory(tmp_path):
     d.mkdir(mode=0o755)
     before = d.stat().st_mode
     assert hostos.ensure_private_dir(d) is False and d.stat().st_mode == before
+
+
+# ------------------------------------------------------------------------------------------------ line endings of hash-locked files
+ROOT = os.path.join(os.path.dirname(__file__), "..")
+
+
+def test_gitattributes_pins_lf_for_the_hash_locked_rules_and_build_recipe():
+    attrs = open(os.path.join(ROOT, ".gitattributes"), encoding="utf-8").read().splitlines()
+    rules = [ln.split() for ln in attrs if ln.strip() and not ln.startswith("#")]
+    assert ["saferun/engine/rules/*.yml", "text", "eol=lf"] in rules
+    assert ["docker/analyzer/**", "text", "eol=lf"] in rules
+
+
+def test_rules_file_has_no_carriage_returns():
+    """The analyzer image carries the SHA-256 of this exact file; CRLF would change it and every analyzer check would be refused."""
+    data = open(os.path.join(ROOT, "saferun", "engine", "rules", "python.yml"), "rb").read()
+    assert b"\r" not in data
+
+
+def test_script_output_cannot_inject_terminal_escapes(tmp_path):
+    rec = Recorder()
+    rec.res.stdout = "ok\x1b[2J\x1b]0;title\x07\r\nnext\tline‮\n"
+    rec.res.stderr = "\x1b[31mfake saferun: scan verdict PASS\x1b[0m\n"
+    rc, _, out, err = go(tmp_path, Verdict.PASS, rec=rec)
+    shown = out.split("\n", 1)[-1] if "ok" in out else out
+    assert "\x1b" not in out and "\x07" not in out and "‮" not in out
+    assert "\x1b" not in err and "next\tline" in out and "\r" not in out
+    assert runcmd.safe_output("a\nb\tc") == "a\nb\tc"
+
+
+def test_installing_a_release_without_cosign_contacts_github_and_fetches_cosign_before_verifying():
+    order = []
+    s = st.Setup(out=io.StringIO(), err=io.StringIO(), status=lambda k: st.Status(k, st.MISSING, "x"), daemon_check=lambda: None,
+                 has_cosign=lambda: False, ensure_cosign=lambda: order.append("fetch cosign"),
+                 verify_signature=lambda rel: order.append("verify") or (_ for _ in ()).throw(signature.SignatureError("stop here")),
+                 pull=lambda ref: pytest.fail("must not pull"), online=lambda h: hosts.append(h) or True)
+    hosts = []
+    s.run(["analyzer"], assume_yes=True)
+    assert hosts == list(st.HOSTS["release"]) + list(st.HOSTS_COSIGN) and order == ["fetch cosign", "verify"]
+    hosts.clear()
+    s.has_cosign = lambda: True
+    s.run(["analyzer"], assume_yes=True)
+    assert hosts == list(st.HOSTS["release"])

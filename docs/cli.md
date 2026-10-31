@@ -2,7 +2,7 @@
 
 ## Install and set up
 ```bash
-pip install saferun-cli              # installs the `saferun` command (`python -m saferun` also works); pipx, uv tool and Poetry work too
+pip install saferun-cli              # installs the `saferun` command (`python -m saferun` also works); pipx, uv tool and Poetry 2.0+ work too
 saferun init                         # first-run setup (interactive); `saferun doctor` / `saferun status` show the result
 saferun --version
 ```
@@ -110,7 +110,7 @@ The command is `python -I /workspace/<script> ARGS…` as an argument list (no s
 | 70 | no verdict or the sandbox could not start; the script did not run |
 | 130 | interrupted |
 
-A passing scan is not proof that a script is safe. Output is shown after the script finishes (not streamed) and is capped; scripts that need the network or third-party packages fail inside the sandbox.
+A passing scan is not proof that a script is safe. Output is shown after the script finishes (not streamed), is capped, and has control, escape and bidi characters replaced by `?` (a script cannot rewrite your terminal or fake SafeRun's messages); scripts that need the network or third-party packages fail inside the sandbox.
 
 ## `saferun verify-images`
 Checks that the container images SafeRun runs are present locally with the digests pinned in `saferun/sandbox/images.py`

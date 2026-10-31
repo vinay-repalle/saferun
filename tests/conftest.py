@@ -89,3 +89,18 @@ def low_osv_floor(monkeypatch):
     """Small test databases: lower the 'too few advisories' floors (the real floors are exercised in test_osv_db_integrity)."""
     from saferun.engine import osvdb
     monkeypatch.setattr(osvdb, "MIN_ENTRIES", {"PyPI": 1, "npm": 1})
+
+
+@pytest.fixture(autouse=True)
+def _no_real_downloads(monkeypatch):
+    """No test may download anything (OSV data, cosign) by accident: an http(s) urlopen fails loudly unless a test replaces it or passes its own
+    opener. file:// URLs (used by the fetch_verified tests) still work."""
+    import urllib.request
+    real = urllib.request.urlopen
+
+    def guarded(url, *a, **k):
+        target = getattr(url, "full_url", url)
+        if str(target).lower().startswith(("http://", "https://")):
+            raise AssertionError(f"a test tried a real network download: {target}")
+        return real(url, *a, **k)
+    monkeypatch.setattr(urllib.request, "urlopen", guarded)

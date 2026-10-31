@@ -12,7 +12,7 @@ saferun doctor              # read-only diagnosis: PASS / WARNING / FAIL per che
 saferun run my_script.py    # scan the script; run it only inside the hardened sandbox if the scan allows it
 ```
 You do **not** install cosign or download the OSV database yourself. **Docker is the only prerequisite you install separately.**
-`pipx install saferun-cli`, `uv tool install saferun-cli` and `poetry add saferun-cli` work as well; Python 3.12 or newer.
+`pipx install saferun-cli`, `uv tool install saferun-cli` and `poetry add saferun-cli` work as well. Requirements: Python 3.12 or newer, and for Poetry **version 2.0 or newer** (Poetry 1.x, including the 1.8 that Ubuntu 24.04 packages, cannot read this package's wheel metadata; use `pipx install poetry` or `pip install -U poetry`).
 
 ## License
 SafeRun is released under the [MIT License](https://github.com/vinay-repalle/saferun/blob/main/LICENSE) (Copyright (c) 2026 Vinay Repalle). The analyzer image also redistributes third-party software under its own licenses (Semgrep, OSV-Scanner and others); their notices are in [docker/analyzer/THIRD_PARTY_NOTICES.md](https://github.com/vinay-repalle/saferun/blob/main/docker/analyzer/THIRD_PARTY_NOTICES.md) and inside the image.

@@ -12,6 +12,7 @@ Other exit codes: 0 the script ran and exited 0; 3 it ran and exited non-zero / 
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import stat
 import tempfile
@@ -39,6 +40,15 @@ def warning_blockers(report) -> list[str]:
     out += [f"check {c.name} did not complete ({c.status.value})" for c in report.checks if c.status not in _COMPLETED]
     out += [f"{f.severity.value} finding {f.rule_id}" for f in report.findings if f.severity in _SERIOUS]
     return out
+
+
+# The script's output is untrusted text: terminal escape sequences in it could clear the screen, rewrite earlier lines or fake SafeRun's own
+# messages. Everything except newline and tab that is a control, escape, C1 or bidi-override character is replaced before it reaches the terminal.
+_UNSAFE_OUTPUT = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def safe_output(text: str) -> str:
+    return _UNSAFE_OUTPUT.sub("?", text.replace("\r\n", "\n"))
 
 
 class RunUsageError(ValueError):
@@ -117,9 +127,9 @@ def run_script(script: str, script_args: list[str], *, project_dir: str | None =
         except SandboxError as e:
             err.write(f"saferun: the sandbox could not run the script: {e}\n")
             return EXIT_FATAL
-    out.write(res.stdout)
+    out.write(safe_output(res.stdout))
     if res.stderr:
-        err.write(res.stderr)
+        err.write(safe_output(res.stderr))
     if res.timed_out:
         err.write(f"saferun: the script was stopped after {timeout_s:g} s.\n")
     if res.oom_killed:

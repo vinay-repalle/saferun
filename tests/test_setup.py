@@ -83,7 +83,8 @@ class World:
                 raise EOFError from None
         s = su.Setup(out=out, err=out, ask=ask, interactive=interactive, status=self.status, online=self.online, pull=self.pull,
                      build=self.build, osv_update=self.osv_update, free_bytes=lambda p: self.free, daemon_check=self.daemon_check,
-                     verify_signature=self.verify_signature, build_local=build_local)
+                     verify_signature=self.verify_signature, build_local=build_local,
+                     ensure_cosign=lambda: None, has_cosign=lambda: True)   # never fetch a real cosign from a test
         s.text = out
         return s
 
@@ -482,7 +483,7 @@ def test_published_release_is_pulled_by_digest_verified_and_locked(world, releas
         from saferun import hostos
         assert hostos.private_path_problem(Path(lock), directory=False) is None
     assert ("tag", f"{release.repository}@{release.digest}", sa.ANALYZER_REPO_TAG) in seen
-    assert world.online_hosts == list(su.HOSTS["release"])                              # the registry and Sigstore, not pip/github
+    assert world.online_hosts == list(su.HOSTS["release"])                              # the registry and Sigstore, not pip/github (cosign is present here)
     assert [c for c in world.calls if c[0] in ("verify", "pull")] == [("verify", release.reference), ("pull", release.reference)]   # verified BEFORE the pull
 
 
@@ -527,7 +528,8 @@ def test_a_release_without_a_signer_identity_cannot_be_installed(world, release,
     monkeypatch.setattr(im, "ANALYZER_RELEASE", im.AnalyzerRelease(release.repository, release.digest, "2026-11-01", signer_identity_regexp=""))
     world.state["analyzer"] = M
     s = su.Setup(out=io.StringIO(), status=world.status, online=world.online, pull=world.pull, build=world.build,
-                 daemon_check=world.daemon_check, verify_signature=lambda rel: signature.verify_release_signature(rel, which=lambda: "/x/cosign"))
+                 daemon_check=world.daemon_check, verify_signature=lambda rel: signature.verify_release_signature(rel, which=lambda: "/x/cosign"),
+                 ensure_cosign=lambda: None, has_cosign=lambda: True)
     assert s.run(["analyzer"]) == 1 and [c for c in world.calls if c[0] == "pull"] == []
 
 
