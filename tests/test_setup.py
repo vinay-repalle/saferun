@@ -474,7 +474,13 @@ def test_published_release_is_pulled_by_digest_verified_and_locked(world, releas
     s.status = lambda k: su.Status(k, R if (k != "analyzer" or os.path.exists(os.environ["SAFERUN_ANALYZER_LOCK"])) else M)
     assert s.run(["analyzer"]) == 0, s.text.getvalue()
     lock = os.environ["SAFERUN_ANALYZER_LOCK"]
-    assert open(lock).read().strip() == "sha256:" + "e" * 64 and stat.S_IMODE(os.stat(lock).st_mode) == 0o600
+    assert open(lock).read().strip() == "sha256:" + "e" * 64
+    if os.name == "posix":
+        assert stat.S_IMODE(os.stat(lock).st_mode) == 0o600
+    else:   # the same guarantee on Windows: owner-only access control list
+        from pathlib import Path
+        from saferun import hostos
+        assert hostos.private_path_problem(Path(lock), directory=False) is None
     assert ("tag", f"{release.repository}@{release.digest}", sa.ANALYZER_REPO_TAG) in seen
     assert world.online_hosts == list(su.HOSTS["release"])                              # the registry and Sigstore, not pip/github
     assert [c for c in world.calls if c[0] in ("verify", "pull")] == [("verify", release.reference), ("pull", release.reference)]   # verified BEFORE the pull

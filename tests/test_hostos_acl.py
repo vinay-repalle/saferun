@@ -156,3 +156,12 @@ def test_only_trusted_principals():
     assert acl.only_trusted_principals(acl.parse_descriptor(descriptor([], null_dacl=True)), trusted) == acl.EVERYONE
     denied_only = acl.parse_descriptor(descriptor([deny(OTHER), allow(ME, FULL)]))
     assert acl.only_trusted_principals(denied_only, trusted) is None
+
+
+def test_owner_rights_is_not_a_third_party_but_is_only_trusted_by_the_caller_that_checked_the_owner():
+    d = acl.parse_descriptor(descriptor([allow(ME, FULL), allow(acl.OWNER_RIGHTS, FULL)]))
+    trusted = frozenset({ME, acl.SYSTEM, acl.ADMINISTRATORS})
+    assert acl.only_trusted_principals(d, trusted) == acl.OWNER_RIGHTS                       # the evaluator itself never assumes it
+    assert acl.only_trusted_principals(d, trusted | {acl.OWNER_RIGHTS}) is None              # hostos.private_path_problem checks the owner first
+    d2 = acl.parse_descriptor(descriptor([allow(ME, FULL), allow(acl.OWNER_RIGHTS, FULL), allow(acl.USERS, READ)]))
+    assert acl.only_trusted_principals(d2, trusted | {acl.OWNER_RIGHTS}) == acl.USERS        # any real third party is still found

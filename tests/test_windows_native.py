@@ -168,9 +168,17 @@ def acl_debug(*paths):
     return "\n".join(out)
 
 
+def narrow_to_me(path, rights):
+    """Leave only the current user on `path`. On the CI runner the project directory grants SYSTEM, Administrators and OWNER RIGHTS full
+    control, and `/inheritance:r` leaves such entries on the file (seen in the first diagnostic run), so a "narrowed" file was in fact
+    as readable as its parent. Remove those principals explicitly: only then is the entry narrower than the project root."""
+    sh("icacls", str(path), "/inheritance:r", "/grant:r", f"{me()}:{rights}")
+    sh("icacls", str(path), "/remove", "*S-1-5-18", "*S-1-5-32-544", "*S-1-3-4")
+
+
 def test_acl_narrowed_file_is_withheld_and_inherited_file_is_not(proj, ws_root):
     (proj / "id_key").write_text("harmless text")
-    sh("icacls", str(proj / "id_key"), "/inheritance:r", "/grant:r", f"{me()}:R")
+    narrow_to_me(proj / "id_key", "R")
     ws = create_workspace(proj)
     try:
         assert withheld(ws) == {"id_key": "private-mode"}, acl_debug(proj, proj / "id_key")
@@ -179,20 +187,44 @@ def test_acl_narrowed_file_is_withheld_and_inherited_file_is_not(proj, ws_root):
         ws.cleanup()
 
 
+def test_an_entry_as_readable_as_its_parent_is_not_withheld(proj, ws_root):
+    (proj / "id_key").write_text("harmless text")
+    sh("icacls", str(proj / "id_key"), "/grant", f"{me()}:R")   # adds to the inherited access; narrows nothing
+    ws = create_workspace(proj)
+    try:
+        assert withheld(ws) == {} and (ws.project / "id_key").exists(), acl_debug(proj, proj / "id_key")
+    finally:
+        ws.cleanup()
+
+
 def test_explicit_deny_makes_a_file_private(proj, ws_root):
-    sh("icacls", str(proj / "a.py"), "/deny", f"{me()}:R")
+    sh("icacls", str(proj / "a.py"), "/deny", f"{me()}:(RD)")   # read data only: the file can still be examined, so it can be classified
     try:
         ws = create_workspace(proj)
     finally:
         sh("icacls", str(proj / "a.py"), "/remove:d", me(), check=False)
     try:
-        assert withheld(ws) == {"a.py": "private-mode"}, acl_debug(proj, proj / "a.py")
+        assert withheld(ws) == {"a.py": "private-mode"}, f"{reasons(ws)}\n{acl_debug(proj, proj / 'a.py')}"
+        assert not (ws.project / "a.py").exists()
+    finally:
+        ws.cleanup()
+
+
+def test_a_file_that_cannot_even_be_examined_is_never_copied(proj, ws_root):
+    sh("icacls", str(proj / "a.py"), "/deny", f"{me()}:R")   # generic read includes READ_CONTROL and the attributes: not even stat() works
+    try:
+        ws = create_workspace(proj)
+    finally:
+        sh("icacls", str(proj / "a.py"), "/remove:d", me(), check=False)
+    try:
+        assert not (ws.project / "a.py").exists()
+        assert "a.py" in withheld(ws) or reasons(ws).get("a.py") == "unreadable", f"{withheld(ws)} {reasons(ws)}"   # reported, fail closed
     finally:
         ws.cleanup()
 
 
 def test_acl_narrowed_directory_is_withheld_and_never_entered(proj, ws_root):
-    sh("icacls", str(proj / "pkg"), "/inheritance:r", "/grant:r", f"{me()}:(OI)(CI)F")
+    narrow_to_me(proj / "pkg", "(OI)(CI)F")
     ws = create_workspace(proj)
     try:
         assert withheld(ws) == {"pkg": "private-mode"} and not (ws.project / "pkg").exists(), acl_debug(proj, proj / "pkg")
@@ -202,7 +234,7 @@ def test_acl_narrowed_directory_is_withheld_and_never_entered(proj, ws_root):
 
 def test_allow_paths_overrides_private_withholding(proj, ws_root):
     (proj / "id_key").write_text("harmless text")
-    sh("icacls", str(proj / "id_key"), "/inheritance:r", "/grant:r", f"{me()}:R")
+    narrow_to_me(proj / "id_key", "R")
     ws = create_workspace(proj, policy=SensitivePolicy(allow_paths=frozenset({"id_key"})))
     try:
         assert (ws.project / "id_key").exists() and not ws.withheld
@@ -266,25 +298,27 @@ def test_a_file_being_read_cannot_be_written_or_deleted(proj):
 def test_change_time_and_identity_move_when_a_file_is_replaced_or_modified(proj):
     ops = WinOps()
     root = ops.open_root(str(proj))
+    held = True
     try:
         before = ops.probe(root, "a.py", False)
         (proj / "a.py").write_text("print('changed')\n")
         assert ops.probe(root, "a.py", False).sig != before.sig
         before = ops.probe(root, "a.py", False)
         (proj / "new").write_text("x")
-        for attempt in range(10):     # a virus scanner may hold a just-written file for a moment (WinError 32); a lasting failure is reported
-            try:
-                os.replace(proj / "new", proj / "a.py")
-                break
-            except PermissionError as e:
-                last = e
-                time.sleep(0.3)
-        else:
-            raise AssertionError(f"os.replace kept failing for 3 s ({last}); open handles: root held by WinOps") from last
+        # While SafeRun holds the directory handle (share mode READ only), replacing an entry of it is refused: the first Windows CI run saw
+        # WinError 32 here for 3 s. That is the protection the copy engine relies on, so it is asserted, not retried away.
+        with pytest.raises(PermissionError):
+            os.replace(proj / "new", proj / "a.py")
+        ops.close(root)
+        held = False
+        os.replace(proj / "new", proj / "a.py")      # with the handle released the very same replace works: the handle was the cause
+        root = ops.open_root(str(proj))
+        held = True
         after = ops.probe(root, "a.py", False)
         assert after.sig != before.sig and after.ident != before.ident
     finally:
-        ops.close(root)
+        if held:
+            ops.close(root)
 
 
 def hooked(hook):

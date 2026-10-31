@@ -111,7 +111,9 @@ def private_path_problem(path: Path, *, directory: bool) -> str | None:
         desc = acl.parse_descriptor(_win.security_descriptor(h))
         if desc.owner not in trusted:
             return f"{path} is owned by {desc.owner}, not by the current user"
-        other = acl.only_trusted_principals(desc, trusted)
+        # OWNER RIGHTS (S-1-3-4) is how Windows (and tools such as pytest's temp directories) pin the owner's own rights. It applies to the
+        # owner only, and the owner was verified above, so it grants nothing to a third party.
+        other = acl.only_trusted_principals(desc, trusted | {acl.OWNER_RIGHTS})
         if other:
             return f"{path} grants access to {other}; only the current user, SYSTEM and Administrators may have access (icacls {path} /inheritance:r /grant:r %USERNAME%:F)"
     except (OSError, acl.AclUnverifiable) as e:

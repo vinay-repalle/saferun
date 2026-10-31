@@ -18,6 +18,7 @@ AUTHENTICATED_USERS = "S-1-5-11"
 SYSTEM = "S-1-5-18"
 ADMINISTRATORS = "S-1-5-32-544"
 USERS = "S-1-5-32-545"
+OWNER_RIGHTS = "S-1-3-4"   # an ACE for it applies to the object's owner only (whoever that is)
 
 FILE_READ_DATA = FILE_LIST_DIRECTORY = 0x0001
 FILE_TRAVERSE = 0x0020
