@@ -8,6 +8,7 @@ from saferun import hostos
 from saferun.hostos import process as hp
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="simulates a POSIX HOME; Windows uses LOCALAPPDATA (next tests)")
 def test_data_base_prefers_xdg_on_posix_and_is_unchanged_on_linux(monkeypatch):
     monkeypatch.setattr(hostos, "IS_WINDOWS", False)
     monkeypatch.setattr(hostos, "IS_MACOS", False)
@@ -18,6 +19,7 @@ def test_data_base_prefers_xdg_on_posix_and_is_unchanged_on_linux(monkeypatch):
     assert hostos.user_data_base() == Path("/home/u/.local/share")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="simulates a POSIX HOME; Windows uses LOCALAPPDATA (next tests)")
 def test_data_base_on_macos(monkeypatch):
     monkeypatch.setattr(hostos, "IS_WINDOWS", False)
     monkeypatch.setattr(hostos, "IS_MACOS", True)

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import ctypes
 import msvcrt
+import ntpath
 import os
 from ctypes import wintypes as wt
 
@@ -92,7 +93,9 @@ NtResumeProcess = _fn(_nt, "NtResumeProcess", ctypes.c_long, HANDLE)
 
 def ext(path: str) -> str:
     """Extended-length form of an absolute path (no MAX_PATH limit, no Win32 name normalisation)."""
-    path = os.path.abspath(path)
+    # os.path.abspath() asks Win32 to normalise the name, which turns a final component such as CON into the device path \\.\CON.
+    # An already absolute path is only cleaned up as a string; only a relative one needs the working directory.
+    path = ntpath.normpath(path) if ntpath.isabs(path) else os.path.abspath(path)
     if path.startswith("\\\\?\\"):
         return path
     return "\\\\?\\UNC\\" + path[2:] if path.startswith("\\\\") else "\\\\?\\" + path

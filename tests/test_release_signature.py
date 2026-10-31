@@ -9,12 +9,13 @@ import os
 import re
 import stat
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from saferun import cli
+from saferun import cli, hostos
 from saferun.sandbox import images as im
 from saferun.sandbox import signature as sig
 from saferun.sandbox.signature import CosignMissing, SignatureError
@@ -59,7 +60,8 @@ def test_cosign_gets_a_minimal_environment_and_a_private_home(monkeypatch):
     calls = []
     verify(run=runner(payload(), calls=calls))
     env = calls[0][1]["env"]
-    assert set(env) <= set(sig._ENV_KEEP) | {"HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME"}
+    allowed = set(sig._ENV_KEEP) | {"HOME", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME"} | set(hostos.base_env_names()) | set(hostos.private_home_env("x"))
+    assert set(env) <= allowed
     assert "GITHUB_TOKEN" not in env and "AWS_SECRET_ACCESS_KEY" not in env and "SSH_AUTH_SOCK" not in env
     assert env["HTTPS_PROXY"] == "http://p"                           # network settings are needed and harmless
     assert env["HOME"] != os.path.expanduser("~") and not os.path.exists(env["HOME"])   # private, and removed afterwards
@@ -129,13 +131,28 @@ def test_extra_signatures_for_other_images_do_not_count():
 
 
 def test_a_real_process_is_run_without_a_shell(tmp_path, monkeypatch):
-    fake = tmp_path / "cosign"
-    fake.write_text("#!/bin/sh\n[ \"$1\" = verify ] || exit 9\ncat <<'EOF'\n" + payload() + "\nEOF\n")
-    fake.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
-    assert sig.find_cosign() == str(fake)
+    if sys.platform == "win32":   # no sh: a .bat that runs a Python body (cosign.bat is found through PATHEXT)
+        body = tmp_path / "fake_cosign.py"
+        fake = tmp_path / "cosign.bat"
+        fake.write_text(f'@"{sys.executable}" "{body}" %*\r\n')
+
+        def write(py):
+            body.write_text(py)
+        ok = f"import sys\nif sys.argv[1] != 'verify':\n    sys.exit(9)\nsys.stdout.write({payload()!r})\n"
+        bad = "import sys\nsys.stderr.write('no matching signatures')\nsys.exit(1)\n"
+    else:
+        fake = tmp_path / "cosign"
+
+        def write(sh):
+            fake.write_text(sh)
+            fake.chmod(0o755)
+        ok = "#!/bin/sh\n[ \"$1\" = verify ] || exit 9\ncat <<'EOF'\n" + payload() + "\nEOF\n"
+        bad = "#!/bin/sh\necho 'no matching signatures' >&2\nexit 1\n"
+    write(ok)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
+    assert os.path.normcase(sig.find_cosign()) == os.path.normcase(str(fake))
     assert sig.verify_release_signature(REL) == 1
-    fake.write_text("#!/bin/sh\necho 'no matching signatures' >&2\nexit 1\n")
+    write(bad)
     with pytest.raises(SignatureError, match="no matching signatures"):
         sig.verify_release_signature(REL)
 
@@ -258,28 +275,28 @@ def test_workflow_uses_no_secret_but_the_github_token(wf):
 
 
 def test_workflow_stages_the_same_files_as_build_script(wf):
-    sh = (ROOT / "docker" / "analyzer" / "build.py").read_text()
+    sh = (ROOT / "docker" / "analyzer" / "build.py").read_text(encoding="utf-8")
     for name in ("Dockerfile", "fetch_verified.py", "semgrep-requirements.txt", "python.yml"):
         assert name in wf and name in sh
     assert "RULES_SHA256=" in wf and "RULES_SHA256=" in sh
     # third-party notices and license texts are staged by both, and copied into the image by the Dockerfile
     for name in ("THIRD_PARTY_NOTICES.md", "licenses", "LICENSE"):
         assert name in wf and name in sh
-    df = (ROOT / "docker" / "analyzer" / "Dockerfile").read_text()
+    df = (ROOT / "docker" / "analyzer" / "Dockerfile").read_text(encoding="utf-8")
     assert "/usr/share/doc/saferun-analyzer/LICENSE" in df and "/usr/share/doc/saferun-analyzer/THIRD_PARTY_NOTICES.md" in df and "/usr/share/doc/saferun-analyzer/licenses/" in df
     lic = ROOT / "docker" / "analyzer" / "licenses"
     assert (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").stat().st_size > 1000
-    assert "Apache License" in (lic / "osv-scanner-v2.7.0-LICENSE").read_text() and "GNU LESSER GENERAL PUBLIC LICENSE" in (lic / "semgrep-LICENSE").read_text()
+    assert "Apache License" in (lic / "osv-scanner-v2.7.0-LICENSE").read_text(encoding="utf-8") and "GNU LESSER GENERAL PUBLIC LICENSE" in (lic / "semgrep-LICENSE").read_text(encoding="utf-8")
     # the Go dependency inventory of the pinned OSV-Scanner binary: one table row per module, and a license text section for every module
-    inv = (lic / "osv-scanner-v2.7.0-go-modules.md").read_text()
-    texts = (lic / "osv-scanner-v2.7.0-go-module-licenses.txt").read_text()
+    inv = (lic / "osv-scanner-v2.7.0-go-modules.md").read_text(encoding="utf-8")
+    texts = (lic / "osv-scanner-v2.7.0-go-module-licenses.txt").read_text(encoding="utf-8")
     rows = [l for l in inv.splitlines() if l.startswith("| ") and not l.startswith(("| Module", "|---"))]
     assert len(rows) == 191 and all(len(r.split("|")) == 6 for r in rows)
     for r in rows:
         module, version = (c.strip() for c in r.split("|")[1:3])
         assert f"\n{module} {version} -- " in texts, module
     assert "Go standard library and runtime" in texts and "MPL-2.0" in inv
-    assert "licenses/osv-scanner-v2.7.0-go-modules.md" in (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").read_text()
+    assert "licenses/osv-scanner-v2.7.0-go-modules.md" in (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
     assert "osv-scanner-v2.7.0-go-module-licenses.txt" in wf
 
 

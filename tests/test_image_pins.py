@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -256,7 +257,9 @@ def test_fetch_verified_installs_only_on_match(fv, tmp_path):
     dest = tmp_path / "out" / "tool"
     dest.parent.mkdir()
     fv.fetch_verified(src.as_uri(), good, str(dest), allowed_schemes=("file",))
-    assert dest.read_bytes() == b"tool-binary" and dest.stat().st_mode & 0o777 == 0o755
+    assert dest.read_bytes() == b"tool-binary"
+    if os.name == "posix":   # permission bits do not exist on Windows
+        assert dest.stat().st_mode & 0o777 == 0o755
 
 
 def test_fetch_verified_mismatch_leaves_nothing_and_keeps_old_file(fv, tmp_path):

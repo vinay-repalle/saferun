@@ -279,14 +279,19 @@ def test_unexpected_daemon_info_and_image_id_are_sandbox_errors(monkeypatch):
         dk.resolve_image("img")
 
 
-def _fake_docker_on_path(tmp_path, monkeypatch, body):
+def _fake_docker_on_path(tmp_path, monkeypatch, body, py=None):
+    """A fake `docker` first on PATH (real tools stay usable): an sh script on POSIX; on Windows (no sh) a .bat that runs the Python `py`."""
     d = tmp_path / "bin"; d.mkdir()
-    f = d / "docker"; f.write_text("#!/bin/sh\n" + body); f.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{d}:{os.environ['PATH']}")  # the fake comes first, real tools stay usable
+    if sys.platform == "win32":
+        (d / "fake_docker.py").write_text(py)
+        (d / "docker.bat").write_text(f'@"{sys.executable}" "{d / "fake_docker.py"}" %*\r\n')
+    else:
+        f = d / "docker"; f.write_text("#!/bin/sh\n" + body); f.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{d}{os.pathsep}{os.environ['PATH']}")
 
 
 def test_hung_docker_cli_times_out_instead_of_hanging(tmp_path, monkeypatch):
-    _fake_docker_on_path(tmp_path, monkeypatch, "sleep 30\n")
+    _fake_docker_on_path(tmp_path, monkeypatch, "sleep 30\n", py="import time\ntime.sleep(5)\n")
     monkeypatch.setattr(dk, "DEFAULT_TIMEOUT", 1)
     with pytest.raises(SandboxError, match="timed out"):
         dk.docker("version")
@@ -299,12 +304,13 @@ def test_missing_docker_binary_is_a_sandbox_error(monkeypatch):
 
 
 def test_docker_binary_is_resolved_to_an_absolute_path(tmp_path, monkeypatch):
-    _fake_docker_on_path(tmp_path, monkeypatch, "echo hi\n")
+    _fake_docker_on_path(tmp_path, monkeypatch, "echo hi\n", py="print('hi')\n")
     assert os.path.isabs(dk.docker_bin()) and dk.docker("x").stdout.strip() == "hi"
 
 
 def test_non_utf8_docker_output_does_not_crash(tmp_path, monkeypatch):
-    _fake_docker_on_path(tmp_path, monkeypatch, "printf '\\377\\376 bad bytes'\n")
+    _fake_docker_on_path(tmp_path, monkeypatch, "printf '\\377\\376 bad bytes'\n",
+                         py="import sys\nsys.stdout.buffer.write(b'\\xff\\xfe bad bytes')\n")
     assert "bad bytes" in dk.docker("x").stdout
 
 

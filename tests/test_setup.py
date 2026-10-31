@@ -472,7 +472,7 @@ def test_published_release_is_pulled_by_digest_verified_and_locked(world, releas
     seen = fake_docker_for_release(monkeypatch, release)
     s = world.setup()
     s.status = lambda k: su.Status(k, R if (k != "analyzer" or os.path.exists(os.environ["SAFERUN_ANALYZER_LOCK"])) else M)
-    assert s.run(["analyzer"]) == 0
+    assert s.run(["analyzer"]) == 0, s.text.getvalue()
     lock = os.environ["SAFERUN_ANALYZER_LOCK"]
     assert open(lock).read().strip() == "sha256:" + "e" * 64 and stat.S_IMODE(os.stat(lock).st_mode) == 0o600
     assert ("tag", f"{release.repository}@{release.digest}", sa.ANALYZER_REPO_TAG) in seen

@@ -161,12 +161,19 @@ def me():
     return os.environ["USERNAME"]
 
 
+def acl_debug(*paths):
+    """What the evaluator was looking at, shown with a failed ACL assertion (the first Windows runs have no other way to see it)."""
+    out = [f"whoami /groups:\n{sh('whoami', '/groups', check=False).stdout}"]
+    out += [f"icacls {p}:\n{sh('icacls', str(p), check=False).stdout}" for p in paths]
+    return "\n".join(out)
+
+
 def test_acl_narrowed_file_is_withheld_and_inherited_file_is_not(proj, ws_root):
     (proj / "id_key").write_text("harmless text")
     sh("icacls", str(proj / "id_key"), "/inheritance:r", "/grant:r", f"{me()}:R")
     ws = create_workspace(proj)
     try:
-        assert withheld(ws) == {"id_key": "private-mode"}
+        assert withheld(ws) == {"id_key": "private-mode"}, acl_debug(proj, proj / "id_key")
         assert (ws.project / "a.py").exists() and not (ws.project / "id_key").exists()
     finally:
         ws.cleanup()
@@ -179,7 +186,7 @@ def test_explicit_deny_makes_a_file_private(proj, ws_root):
     finally:
         sh("icacls", str(proj / "a.py"), "/remove:d", me(), check=False)
     try:
-        assert withheld(ws) == {"a.py": "private-mode"}
+        assert withheld(ws) == {"a.py": "private-mode"}, acl_debug(proj, proj / "a.py")
     finally:
         ws.cleanup()
 
@@ -188,7 +195,7 @@ def test_acl_narrowed_directory_is_withheld_and_never_entered(proj, ws_root):
     sh("icacls", str(proj / "pkg"), "/inheritance:r", "/grant:r", f"{me()}:(OI)(CI)F")
     ws = create_workspace(proj)
     try:
-        assert withheld(ws) == {"pkg": "private-mode"} and not (ws.project / "pkg").exists()
+        assert withheld(ws) == {"pkg": "private-mode"} and not (ws.project / "pkg").exists(), acl_debug(proj, proj / "pkg")
     finally:
         ws.cleanup()
 
@@ -264,7 +271,16 @@ def test_change_time_and_identity_move_when_a_file_is_replaced_or_modified(proj)
         (proj / "a.py").write_text("print('changed')\n")
         assert ops.probe(root, "a.py", False).sig != before.sig
         before = ops.probe(root, "a.py", False)
-        (proj / "new").write_text("x"); os.replace(proj / "new", proj / "a.py")
+        (proj / "new").write_text("x")
+        for attempt in range(10):     # a virus scanner may hold a just-written file for a moment (WinError 32); a lasting failure is reported
+            try:
+                os.replace(proj / "new", proj / "a.py")
+                break
+            except PermissionError as e:
+                last = e
+                time.sleep(0.3)
+        else:
+            raise AssertionError(f"os.replace kept failing for 3 s ({last}); open handles: root held by WinOps") from last
         after = ops.probe(root, "a.py", False)
         assert after.sig != before.sig and after.ident != before.ident
     finally:

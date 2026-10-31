@@ -74,12 +74,12 @@ def smart_sandbox(node_stdout=None):
         from types import SimpleNamespace
         proj = Path(project)
         if command[0] == "python":
-            files = sorted(str(p.relative_to(proj)) for p in proj.rglob("*") if p.suffix in (".py", ".pyi") and p.is_file())
+            files = sorted(p.relative_to(proj).as_posix() for p in proj.rglob("*") if p.suffix in (".py", ".pyi") and p.is_file())
             lines = [_json.dumps({"file": f, "ok": True}) for f in files] + [_json.dumps({"done": True, "count": len(files), "truncated": False})]
         elif node_stdout is not None:
             lines = [node_stdout]
         else:
-            files = sorted(str(p.relative_to(proj)) for p in proj.rglob("*") if p.suffix in (".js", ".mjs", ".cjs") and p.is_file())
+            files = sorted(p.relative_to(proj).as_posix() for p in proj.rglob("*") if p.suffix in (".js", ".mjs", ".cjs") and p.is_file())
             lines = [_json.dumps({"file": f, "status": 0, "signal": None, "failed": False, "err": ""}) for f in files]
             lines.append(_json.dumps({"done": True, "count": len(files), "truncated": False}))
         return SimpleNamespace(exit_code=0, stdout="\n".join(lines) + "\n", stderr="", timed_out=False, oom_killed=False, output_truncated=False)
