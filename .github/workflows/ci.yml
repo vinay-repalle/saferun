@@ -61,7 +61,7 @@ jobs:
         include:
           - os: windows-2022
             experimental: false
-          - os: macos-14
+          - os: macos-15
             experimental: false
           - os: macos-15-intel
             experimental: true

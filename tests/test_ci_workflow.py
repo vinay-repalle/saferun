@@ -51,6 +51,6 @@ def test_platform_matrix_covers_windows_and_both_macos_architectures_and_marks_o
     ruamel = pytest.importorskip("ruamel.yaml")
     job = ruamel.YAML(typ="safe").load(CI.read_text())["jobs"]["platforms"]
     legs = {m["os"]: m["experimental"] for m in job["strategy"]["matrix"]["include"]}
-    assert legs == {"windows-2022": False, "macos-14": False, "macos-15-intel": True}
+    assert legs == {"windows-2022": False, "macos-15": False, "macos-15-intel": True}
     assert job["strategy"]["fail-fast"] is False
     assert any("-m \"not docker\"" in s.get("run", "") for s in job["steps"])
