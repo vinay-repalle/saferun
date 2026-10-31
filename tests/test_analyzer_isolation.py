@@ -322,8 +322,9 @@ def test_dockerfile_bakes_pinned_rules_and_labels():
     assert "COPY python.yml /opt/saferun/rules/python.yml" in text and "sha256sum -c" in text and "ARG RULES_SHA256" in text
     for label in ("saferun.analyzer", "saferun.semgrep.version", "saferun.osv-scanner.version", "saferun.rules.sha256"):
         assert label in text
-    sh = (ROOT / "docker" / "analyzer" / "build.sh").read_text()
-    assert "verify-images --only python" in sh and sh.index("verify-images --only python") < sh.index("docker build")   # the analyzer needs only the Python base and "--pull=false" in sh and "RULES_SHA256=" in sh
+    sh = (ROOT / "docker" / "analyzer" / "build.py").read_text()   # the recipe (build.sh only runs it)
+    verify = '"verify-images", "--only", "python"'   # the analyzer needs only the Python base
+    assert verify in sh and sh.index(verify) < sh.index('"build"') and '"--pull=false"' in sh and "RULES_SHA256=" in sh
 
 
 # ================================================================ real analyzer container (needs docker/analyzer/build.sh)

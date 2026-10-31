@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -94,7 +95,7 @@ def test_tag_only_reference_is_unchanged_single_inspect(monkeypatch):
 
 def test_preflight_mismatch_raises_before_anything_is_created(monkeypatch):
     calls = fake_docker(monkeypatch, digests=json.dumps(["python@" + OTHER]))
-    monkeypatch.setattr(dk, "daemon_info", lambda: {})
+    monkeypatch.setattr(dk, "daemon_info", lambda: {"OSType": "linux"})
     monkeypatch.setattr(dk, "daemon_controls", lambda info: [])
     with pytest.raises(SandboxError, match="digest mismatch"):
         dk.preflight(PY.reference)
@@ -234,8 +235,9 @@ def test_semgrep_lock_is_fully_hash_pinned():
 
 
 def test_build_script_verifies_images_first_and_never_pulls():
-    sh = (ANALYZER / "build.sh").read_text()
-    assert sh.index("verify-images") < sh.index("docker build") and "--pull=false" in sh
+    py = (ANALYZER / "build.py").read_text()   # the recipe (build.sh only runs it)
+    assert py.index('"verify-images"') < py.index('"build"') and '"--pull=false"' in py
+    assert 'build.py' in (ANALYZER / "build.sh").read_text()
 
 
 # --- fetch_verified (checksum verification used by the image build) ---
@@ -255,7 +257,9 @@ def test_fetch_verified_installs_only_on_match(fv, tmp_path):
     dest = tmp_path / "out" / "tool"
     dest.parent.mkdir()
     fv.fetch_verified(src.as_uri(), good, str(dest), allowed_schemes=("file",))
-    assert dest.read_bytes() == b"tool-binary" and dest.stat().st_mode & 0o777 == 0o755
+    assert dest.read_bytes() == b"tool-binary"
+    if os.name == "posix":   # permission bits do not exist on Windows
+        assert dest.stat().st_mode & 0o777 == 0o755
 
 
 def test_fetch_verified_mismatch_leaves_nothing_and_keeps_old_file(fv, tmp_path):

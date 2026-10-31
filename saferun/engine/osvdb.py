@@ -37,6 +37,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .. import hostos
+
 ECOSYSTEMS = ("PyPI", "npm")
 BASE_URL = "https://osv-vulnerabilities.storage.googleapis.com"
 MAX_BYTES = 2 * 1024 ** 3
@@ -54,8 +56,7 @@ def default_dir() -> Path:
     env = os.environ.get("SAFERUN_OSV_DB")
     if env:
         return Path(env)
-    base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
-    return Path(base) / "saferun" / "osv-db"
+    return hostos.user_data_base() / "saferun" / "osv-db"
 
 
 def available_ecosystems(db_dir: Path) -> list[str]:

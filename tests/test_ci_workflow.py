@@ -31,16 +31,26 @@ def test_ci_never_publishes(ci):
         assert forbidden not in ci, forbidden
 
 
-def test_ci_runs_on_pull_requests_and_pushes_to_main_only(ci):
+def test_ci_runs_on_pull_requests_and_pushes_to_main_and_feature_branches_only(ci):
+    # Exactly these triggers: no tags, schedules, workflow_dispatch, pull_request_target or pushes to other branches.
     on = ci.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
-    assert re.fullmatch(r"\s*pull_request:\n\s*push:\n\s*branches: \[main\]\s*", on), on
+    assert re.fullmatch(r"\s*pull_request:\n\s*push:\n\s*branches:\n\s*- main\n\s*- 'feature/\*\*'\s*", on), on
 
 
 def test_ci_is_valid_yaml_with_the_expected_jobs():
     ruamel = pytest.importorskip("ruamel.yaml")
     doc = ruamel.YAML(typ="safe").load(CI.read_text())
-    assert set(doc["jobs"]) == {"python", "web", "package", "audit", "docker"}
+    assert set(doc["jobs"]) == {"python", "platforms", "web", "package", "audit", "docker"}
     blocking = {k for k, v in doc["jobs"].items() if not v.get("continue-on-error")}
-    assert blocking == {"python", "web", "package"}
+    assert blocking == {"python", "web", "package"}   # "platforms" sets continue-on-error per matrix leg (only Intel macOS is advisory)
     for job in doc["jobs"].values():
         assert all(isinstance(s, dict) and ("uses" in s or "run" in s) for s in job["steps"])
+
+
+def test_platform_matrix_covers_windows_and_both_macos_architectures_and_marks_only_intel_advisory():
+    ruamel = pytest.importorskip("ruamel.yaml")
+    job = ruamel.YAML(typ="safe").load(CI.read_text())["jobs"]["platforms"]
+    legs = {m["os"]: m["experimental"] for m in job["strategy"]["matrix"]["include"]}
+    assert legs == {"windows-2022": False, "macos-14": False, "macos-15-intel": True}
+    assert job["strategy"]["fail-fast"] is False
+    assert any("-m \"not docker\"" in s.get("run", "") for s in job["steps"])

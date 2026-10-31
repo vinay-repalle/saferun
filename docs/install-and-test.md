@@ -19,7 +19,7 @@ The sdist additionally contains `docker/`, the `web/` website sources (no `node_
 
 ## Install from a fresh clone
 
-Requirements: Linux, Python 3.12+ with `venv`, a local Docker Engine reachable by your user (cgroup limits and seccomp enabled), internet for the one-time setup.
+Requirements (Windows and macOS: see [platforms.md](platforms.md) for prerequisites and limitations): Python 3.12+ with `venv`, a local Docker Engine reachable by your user (cgroup limits and seccomp enabled), internet for the one-time setup.
 
 ```bash
 git clone https://github.com/vinay-repalle/saferun.git && cd saferun

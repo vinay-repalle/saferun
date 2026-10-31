@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 
+from .. import hostos
 from .config import CONTAINER_LABEL, ControlStatus, SandboxError
 from .controls import REQUIRED_DAEMON, daemon_controls
 from .images import digest_of, repo_digests
@@ -54,8 +55,9 @@ def check_local_daemon() -> None:
         if r.returncode != 0:
             raise SandboxError(f"cannot determine the docker endpoint: {r.stderr.strip()}")
         host = r.stdout.strip()
-    if not host.startswith("unix://"):
-        raise SandboxError(f"refusing non-local docker endpoint {host!r} (only unix:// sockets are supported)")
+    if not hostos.docker_endpoint_is_local(host):
+        only = "local named pipes (npipe:////./pipe/...)" if hostos.IS_WINDOWS else "unix:// sockets"
+        raise SandboxError(f"refusing non-local docker endpoint {host!r} (only {only} are supported)")
 
 
 def daemon_info() -> dict:
@@ -110,7 +112,12 @@ def preflight(image: str, allow_degraded: frozenset[str] = frozenset()) -> tuple
     """
     validate_image(image)
     check_local_daemon()
-    statuses = daemon_controls(daemon_info())
+    info = daemon_info()
+    # The sandbox images are Linux images: a daemon in Windows-containers mode (or any other OS type) cannot run them as specified.
+    if info.get("OSType") != "linux":
+        raise SandboxError(f"the docker daemon runs {info.get('OSType')!r} containers; SafeRun needs Linux containers"
+                           + (" (Docker Desktop: right-click the tray icon and choose 'Switch to Linux containers')" if hostos.IS_WINDOWS else ""))
+    statuses = daemon_controls(info)
     for s in statuses:
         if s.name in REQUIRED_DAEMON and s.state != "verified" and s.name not in allow_degraded:
             raise SandboxError(f"required control {s.name} is {s.state}: {s.detail}")
