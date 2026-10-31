@@ -31,9 +31,10 @@ def test_ci_never_publishes(ci):
         assert forbidden not in ci, forbidden
 
 
-def test_ci_runs_on_pull_requests_and_pushes_to_main_only(ci):
+def test_ci_runs_on_pull_requests_and_pushes_to_main_and_feature_branches_only(ci):
+    # Exactly these triggers: no tags, schedules, workflow_dispatch, pull_request_target or pushes to other branches.
     on = ci.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
-    assert re.fullmatch(r"\s*pull_request:\n\s*push:\n\s*branches: \[main\]\s*", on), on
+    assert re.fullmatch(r"\s*pull_request:\n\s*push:\n\s*branches:\n\s*- main\n\s*- 'feature/\*\*'\s*", on), on
 
 
 def test_ci_is_valid_yaml_with_the_expected_jobs():

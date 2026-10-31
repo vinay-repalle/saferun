@@ -9,7 +9,8 @@ from dataclasses import dataclass
 
 from saferun.hostos.fsops import Info
 
-_RD = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | os.O_NOFOLLOW
+# getattr: this module must import on Windows too, where the tests using it skip themselves (they need dir_fd and O_NOFOLLOW)
+_RD = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
 
 
 @dataclass
