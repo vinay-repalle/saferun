@@ -58,8 +58,19 @@ Exit codes: **0** PASS · **1** FAIL · **2** WARNING (including any incomplete 
 ```bash
 cd web && npm ci --ignore-scripts && npm test && npm run build   # output: web/dist
 ```
-**Cloudflare Pages (free):** connect the repository, then set *Root directory* `web`, *Build command* `npm ci --ignore-scripts && npm run build`, *Build output directory* `dist`, and the environment variable `NODE_VERSION=22`. Pages are switched by the URL hash, so no redirect rules are needed.
-**Deploy only when `web/` changes:** under *Settings → Build → Build watch paths* set *Include paths* `web/*` and leave *Exclude paths* empty. Cloudflare then skips builds for pushes that touch only the CLI, Python, tests or docs. Cloudflare's docs do not say whether watch paths are relative to the repository root or to the root directory (their examples imply the repository root); after the first deploy, push a docs-only change to confirm it is skipped, and use `*` if it is not.
+**Hosting:** Netlify. **Live site:** https://safe-run.netlify.app · **Repository:** https://github.com/vinay-repalle/saferun
+
+| Netlify setting | Value |
+|---|---|
+| Deployment branch | `main` |
+| Base directory | `web` |
+| Build command | `npm ci --ignore-scripts && npm run build` |
+| Publish directory | `dist` |
+| Node.js | 22 |
+
+Pages are switched by the URL hash, so no redirect rules are needed.
+
+> **Scope:** the website is a static informational site only. SafeRun's CLI, sandbox and security analysis stay in this repository (`saferun/`, `docker/`) and run on your own machine; none of that is hosted by Netlify, and the site scans nothing.
 
 ## Supported runtimes
 | Runtime | Image | Status |

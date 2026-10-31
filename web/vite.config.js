@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// A static site: `npm run build` writes web/dist, which any static host can serve (for example Cloudflare Pages).
+// A static site: `npm run build` writes web/dist, which any static host can serve (it is hosted on Netlify).
 export default defineConfig({
   plugins: [react()],
   server: { host: '127.0.0.1', port: 5173 },
