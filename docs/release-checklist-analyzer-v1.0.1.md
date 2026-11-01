@@ -13,7 +13,7 @@ Prepared 2026-10-30. **Nothing below the "Prepared and verified" section has bee
 
 ## 1. Review and commit the changes **[needs approval]**
 ```bash
-cd /home/vinayrepalle/Documents/SafeRun-personal
+cd <path-to-your-saferun-checkout>   # the repository root
 git status && git diff                       # review: workflow, notices, docs, tests, new docker/analyzer/licenses/*, docs/release-*.md
 git add -A && git commit -m "Complete OSV-Scanner Go license inventory and prepare analyzer-v1.0.1"
 git push origin main

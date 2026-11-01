@@ -1,6 +1,6 @@
 # Source distribution contents. The wheel contains only the `saferun` package (see pyproject.toml); the Docker recipe, the website
 # sources and the tests are shipped in the sdist so a source checkout can build the analyzer and the website.
-include LICENSE README.md PROJECT.md IMPLEMENTATION.md
+include LICENSE SECURITY.md README.md PROJECT.md IMPLEMENTATION.md
 graft docker
 graft docs
 graft tests

@@ -1,8 +1,8 @@
 # Releasing `saferun-cli` to PyPI (maintainer procedure)
 
-**Nothing in this file has been run.** No upload to TestPyPI or PyPI has happened; every upload below is a deliberate, manual step by the maintainer. CI never publishes (`tests/test_ci_workflow.py` enforces it), and the analyzer image has its own release path ([release-images.md](release-images.md)).
+**Status:** `0.0.1` was uploaded to TestPyPI (2026-11-01) and installed and tested from there in a clean environment (`--version`, `init`, `doctor`, `scan`, `run`). Nothing has been uploaded to production PyPI yet. Every upload below is a deliberate, manual step by the maintainer. A version can be uploaded to an index only once, so the TestPyPI `0.0.1` cannot be re-uploaded; the first production release is `0.0.2`. CI never publishes (`tests/test_ci_workflow.py` enforces it), and the analyzer image has its own release path ([release-images.md](release-images.md)).
 
-Facts checked on 2026-10-31 (read-only): the name `saferun-cli` does not exist on pypi.org or test.pypi.org (`saferun` belongs to an unrelated project and must not be used). Check again immediately before the first upload, names are first come, first served.
+Facts checked: on 2026-10-31 the name `saferun-cli` did not exist on pypi.org or test.pypi.org; since then it exists on test.pypi.org (version `0.0.1`), and on 2026-11-01 it was still absent from pypi.org (`saferun` belongs to an unrelated project and must not be used). Check again immediately before the first upload, names are first come, first served.
 
 ## 0. One-time setup
 1. Create accounts on <https://test.pypi.org> and <https://pypi.org> with 2FA.

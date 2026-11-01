@@ -82,7 +82,7 @@ Publishing the image **redistributes** other people's software. The inventory, t
 * **Open items:** (1) the Semgrep LICENSE text came from upstream's default branch because the 1.182.1 tag could not be located; (2) the Go module licensing was determined by matching license texts and reviewing multi-license modules by hand, not file by file; (3) the Python-package table was compared with a freshly built local image on 2026-10-30 (67 packages, no differences) but not regenerated. This is not legal advice.
 
 ### Version and tag strategy
-* The tag sequence `analyzer-v<n>` versions the **analyzer image only**. It is independent of the SafeRun package version in `pyproject.toml` (`0.0.1`).
+* The tag sequence `analyzer-v<n>` versions the **analyzer image only**. It is independent of the SafeRun package version in `pyproject.toml` (`0.0.2`).
 * `analyzer-v1.0.0` was built before the license texts were added to the image, so its image does **not** contain them, and its package is already public. Tags are never moved or re-created: publish the image that contains the notices as the **new tag** `analyzer-v1.0.1`, record that digest in `ANALYZER_RELEASE`, and decide separately (needs your approval and GitHub credentials) whether to delete the `analyzer-v1.0.0` package version from GHCR. The git tag `analyzer-v1.0.0` stays.
 * Recording the digest and releasing are separate commits: the tag is created first from `main`, the digest is recorded afterwards in a reviewed commit.
 
