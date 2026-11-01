@@ -113,3 +113,5 @@
 .guide .g-grid + .notice { margin: 1rem 0; }
 #platforms > h3 { margin-top: 1.4rem; }
 #setup [role=tabpanel] > h3 { margin-top: .8rem; }
+
+.g-ver { margin: .4rem 0 0; font: .82rem var(--mono); color: var(--muted); }

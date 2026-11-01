@@ -16,7 +16,7 @@ describe('Guide page', () => {
 
   it('documents the signed analyzer release as the default and the local build as the alternative: cosign, --build-local and --signature', () => {
     const text = render(<GuidePage />).container.textContent
-    for (const c of ['--build-local', 'saferun verify-images --signature', 'cosign is not installed', 'The analyzer is a signed, digest-pinned image', 'analyzer-v1.0.1', 'signed download']) {
+    for (const c of ['--build-local', 'saferun verify-images --signature', 'Setup cannot fetch cosign', 'The analyzer is a signed, digest-pinned image', 'analyzer-v1.0.1', 'signed download']) {
       expect(text).toContain(c)
     }
     expect(text).not.toMatch(/No signed analyzer release has been published yet/)
@@ -26,18 +26,19 @@ describe('Guide page', () => {
   it('gives a complete, correct beginner setup: Docker, init, status, first scan, with cosign before init, then an optional signature check', () => {
     const { container } = render(<GuidePage />)
     const setup = container.querySelector('#setup').textContent
-    for (const c of ['python3 --version', 'docker info', 'install -m 0755 cosign ~/.local/bin/cosign', 'saferun init --all', 'saferun status',
+    for (const c of ['python3 --version', 'docker info', 'pip install saferun-cli', 'saferun init', 'saferun doctor', 'saferun status', 'saferun run my_script.py',
       'saferun verify-images --signature', 'saferun scan ./my-project']) expect(setup).toContain(c)
     expect(container.querySelectorAll('.g-walk > li')).toHaveLength(7)
     const walk = container.querySelector('.g-walk').textContent
     expect(walk).toMatch(/cosign/i)
-    expect(walk.indexOf('Install Cosign')).toBeLessThan(walk.indexOf('Set SafeRun up'))
+    expect(walk.indexOf('Install SafeRun from PyPI')).toBeLessThan(walk.indexOf('Set SafeRun up'))
     expect(walk).not.toMatch(/verify-images/i)
     const future = container.querySelector('.g-future')
     expect(future.textContent).toContain('Verify the signed analyzer release')
     expect(future.querySelectorAll('li')).toHaveLength(1)
     expect(future.textContent).toContain('saferun verify-images --signature')
-    expect(setup).toMatch(/SafeRun never downloads cosign for you/)
+    expect(setup).toMatch(/You do not install cosign yourself/)
+    expect(setup).not.toMatch(/git clone|pip install -e|not published on PyPI/)
     const concepts = container.querySelector('#concepts').textContent
     for (const c of ['Docker downloads', 'Cosign verifies the signed analyzer', 'pinned by digest', 'without network']) expect(concepts).toContain(c)
     expect(container.querySelector('#fix').textContent).toMatch(/command not found/)
@@ -89,7 +90,7 @@ describe('Guide page', () => {
     window.HTMLElement.prototype.scrollIntoView = scroll
     const before = window.location.hash
     const { container } = render(<GuidePage />)
-    const ids = ['quick-start', 'platforms', 'setup', 'concepts', 'components', 'commands', 'checks', 'verdicts', 'fix', 'offline', 'safety']
+    const ids = ['quick-start', 'platforms', 'setup', 'concepts', 'components', 'commands', 'checks', 'verdicts', 'fix', 'offline', 'safety', 'release']
     const buttons = [...container.querySelectorAll('.g-toc button')]
     expect(buttons).toHaveLength(ids.length)
     for (const id of ids) expect(container.querySelector('#' + id)).not.toBeNull()
@@ -113,13 +114,13 @@ describe('Guide page', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Windows' }))
     const win = container.querySelector('#os-panel').textContent
-    for (const c of ['py -3.12 --version', 'Switch to Linux containers', '.venv\\Scripts\\pip install -e .', 'saferun init --all', 'UNC']) expect(win).toContain(c)
+    for (const c of ['py -3.12 --version', 'Switch to Linux containers', 'saferun-env\\Scripts\\Activate.ps1', 'pip install saferun-cli', 'saferun init', 'UNC']) expect(win).toContain(c)
     expect(win).not.toContain('sudo apt install')
-    expect(container.querySelectorAll('.g-walk > li')).toHaveLength(6)
+    expect(container.querySelectorAll('.g-walk > li')).toHaveLength(5)
 
     fireEvent.click(screen.getByRole('tab', { name: 'macOS' }))
     const mac = container.querySelector('#os-panel').textContent
-    for (const c of ['brew install cosign', 'Docker Desktop', '.venv/bin/pip install -e .', 'saferun scan ./my-project']) expect(mac).toContain(c)
+    for (const c of ['brew install python@3.12', 'Docker Desktop', 'pip install saferun-cli', 'saferun scan ./my-project']) expect(mac).toContain(c)
     expect(screen.getByRole('tab', { name: 'macOS' }).getAttribute('aria-selected')).toBe('true')
   })
 
@@ -137,5 +138,15 @@ describe('Guide page', () => {
     expect(text).not.toMatch(/requires? WSL|WSL ?2? (is|are) required|(must|need to|have to) (have |install |enable )?WSL/i)
     for (const os of ['Windows', 'macOS']) fireEvent.click(screen.getByRole('tab', { name: os }))
     expect(container.textContent).toMatch(/not yet been manually verified/)
+  })
+
+  it('shows the installed version, the real PyPI and release links and the alpha status', () => {
+    const { container } = render(<GuidePage />)
+    const rel = container.querySelector('#release')
+    expect(rel.textContent).toContain('0.0.2')
+    expect(rel.textContent).toMatch(/alpha software/)
+    expect(rel.textContent).toContain('pip install --upgrade saferun-cli')
+    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'))
+    expect(hrefs).toEqual(expect.arrayContaining(['https://pypi.org/project/saferun-cli/', 'https://github.com/vinay-repalle/saferun/releases']))
   })
 })

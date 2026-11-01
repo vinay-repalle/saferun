@@ -2,7 +2,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../App'
-import { GITHUB } from '../../content/site'
+import { GITHUB, PYPI, RELEASES } from '../../content/site'
 import { LandingPage } from './LandingPage'
 
 afterEach(() => { vi.restoreAllMocks(); window.location.hash = '' })
@@ -11,7 +11,7 @@ describe('Landing page', () => {
   it('has the navbar, hero CTAs and trust indicators', () => {
     const { container } = render(<LandingPage />)
     const nav = screen.getByRole('navigation', { name: 'Main' })
-    for (const n of ['Product', 'Security', 'How it works', 'Documentation', 'GitHub', 'Get Started']) expect(nav.textContent).toContain(n)
+    for (const n of ['Product', 'Security', 'How it works', 'Docs', 'GitHub', 'Get Started']) expect(nav.textContent).toContain(n)
     expect(container.querySelector('h1').textContent).toMatch(/before/)
     expect(screen.getAllByRole('link', { name: /View on GitHub/ })[0].getAttribute('href')).toBe(GITHUB)
     for (const t of ['Scans work offline', 'Locked-down containers', 'Pinned analyzer image']) expect(container.textContent).toContain(t)
@@ -21,7 +21,8 @@ describe('Landing page', () => {
     const { container } = render(<LandingPage />)
     const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'))
     expect(hrefs).toContain('#/guide')
-    for (const h of hrefs.filter((x) => x.startsWith('http'))) expect(h.startsWith('https://github.com/vinay-repalle/saferun')).toBe(true)
+    for (const h of hrefs.filter((x) => x.startsWith('http'))) expect(h.startsWith('https://github.com/vinay-repalle/saferun') || h.startsWith('https://pypi.org/project/saferun-cli/')).toBe(true)
+    expect(hrefs).toEqual(expect.arrayContaining([PYPI, RELEASES]))
     for (const a of container.querySelectorAll('a[target=_blank]')) expect(a.getAttribute('rel')).toMatch(/noopener/)
   })
 
@@ -30,7 +31,28 @@ describe('Landing page', () => {
     for (const id of ['product', 'security', 'how', 'features', 'demo', 'quick-start', 'github', 'faq']) expect(container.querySelector('#' + id)).not.toBeNull()
     const nav = screen.getByRole('navigation', { name: 'Main' })
     const hrefs = Object.fromEntries([...nav.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')]))
-    expect(hrefs).toMatchObject({ Product: '#/product', Security: '#/security', 'How it works': '#/how', Documentation: '#/guide', 'Get Started': '#/quick-start', GitHub: GITHUB })
+    expect(hrefs).toMatchObject({ Product: '#/product', Security: '#/security', 'How it works': '#/how', Docs: '#/guide', 'Get Started': '#/quick-start', GitHub: GITHUB })
+  })
+
+  it('navbar shows "Docs" and a GitHub logo link (not a button) that opens the repository', () => {
+    render(<LandingPage />)
+    const nav = screen.getByRole('navigation', { name: 'Main' })
+    expect(nav.textContent).not.toContain('Documentation')
+    const gh = screen.getByRole('link', { name: /SafeRun on GitHub/ })
+    expect(gh.getAttribute('href')).toBe(GITHUB)
+    expect(gh.getAttribute('target')).toBe('_blank')
+    expect(gh.getAttribute('rel')).toMatch(/noopener/)
+    expect(gh.querySelector('svg')).not.toBeNull()
+    expect(gh.className).not.toContain('btn')
+  })
+
+  it('announces the public 0.0.2 release with the real pip command, version and alpha status', () => {
+    const { container } = render(<LandingPage />)
+    expect(container.querySelector('.sh-release').textContent).toMatch(/v0\.0\.2 · alpha · available on PyPI/)
+    expect(container.querySelector('.sh-install').textContent).toContain('pip install saferun-cli')
+    const qs = container.querySelector('#quick-start').textContent
+    for (const k of ['pip install saferun-cli', 'Python 3.12+', 'Docker', 'Alpha release', 'not been independently certified', 'GitHub Releases', 'PyPI package']) expect(qs).toContain(k)
+    expect(container.querySelector('#faq').textContent).not.toMatch(/Clone the repository/)
   })
 
   it('scrolls to the section named by the route', () => {
@@ -60,7 +82,7 @@ describe('Landing page', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     const { container } = render(<LandingPage />)
     const qs = container.querySelector('#quick-start').textContent
-    for (const c of ['saferun init', 'saferun status', 'saferun scan ./my-project']) expect(qs).toContain(c)
+    for (const c of ['saferun init', 'saferun doctor', 'saferun scan ./my-project']) expect(qs).toContain(c)
     fireEvent.click(screen.getByRole('button', { name: 'Copy command: saferun scan ./my-project' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('saferun scan ./my-project'))
   })

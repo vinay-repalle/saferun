@@ -1,14 +1,15 @@
 # Clean-environment install, validation and CI
 
-Everything below is a *procedure*. None of it has been recorded as run for this repository yet (see `IMPLEMENTATION.md`): run it, then note the real results.
+The **Install** section below is the supported way to get SafeRun (release **0.0.2**, alpha). The validation sections are *procedures* for you to run; their results are recorded in `IMPLEMENTATION.md`, not here.
 
 ## Install
 
-SafeRun is published as the PyPI package **`saferun-cli`** (the name `saferun` belongs to an unrelated project); it installs the command **`saferun`**. Python 3.12+; no Python dependencies.
+SafeRun is published as the PyPI package **`saferun-cli`** (the name `saferun` belongs to an unrelated project); it installs the command **`saferun`**. Requirements: Python 3.12+ and Docker; the package has no Python dependencies. Platforms: Linux, Windows and macOS ([platforms.md](platforms.md)).
 
 ```bash
 pip install saferun-cli          # or: pipx install saferun-cli · uv tool install saferun-cli · poetry add saferun-cli
                                  # Poetry must be 2.0 or newer (see below)
+saferun --version                # 0.0.2
 saferun init                     # Docker check, verified cosign, signed analyzer image, OSV data (~260 MB)
 saferun doctor                   # PASS / WARNING / FAIL
 saferun run my_script.py         # scan, then run only inside the sandbox
@@ -16,6 +17,14 @@ saferun run my_script.py         # scan, then run only inside the sandbox
 **Poetry 2.0 or newer is required.** The package declares its license as an SPDX expression, which needs wheel metadata version 2.4 (setuptools 77+). Poetry 1.x, including 1.8.2 packaged by Ubuntu 24.04, fails with "Unable to create package with no name" (verified); pip, pipx and uv are not affected, and Poetry 2.5.1 was verified. Install a current Poetry with `pipx install poetry`.
 
 A wheel is a supported install: everything `saferun init` needs from the package (CLI, engine, Semgrep rules) is inside it, and the analyzer comes from the signed registry image. Only `saferun init --build-local` needs the build recipe (`docker/`), which is in the sdist and the repository but not in the wheel; without it `init` says so. You do not install cosign or the OSV data yourself. Docker is the only prerequisite (Windows and macOS: see [platforms.md](platforms.md)). Setup needs internet access to the Docker registries, `ghcr.io`, `github.com` (only to fetch cosign when you have none), the Sigstore TUF root and transparency log, and `osv-vulnerabilities.storage.googleapis.com`; scans never use the network.
+
+### Upgrade
+```bash
+pip install --upgrade saferun-cli        # pipx upgrade saferun-cli · uv tool upgrade saferun-cli
+saferun init                             # skips what is already valid; installs a newer recorded analyzer if there is one
+saferun doctor
+```
+Uninstall with `pip uninstall saferun-cli`. SafeRun's data (analyzer lock, OSV data, its cosign copy) stays in the per-user data directory listed in [platforms.md](platforms.md) until you delete it.
 
 Prerequisites per platform: Linux: Docker Engine and membership of the `docker` group · macOS: Docker Desktop (or Colima/OrbStack) running · Windows: Docker Desktop, Linux containers, WSL 2 backend. `saferun doctor` diagnoses each of these.
 
@@ -65,7 +74,7 @@ The `docker` job is advisory because it depends on the runner's Docker/cgroup co
 
 ## Publishing the package
 
-The PyPI and TestPyPI procedure (nothing has been uploaded yet) is in [release-pypi.md](release-pypi.md).
+`0.0.2` is published on <https://pypi.org/project/saferun-cli/>. The maintainer procedure (TestPyPI first, then PyPI) is in [release-pypi.md](release-pypi.md).
 
 ## Manual GitHub settings
 

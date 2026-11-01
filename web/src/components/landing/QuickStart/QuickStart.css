@@ -8,3 +8,8 @@
 .qs-plat li { border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem; background: var(--surface-2); display: grid; gap: .2rem; align-content: start; min-width: 0; }
 .qs-plat span { font-size: .75rem; font-weight: 600; color: var(--accent); }
 .qs-plat p { color: var(--muted); font-size: .85rem; margin: .2rem 0 0; }
+
+.qs-install { max-width: 760px; margin: 0 0 2rem; }
+.qs-install p { color: var(--muted); font-size: .88rem; margin: .7rem 0 0; }
+.qs-links { list-style: none; margin: 1rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; font-size: .92rem; }
+.qs-alpha { margin-top: 2rem; max-width: 760px; }

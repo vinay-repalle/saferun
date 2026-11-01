@@ -2,7 +2,11 @@
 
 Checks AI-generated code before you run or trust it. Executing untrusted code in a sandbox **limits the impact** of that
 code; it does **not** prove the code is safe, and a passing scan does not guarantee security.
-Status: alpha (not independently certified). The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Not yet done: a detection-quality benchmark, broader JavaScript rules, and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
+**Current release: 0.0.2** · [PyPI](https://pypi.org/project/saferun-cli/) · [GitHub Releases](https://github.com/vinay-repalle/saferun/releases) · [Website](https://safe-run.netlify.app) · [Security policy](https://github.com/vinay-repalle/saferun/blob/main/SECURITY.md)
+
+Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Not yet done: a detection-quality benchmark, broader JavaScript rules, and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
+
+**Requirements:** Python 3.12 or newer and Docker (running Linux containers). Linux, Windows and macOS are supported; Linux is the fully tested platform.
 
 ## Install in four commands
 ```bash
@@ -47,7 +51,9 @@ What `saferun init` does, in order, and what it never does:
 4. **Downloads and caches the OSV vulnerability data** (about 260 MB, public data from `osv-vulnerabilities.storage.googleapis.com`, nothing about your projects is sent) into your user data directory with integrity hashes. Only what is missing, invalid or older than 30 days is downloaded; a current database is left alone. Failed downloads are retried and never replace good data. If the data cannot be refreshed, `init` says how old the existing data is and scans report the dependency check as INCOMPLETE; **stale data is never treated as current**. Refresh later with `saferun osv-db update` (`--if-stale` to skip when it is current).
 5. **Verifies everything again** and prints a result per component.
 
-`saferun init` skips what is already valid, so it is safe to re-run (for example after an analyzer release). Developers working from a checkout: `pip install -e '.[dev]'`, then `pytest -q` (Docker tests skip loudly without Docker; `SAFERUN_REQUIRE_DOCKER=1` makes them fail instead).
+`saferun init` skips what is already valid, so it is safe to re-run (for example after an analyzer release).
+
+**Upgrading:** `pip install --upgrade saferun-cli`, then `saferun init` and `saferun doctor`. Check the installed version with `saferun --version`. Releases are listed on [PyPI](https://pypi.org/project/saferun-cli/#history) and [GitHub](https://github.com/vinay-repalle/saferun/releases). Developers working from a checkout: `pip install -e '.[dev]'`, then `pytest -q` (Docker tests skip loudly without Docker; `SAFERUN_REQUIRE_DOCKER=1` makes them fail instead).
 
 **Clean-environment install and validation, and what the CI runs:** [docs/install-and-test.md](https://github.com/vinay-repalle/saferun/blob/main/docs/install-and-test.md).
 
@@ -71,8 +77,11 @@ Exit codes of `scan`: **0** PASS · **1** FAIL · **2** WARNING (including any i
 >
 > **Limits of the OSV data checks:** the download is checked against the server's MD5 header (refused if absent) and a SHA-256 is recorded locally and re-checked before every scan. That detects corruption and later modification of the files. It does **not** authenticate the download (the hash comes from the same server, or from your own disk), and someone who can write the data directory can rewrite the manifest too. Data older than 30 days makes the dependency check `incomplete`.
 
+## Security and reporting problems
+Alpha software: the sandbox limits the impact of code, it does not make code harmless, and PASS is not proof of safety (see [PROJECT.md](https://github.com/vinay-repalle/saferun/blob/main/PROJECT.md) for the known exposures). Report vulnerabilities **privately** through GitHub's private vulnerability reporting, as described in [SECURITY.md](https://github.com/vinay-repalle/saferun/blob/main/SECURITY.md); do not open a public issue with details.
+
 ## Website (static)
-`web/` is a static informational site (what SafeRun is, features, security, CLI usage, GitHub link). It has no backend and does not scan anything.
+`web/` is a static informational site (what SafeRun is, the PyPI install, features, security model, platforms, setup guide, links to GitHub, PyPI and Releases). It has no backend and does not scan anything.
 ```bash
 cd web && npm ci --ignore-scripts && npm test && npm run build   # output: web/dist
 ```
@@ -99,6 +108,9 @@ Pages are switched by the URL hash, so no redirect rules are needed.
 ## Documentation
 - [docs/cli.md](https://github.com/vinay-repalle/saferun/blob/main/docs/cli.md) — CLI options, exit codes, output examples
 - [docs/engine.md](https://github.com/vinay-repalle/saferun/blob/main/docs/engine.md) — validation engine: checks, dependency coverage, statuses, verdict rules
+- [docs/install-and-test.md](https://github.com/vinay-repalle/saferun/blob/main/docs/install-and-test.md) — clean-environment install, validation, CI
+- [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md) — Linux, Windows and macOS status and evidence
+- [docs/release-pypi.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-pypi.md) — maintainer procedure for PyPI releases
 - [docs/sandbox.md](https://github.com/vinay-repalle/saferun/blob/main/docs/sandbox.md) — sandbox library usage and guarantees
 - [PROJECT.md](https://github.com/vinay-repalle/saferun/blob/main/PROJECT.md) — goals, architecture, threat model, known exposures (**read before relying on the sandbox**), phases
 - [IMPLEMENTATION.md](https://github.com/vinay-repalle/saferun/blob/main/IMPLEMENTATION.md) — status, test evidence, limitations, technical notes

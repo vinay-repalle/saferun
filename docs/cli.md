@@ -4,8 +4,10 @@
 ```bash
 pip install saferun-cli              # installs the `saferun` command (`python -m saferun` also works); pipx, uv tool and Poetry 2.0+ work too
 saferun init                         # first-run setup (interactive); `saferun doctor` / `saferun status` show the result
-saferun --version
+saferun --version                    # 0.0.2
+saferun doctor                       # read-only diagnosis
 ```
+Requirements: Python 3.12+ and Docker (Linux, Windows or macOS; see [platforms.md](platforms.md)). Upgrade: `pip install --upgrade saferun-cli`, then `saferun init`. SafeRun is alpha software; see [SECURITY.md](../SECURITY.md) for its limits and how to report vulnerabilities.
 From a source checkout: `pip install -e '.[dev]'`.
 Semgrep and OSV-Scanner are **not** installed on the host and a host copy is never used. Without the analyzer image those checks are `unavailable`; without valid OSV data the dependency check is `error`
 (verdict at best WARNING). Docker is required for every sandboxed check.

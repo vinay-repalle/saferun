@@ -2,6 +2,13 @@
 
 export const GITHUB = 'https://github.com/vinay-repalle/saferun'
 export const DOCS = GITHUB + '/blob/main/docs/'
+export const VERSION = '0.0.2'
+export const PYPI = 'https://pypi.org/project/saferun-cli/'
+export const PYPI_VERSION = PYPI + VERSION + '/'
+export const RELEASES = GITHUB + '/releases'
+export const SECURITY_POLICY = GITHUB + '/blob/main/SECURITY.md'
+export const INSTALL = 'pip install saferun-cli'
+export const ALPHA_NOTICE = 'SafeRun is alpha software and has not been independently certified or security-audited. A PASS means the existing checks found nothing, not that the code is safe.'
 
 export const TRUST = [
   ['Your code is never run', 'Static checks only: nothing you submit is executed.'],
@@ -19,17 +26,17 @@ export const PLATFORMS = [
 
 // [title, text, command]
 export const STEPS = [
-  ['Set up', 'Run saferun init once. It installs only what is missing.', 'saferun init'],
-  ['Verify', 'Check that every part is ready and verified.', 'saferun status'],
-  ['Scan', 'Scan a project folder.', 'saferun scan ./my-project'],
+  ['Set up', 'Run saferun init once. It checks Docker and installs only what is missing, verifying each part.', 'saferun init'],
+  ['Diagnose', 'A read-only check that reports PASS, WARNING or FAIL per part, with the fix for each problem.', 'saferun doctor'],
+  ['Scan or run', 'Scan a project folder, or scan a Python script and run it only inside the sandbox if the scan allows it.', 'saferun scan ./my-project'],
 ]
 
 export const REQUIREMENTS = [
   ['Operating system', 'Linux (Ubuntu), native Windows 10/11 or macOS. The analyzer image is linux/amd64 only, so on Apple Silicon and Windows ARM it runs under emulation.'],
   ['Python', '3.12 or newer, with venv and pip.'],
   ['Docker', 'A local Docker Engine that your user can reach, with memory, swap, pids and CPU limits and seccomp enabled. Remote Docker endpoints are refused. On Windows and macOS use Docker Desktop in Linux containers mode: that integration has not yet been manually verified.'],
-  ['Cosign', 'Yes, for the default setup: Cosign 2.2 or newer on your PATH verifies the signed analyzer image before it is pulled. SafeRun does not install it for you. Not needed if you build the analyzer yourself with --build-local.'],
-  ['Internet', 'Only for setup (Docker Hub, the signed analyzer from ghcr.io with its Sigstore check, and the OSV data; a local analyzer build uses PyPI and GitHub instead). Scans never use the network.'],
+  ['Cosign', 'Nothing to install. If you have no cosign, saferun init fetches a pinned release from github.com into its own data directory and keeps it only if its SHA-256 matches the value written in SafeRun\'s source. It then verifies the signed analyzer image before anything is pulled. With --build-local no cosign is needed.'],
+  ['Internet', 'Only for setup (Docker Hub, the signed analyzer from ghcr.io with its Sigstore check, github.com to fetch cosign if you have none, and the OSV data; a local analyzer build uses PyPI and GitHub instead). Scans never use the network.'],
   ['Disk space', 'About 1.5 GB for images and vulnerability data.'],
 ]
 export const requirement = (name) => REQUIREMENTS.find(([n]) => n === name)[1]

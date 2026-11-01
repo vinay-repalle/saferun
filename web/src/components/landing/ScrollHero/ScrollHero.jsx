@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { GITHUB } from '../../../content/site'
+import { GITHUB, INSTALL, PYPI_VERSION, VERSION } from '../../../content/site'
+import { CommandBlock } from '../../CommandBlock/CommandBlock'
 import { Emblem } from '../../Emblem/Emblem'
 import './ScrollHero.css'
 
@@ -87,12 +88,14 @@ export function ScrollHero() {
             </div>
             <div className="sh-copy">
               <p className="eyebrow"><span className="dot" /> Pre-run verification for untrusted code</p>
+              <a className="sh-release" href={PYPI_VERSION} target="_blank" rel="noreferrer noopener">v{VERSION} · alpha · available on PyPI <span aria-hidden="true">↗</span></a>
               <h1>Check the code <em>before</em> you run it.</h1>
               <p className="lede">SafeRun inspects AI-generated and downloaded projects inside a locked-down, offline container, and gives you a PASS, WARNING or FAIL verdict, without executing the program you submitted.</p>
               <div className="sh-cta">
                 <a className="btn btn-primary" href="#/quick-start">Get Started</a>
                 <a className="btn btn-ghost" href={GITHUB} target="_blank" rel="noreferrer noopener">View on GitHub <span aria-hidden="true">↗</span></a>
               </div>
+              <div className="sh-install"><CommandBlock command={INSTALL} /></div>
             </div>
           </div>
           <Card side="r" title="Verified report" status="sample" />

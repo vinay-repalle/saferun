@@ -2,7 +2,12 @@
 
 Design, threat model and known exposures: [PROJECT.md](../PROJECT.md). Evidence and limitations: [IMPLEMENTATION.md](../IMPLEMENTATION.md).
 
-## Usage
+## Running a script from the command line
+Most users never call the library: `saferun run my_script.py` (installed with `pip install saferun-cli`) scans a Python script and, only if the scan allows it, runs it in this same sandbox (pinned `python:3.12-slim`, no network, read-only root and project, non-root, no capabilities, memory/CPU/pids/time limits, output cap, secrets redacted). PASS runs it, FAIL is refused (exit 1), WARNING is refused (exit 2) unless `--allow-warnings` applies to a complete scan with no high/critical finding, and a scan that cannot be carried out never runs the script (exit 70). Options go before the script name. See [cli.md](cli.md) and the README for all exit codes.
+
+**Limits (alpha):** the sandbox limits the impact of code, it does not make it harmless, and a PASS is not proof of safety. Docker is the isolation boundary: a Docker or kernel escape is outside what SafeRun can prevent. Not independently audited or certified. On Windows and macOS the Docker Desktop integration has not yet been manually verified ([platforms.md](platforms.md)). Report vulnerabilities privately: [SECURITY.md](../SECURITY.md).
+
+## Library usage
 ```python
 from saferun.sandbox import run_sandboxed, SandboxLimits
 from saferun.sandbox.profiles import PYTHON, NODE

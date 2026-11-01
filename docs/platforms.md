@@ -1,5 +1,7 @@
 # Platform support (status)
 
+SafeRun 0.0.2 (alpha) supports **Linux, Windows and macOS** and is installed the same way everywhere: `pip install saferun-cli`, then `saferun init`. **System requirements:** Python 3.12+, a local Docker running Linux containers, about 1.5 GB of disk space, and internet access for setup only. Linux is the fully tested platform; Windows and macOS are only partly verified (below).
+
 SafeRun runs untrusted code only inside a Linux container, so **every platform needs a local Docker that runs Linux containers**.
 Installing SafeRun does not install Docker.
 
@@ -42,11 +44,11 @@ Windows and macOS runners have no Linux Docker daemon, so the sandbox and analyz
 verify a real Docker Desktop machine, follow [platform-test-checklist.md](platform-test-checklist.md).
 
 ## Prerequisites
-* Python 3.12+. Windows: PowerShell or Command Prompt, `py -3.12 -m pip install -e .` from a checkout (packaging is a later phase).
+* Python 3.12+. Windows: PowerShell or Command Prompt, `py -3.12 -m pip install saferun-cli` (preferably in a virtual environment).
 * Docker reachable by your user and **local**: `unix://` socket on Linux/macOS, a **local named pipe** (`npipe:////./pipe/...`) on Windows.
   `tcp://`, `ssh://`, remote pipes and anything else are refused, because the workspace is bind-mounted by host path.
 * The daemon must report `OSType: linux` (all platforms). Windows: right-click the Docker tray icon → *Switch to Linux containers*.
-* `cosign` 2.2+ on `PATH` to install the signed analyzer release (`cosign.exe` on Windows); otherwise `saferun init --build-local`.
+* cosign: nothing to install. `saferun init` fetches a pinned, SHA-256-verified cosign 2.4.3 into SafeRun's data directory when none is available (Linux and macOS amd64/arm64, Windows amd64); an existing cosign 2.2+ on `PATH` is used otherwise. Without any, or to avoid it, use `saferun init --build-local` (source checkout).
 * Windows: the project and the temp directory (`%TEMP%`) must be on a **local drive that Docker Desktop shares** (default for `C:\Users`).
   UNC/network paths and `\\?\` paths are refused. macOS: default Docker Desktop shares `/Users`, `/private` and `/var/folders`.
 * Per-user data (analyzer lock, OSV database): Linux `~/.local/share/saferun` (or `$XDG_DATA_HOME`), macOS
