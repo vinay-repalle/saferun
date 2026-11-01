@@ -82,3 +82,27 @@
   .sh-cta .btn { flex: 1 1 100%; justify-content: center; }
 }
 @media (max-width: 780px) and (max-height: 720px) { .sh-copy .lede { display: none; } .sh-install { display: none; } }
+
+/* magnifying lens: only in the hero, only with a mouse (the element is positioned by script and never receives the pointer) */
+.sh-lens { position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; pointer-events: none; z-index: 3; opacity: 0; transition: opacity .2s;
+  /* clear glass: no fill and no filter, so everything underneath stays visible; only a thin translucent blue rim and a faint edge light */
+  border: 2px solid rgb(120 175 255 / 70%); background: transparent;
+  box-shadow: none; }
+/* handle: translucent blue glass, at 45 degrees from the lens centre */
+.sh-lens::after { content: ""; position: absolute; left: 50%; top: 50%; width: 62px; height: 11px; margin-top: -5.5px; transform-origin: 0 50%; transform: rotate(45deg) translateX(60px);
+  border-radius: 2px 6px 6px 2px; border: 1px solid rgb(120 175 255 / 65%); background: linear-gradient(90deg, rgb(120 175 255 / 40%), rgb(91 155 255 / 16%)); }
+/* small glint on the upper right of the rim */
+.sh-lens::before { content: ""; position: absolute; top: 8px; right: 14px; width: 18px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / 35%); filter: blur(2px); transform: rotate(-40deg); }
+.sh-lens-on .sh-lens { opacity: 1; }
+.sh-grid .c { --m: 0; position: relative; z-index: 0; transform: scale(calc(1 + var(--m) * .7)); filter: brightness(calc(1 + var(--m) * .6)); transition: transform .12s ease-out, filter .12s ease-out; }
+.sh-grid .c:not(.ok) { z-index: 1; }
+@media (hover: none), (prefers-reduced-motion: reduce) { .sh-lens { display: none; } .sh-grid .c { transform: none; filter: none; } }
+
+/* the hidden bugs: a full-size layer that a circular mask (the lens glass, 56px around the cursor) uncovers. Nothing shows without the lens. */
+.sh-bugs { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; opacity: 0; transition: opacity .2s;
+  -webkit-mask-image: radial-gradient(circle 56px at var(--lx, -999px) var(--ly, -999px), #000 96%, transparent 100%); mask-image: radial-gradient(circle 56px at var(--lx, -999px) var(--ly, -999px), #000 96%, transparent 100%); }
+.sh-lens-on .sh-bugs { opacity: 1; }
+.bug { --bc: var(--fail); } .bug.warn { --bc: var(--warn); }
+.bug rect { fill: color-mix(in srgb, var(--bc) 18%, #070b12); stroke: var(--bc); stroke-width: .8; }
+.bug text { fill: var(--bc); font: 600 6.4px var(--mono); }
+@media (hover: none), (prefers-reduced-motion: reduce) { .sh-bugs { display: none; } }

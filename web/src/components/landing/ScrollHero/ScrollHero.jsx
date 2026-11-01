@@ -4,11 +4,29 @@ import { CommandBlock } from '../../CommandBlock/CommandBlock'
 import { Emblem } from '../../Emblem/Emblem'
 import './ScrollHero.css'
 
+const LENS_R = 110 // px: how far the lens reaches over the card cells
 const NAV = 64 // height of the sticky navbar: the stage pins just below it
 
 // A decorative 6 x 10 grid of "files". The same positions are flagged on the left and judged on the right. No real data.
 const COLS = 6
 const CELLS = Array.from({ length: 60 }, (_, i) => ({ i, row: Math.floor(i / COLS), kind: i % 11 === 3 ? 'fail' : i % 7 === 2 ? 'warn' : 'ok' }))
+
+// Hidden findings: error chips named after real SafeRun rules, scattered over a 16 x 8 grid with a fixed seed (the same every time),
+// about 31% of the slots filled. Decorative only; the lens uncovers them.
+const FINDINGS = [['eval()', 'fail'], ['shell=True', 'fail'], ['hardcoded-secret', 'fail'], ['os.system()', 'fail'], ['pickle.loads()', 'fail'], ['yaml.load()', 'warn'],
+  ['verify=False', 'warn'], ['md5', 'warn'], ['mktemp()', 'warn'], ['flask debug', 'warn'], ['assert', 'warn'], ['exec()', 'fail']]
+const BUG_COLS = 16
+const BUG_ROWS = 8
+const rand = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+const BUGS = (() => {
+  const r = rand(31); const out = []
+  for (let row = 0; row < BUG_ROWS; row++) for (let col = 0; col < BUG_COLS; col++) {
+    if (r() >= 0.31) continue
+    const [label, kind] = FINDINGS[Math.floor(r() * FINDINGS.length)]
+    out.push({ key: row * BUG_COLS + col, x: (col + r() * 0.3) * (1000 / BUG_COLS), y: (row + 0.2 + r() * 0.5) * (500 / BUG_ROWS), label, kind })
+  }
+  return out
+})()
 
 const clamp = (n) => Math.min(1, Math.max(0, n))
 const seg = (p, a, b) => clamp((p - a) / (b - a)) // progress of p between a and b
@@ -61,15 +79,36 @@ export function ScrollHero() {
 
     // Mouse tilt and spotlight: fine pointers only.
     const hover = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    // Magnifying lens: a small ring follows the cursor, and each card cell swells with its closeness to it (--m, 0..1).
+    const lens = pin.querySelector('.sh-lens')
+    const cells = hover ? [...pin.querySelectorAll('.sh-grid .c')] : []
+    let lraf = 0; let at = null
+    const magnify = () => {
+      lraf = 0
+      if (!at) return
+      for (const c of cells) {
+        const b = c.getBoundingClientRect()
+        const d = Math.hypot(at.x - (b.left + b.width / 2), at.y - (b.top + b.height / 2))
+        c.style.setProperty('--m', clamp(1 - d / LENS_R).toFixed(2))
+      }
+    }
     const move = (e) => {
       const r = pin.getBoundingClientRect()
       el.style.setProperty('--mx', clamp((e.clientX - r.left) / r.width) * 2 - 1)
       el.style.setProperty('--my', clamp((e.clientY - r.top) / r.height) * 2 - 1)
+      el.style.setProperty('--lx', (e.clientX - r.left) + 'px'); el.style.setProperty('--ly', (e.clientY - r.top) + 'px')
+      if (lens) { lens.style.transform = `translate(${e.clientX - r.left}px, ${e.clientY - r.top}px)`; el.classList.add('sh-lens-on') }
+      at = { x: e.clientX, y: e.clientY }
+      if (!lraf) lraf = requestAnimationFrame(magnify)
     }
-    const leave = () => { el.style.setProperty('--mx', 0); el.style.setProperty('--my', 0) }
+    const leave = () => {
+      el.style.setProperty('--mx', 0); el.style.setProperty('--my', 0)
+      el.classList.remove('sh-lens-on'); at = null; el.style.setProperty('--lx', '-999px'); el.style.setProperty('--ly', '-999px')
+      for (const c of cells) c.style.setProperty('--m', 0)
+    }
     if (hover) { pin.addEventListener('pointermove', move); pin.addEventListener('pointerleave', leave) }
     return () => {
-      cancelAnimationFrame(raf)
+      cancelAnimationFrame(raf); cancelAnimationFrame(lraf)
       window.removeEventListener('scroll', schedule); window.removeEventListener('resize', schedule)
       pin.removeEventListener('pointermove', move); pin.removeEventListener('pointerleave', leave)
     }
@@ -78,6 +117,15 @@ export function ScrollHero() {
   return (
     <section className={'sh' + (live ? ' sh-live' : '')} ref={stage}>
       <div className="sh-pin">
+        <svg className="sh-bugs" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+          {BUGS.map((b) => (
+            <g key={b.key} className={'bug ' + b.kind} transform={`translate(${b.x.toFixed(1)} ${b.y.toFixed(1)})`}>
+              <rect x="0" y="-6" width={(b.label.length * 4.4 + 13).toFixed(1)} height="11" rx="2" />
+              <text x="3" y="1.8">{(b.kind === 'fail' ? '✕ ' : '! ') + b.label}</text>
+            </g>
+          ))}
+        </svg>
+        <div className="sh-lens" aria-hidden="true" />
         <div className="wrap sh-stage">
           <Card side="l" title="Submitted project" status="not run" />
           <div className="sh-center">
