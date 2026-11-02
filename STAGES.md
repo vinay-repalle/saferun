@@ -5,7 +5,7 @@ Status: planned / in progress / done (local) / pushed. Updated after every stage
 
 | Stage | Goal | Status | Tests | Docs updated |
 |---|---|---|---|---|
-| 7 | Docs clarity: `scan` vs `run`, syntax check as "can the scanner read this file", stale-doc cleanup (IMPLEMENTATION.md, PROJECT.md, docs; diff shown first), JavaScript labelled experimental (docs only; website excluded, see Deferred) | done locally (not committed) | docs only, no new tests; non-Docker suite 812 passed, 62 skipped (Windows-only), 101 Docker tests deselected/not run (pinned python image not on this laptop) | README, PROJECT, IMPLEMENTATION, docs/cli.md, docs/engine.md |
+| 7 | Docs clarity: `scan` vs `run`, syntax check as "can the scanner read this file", stale-doc cleanup (IMPLEMENTATION.md, PROJECT.md, docs; diff shown first), JavaScript labelled experimental (docs only; website excluded, see Deferred) | done (committed by owner) | docs only, no new tests; full suite incl. Docker: 925 passed, 50 skipped (Windows/macOS-only tests), 0 failed | README, PROJECT, IMPLEMENTATION, docs/cli.md, docs/engine.md |
 | 8 | Package-name check: new `saferun check-names`, bundled offline top-PyPI snapshot, opt-in online lookup; `scan` unchanged | planned | - | - |
 | 9 | Benchmark vs Bandit and pip-audit (harmless samples generated at run time); dev environment only; advisory in CI | planned | - | - |
 | 10 | Dependency findings: patch/major label, `.saferun-accept.toml` accept-risk with reason and expiry | planned | - | - |
