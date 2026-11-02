@@ -4,7 +4,7 @@ Checks AI-generated code before you run or trust it. Executing untrusted code in
 code; it does **not** prove the code is safe, and a passing scan does not guarantee security.
 **Current release: 0.0.2** · [PyPI](https://pypi.org/project/saferun-cli/) · [GitHub Releases](https://github.com/vinay-repalle/saferun/releases) · [Website](https://safe-run.netlify.app) · [Security policy](https://github.com/vinay-repalle/saferun/blob/main/SECURITY.md)
 
-Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Not yet done: a detection-quality benchmark, broader JavaScript rules, and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
+Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Not yet done: a detection-quality benchmark, JavaScript code rules (JavaScript support is experimental), and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
 
 **Requirements:** Python 3.12 or newer and Docker (running Linux containers). Linux, Windows and macOS are supported; Linux is the fully tested platform.
 
@@ -23,7 +23,7 @@ SafeRun is released under the [MIT License](https://github.com/vinay-repalle/saf
 
 ## Key features
 - **Restricted Docker sandbox** (Phase 1): read-only sanitized project copy, no network, non-root, no capabilities, resource limits, verified at run time.
-- **Validation engine** (Phase 2): Python syntax check and `node --check` in the sandbox; Semgrep (Python) and an **offline** OSV-Scanner dependency scan, both run **only inside a verified, locked-down analyzer container** (Phase 5B, no host-side fallback); one normalized report and a PASS / WARNING / FAIL verdict.
+- **Validation engine** (Phase 2): Python syntax check and `node --check` (a "can the scanner read this file" step: it parses the file, it does not run it) in the sandbox; Semgrep (Python) and an **offline** OSV-Scanner dependency scan, both run **only inside a verified, locked-down analyzer container** (Phase 5B, no host-side fallback); one normalized report and a PASS / WARNING / FAIL verdict.
 - **CLI** (Phase 3): `saferun scan PATH`, text or JSON output, deterministic exit codes. Incomplete scans never report PASS.
 
 ## Prerequisites
@@ -58,6 +58,7 @@ What `saferun init` does, in order, and what it never does:
 **Clean-environment install and validation, and what the CI runs:** [docs/install-and-test.md](https://github.com/vinay-repalle/saferun/blob/main/docs/install-and-test.md).
 
 ## Quick start
+**`scan` vs `run`:** `saferun scan` only *reads* files and **executes nothing** (project code is never run). `saferun run` scans a script first, and only if the verdict allows it executes the script inside the hardened sandbox.
 ```bash
 saferun scan ./my-project                 # human-readable report; nothing is executed
 saferun scan ./my-project --format json   # machine-readable report (schema_version 1)
@@ -103,7 +104,7 @@ Pages are switched by the URL hash, so no redirect rules are needed.
 | Runtime | Image | Status |
 |---|---|---|
 | Python | `python:3.12-slim` | sandbox, syntax check and Semgrep implemented |
-| JavaScript / Node.js | `node:22-slim` | sandbox, `node --check` and npm lockfile scan implemented; **dependency installation, test runners and JS Semgrep rules are not implemented** |
+| JavaScript / Node.js | `node:22-slim` | **experimental**: sandbox, `node --check` (can the scanner read the file) and npm lockfile scan only; **there are no JavaScript code rules, and dependency installation and test runners are not implemented** |
 
 ## Documentation
 - [docs/cli.md](https://github.com/vinay-repalle/saferun/blob/main/docs/cli.md) — CLI options, exit codes, output examples

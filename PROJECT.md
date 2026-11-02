@@ -1,8 +1,8 @@
 # SafeRun — Project
 
 Developer tool that checks AI-generated code *before* it is run or trusted. CLI + static website
-share one backend, one validation engine, one sandbox. Python first; JavaScript partially (syntax check and npm-lockfile
-vulnerability scanning exist since Phase 2; installation, test runners and JS rules are later work — see *Runtime profiles*).
+share one backend, one validation engine, one sandbox. Python first; JavaScript is **experimental** (syntax check and npm-lockfile
+vulnerability scanning exist since Phase 2; there are no JavaScript code rules, and installation and test runners are later work — see *Runtime profiles*).
 
 **Non-goals:** generating/repairing code, multi-agent systems, LLM API calls, CI/CD integration (v1),
 any claim that a passing scan means the code is secure.
@@ -146,7 +146,7 @@ The Phase 4 local dashboard (`saferun/api`, `saferun-web`, hostile-ZIP upload, l
   Containers use `saferun-` names and a `saferun.deadline` label; workspaces live in the system temp dir.
 - Images are referenced by tag but each run uses the *resolved image ID* (recorded); images are now referenced by pinned digest (Phase 5A; see *Image pinning*). Sandbox output is not terminal-escape sanitized by the sandbox; the Phase 3 CLI strips control/escape characters from everything it prints.
 - Out of scope for Phase 1: side channels; archive attacks (Phase 4/5); running scanners on hostile input
-  (Phase 2 runs Semgrep/OSV-Scanner on the host against the sanitized copy, see *Validation engine*); dependency installation (deferred, separate network-enabled step).
+  (Phase 2 originally ran Semgrep/OSV-Scanner on the host; since Phase 5B they run only inside the analyzer container, see *Validation engine*); dependency installation (deferred, separate network-enabled step).
 
 ## Runtime profiles and JavaScript
 A *profile* (`profiles.py`) is just a name for an image plus its interpreter; every profile gets exactly the same
@@ -205,15 +205,19 @@ verified code, and the only second backend considered (OpenSandbox) failed the r
 4. Web dashboard — committed (`e4bceef`), later **removed** (see *Removed: web dashboard and API*)
 5. Integration, security testing, release docs — 5A image pinning, 5B analyzer isolation, 5C adversarial tests, 5D cleanup/exhaustion hardening and 5E signed analyzer release (workflow + cosign verification) are **implemented and committed**; `analyzer-v1.0.0` is published and signed but not recorded (no license notices in the image); `analyzer-v1.0.1` is published, signed and recorded in `ANALYZER_RELEASE` (a release under a previous owner's identity is not trusted here)
 
+6. Post-Phase-5 product work (not numbered when done): `saferun init` / `status` / `doctor` / `run`, self-provisioned cosign, terminal presentation, CI, packaging, PyPI releases 0.0.1 and 0.0.2, static website — **done and committed**
+7. Onward: see [STAGES.md](STAGES.md) (planned work, one line per stage)
+
 A phase starts only after the previous one's acceptance criteria are met and approved.
 
-### Remaining work (audit 2026-10-30), in priority order
-1. **Clean-machine end-to-end test** (fresh clone, `pip install`, `saferun init --all`, `status`, `verify-images --signature`, `scan`) — not done.
-2. **CI** for tests, lint and wheel build — only `release-analyzer.yml` exists.
-3. **Packaging**: the wheel builds but has no `[build-system]` table, version is `0.0.1`, and it excludes `web/dist` (the dashboard UI) and `docker/` (`--build-local`). Install from a built wheel is untested.
-4. **Project files**: LICENSE (MIT) added; no CHANGELOG or SECURITY.md.
-5. **Docker-less tests** skip loudly; a job that runs the non-Docker subset should be a CI gate.
-6. **Detection quality**: rules are unmeasured (no false-positive/negative benchmark); JavaScript has only `node --check` and an npm lockfile scan.
+### Remaining work (audit 2026-10-30; status updated in Phase 7), in priority order
+*Items 2-5 were done after the audit; planned new work is tracked in [STAGES.md](STAGES.md).*
+1. **Clean-machine end-to-end test** (fresh clone, `pip install`, `saferun init --all`, `status`, `verify-images --signature`, `scan`) — no passing run is recorded.
+2. **CI** — done: `.github/workflows/ci.yml` runs the non-Docker tests on Linux, Windows and macOS, the website tests and build, and a wheel/sdist build with a clean-venv install; Docker tests and `npm audit` are advisory jobs. There is no lint job.
+3. **Packaging** — done: `[build-system]` exists, the version is 0.0.2 and it is published on PyPI as `saferun-cli`; CI installs the built wheel into a clean venv. The wheel still excludes `docker/` (so `init --build-local` needs a source checkout).
+4. **Project files**: LICENSE (MIT) and SECURITY.md exist; there is no CHANGELOG.
+5. **Docker-less tests** — done: the non-Docker subset (`-m "not docker"`) is a blocking CI job on all three platforms.
+6. **Detection quality**: rules are unmeasured (no false-positive/negative benchmark); JavaScript (experimental) has only `node --check` and an npm lockfile scan. Planned: STAGES.md.
 Future enhancements (not release blockers unless a later audit says so): gVisor/Kata backend, ARM64 analyzer.
 
 ## Image pinning (Phase 5A)
@@ -235,7 +239,7 @@ log driver off, `--init`, and a container-side `timeout -s KILL` deadline plus a
 checksum-verified OSV-Scanner binary; before **every** use SafeRun checks the image ID against the build lock and the tool-version and rules-hash labels against its own pins, then runs the
 container *by that ID*. Image missing / ID or label mismatch / Docker unusable / container policy violated -> the check is `unavailable` or `error` (never clean, verdict at best WARNING).
 There is no host-side execution path: asserted statically (AST test of the check modules: no `run_tool`/`find_tool`/`subprocess`/`which` names or imports), dynamically (`subprocess.Popen` and `subprocess.run` patched to raise during a scan with the analyzer unavailable; `os.system` and the `exec*` family are NOT covered by that test) and end to end (host
-`semgrep`/`osv-scanner` shims on PATH are never started, also through the dashboard API).
+`semgrep`/`osv-scanner` shims on PATH are never started, also through the dashboard API, which has since been removed).
 
 **Network.** Scans are always offline. `saferun osv-db update` is the only code that downloads anything (public OSV data over HTTPS; size cap; the server's MD5 header is REQUIRED (earlier versions silently skipped the check: the real server sends `x-goog-hash` as two headers and only the first was read, so the MD5 was never actually compared); a readable zip with at least a floor of advisories; SHA-256/size/entry count/time recorded in `manifest.json`; atomic replace; existing directories are never chmod'ed). The host reads only the zip's central directory to count advisories (stdlib `zipfile`, nothing is extracted); it does not parse the advisories. **Per-scan online OSV queries were removed**, a deliberate behaviour change: allowing network in the analyzer container would expose the host's
 bridge gateway and LAN to a process that parses hostile input, and Docker alone cannot restrict egress to api.osv.dev (that needs a host firewall or an egress proxy, both outside this phase and
@@ -245,7 +249,7 @@ rejected earlier in the OpenSandbox review). Consequence: a project with lockfil
 **Tested controls vs proven guarantees.** The 5C suite tried specific hostile inputs and probes on this host (Docker 29.8.0, one kernel, the daemon's builtin seccomp profile, AppArmor `docker-default`) and each ended
 safely: deeply nested / oversized / NUL / non-UTF-8 sources; malformed, deeply nested and huge lockfiles; requirements directives pointing at host files and metadata endpoints; symlinks,
 FIFOs, sockets and external hardlinks; fork bomb, OOM, CPU spin, tmpfs/output flood, fd exhaustion; mount/unshare/chroot/proc-write/cgroup-write attempts; DNS and TCP connection attempts;
-tampered lock, crashing analyzer, missing data; CLI exit codes and report schema; loopback-only dashboard. **A passing test is evidence for that input on that host, not a proof.** Not
+tampered lock, crashing analyzer, missing data; CLI exit codes and report schema; loopback-only dashboard (removed later). **A passing test is evidence for that input on that host, not a proof.** Not
 established: absence of Semgrep/OSV-Scanner/Go/Python parser vulnerabilities, kernel or runc escapes (the container shares the host kernel; gVisor/Kata are deferred), behaviour under other
 kernels/Docker versions/rootless Docker/user-namespace remapping, other CPU architectures (the analyzer lock is linux/amd64), SELinux (not used on this host), or side channels. AppArmor IS active here: `docker info` lists `name=apparmor,profile=default`, and the Phase 1 attestation run against the analyzer image reads `docker-default (enforce)` from inside the container (`tests/test_analyzer_isolation.py::TestRealAnalyzerContainer::test_kernel_view_attestation_of_the_analyzer_image`); that is a property of this host, and the profile's contents are not audited.
 
@@ -255,7 +259,7 @@ kernels/Docker versions/rootless Docker/user-namespace remapping, other CPU arch
 - The OSV-Scanner checksum comes from the same upstream release as the binary (integrity, not authenticity); Semgrep wheel hashes were generated from PyPI at lock time (Linux x86_64, CPython 3.12 only).
 - Coverage cross-check quirk (pre-existing): files whose names contain control characters are reported with sanitized paths, so Semgrep's scanned-file list cannot be matched and the check ends `incomplete` (safe direction, misleading text "e.g. too large").
 - Fixed in 5C: text output could be given extra, forged finding lines by a file name containing a newline / U+2028 (every printed field is now one line; JSON output was never affected).
-- Still no authentication on the dashboard; one scan at a time; resource limits for the analyzer (1.5 GiB, 2 CPUs, 256 pids) are fixed defaults. A second sandbox backend is deferred (the container boundary is Docker-only).
+- (Dashboard, removed later: it had no authentication.) One scan at a time; resource limits for the analyzer (1.5 GiB, 2 CPUs, 256 pids) are fixed defaults. A second sandbox backend is deferred (the container boundary is Docker-only).
 - Phase 5D (implemented; see IMPLEMENTATION.md *Phase 5D*): cancel on server stop, instance lock + orphan-worker kill + full sweep after a SIGKILLed server, `507` for disk-full uploads, bounded health probe, reaper/sandbox client behaviour with a hung daemon. Still untested for real: a truly hung `dockerd`, a real full filesystem, a real second OS user (simulated by changing the uid SafeRun sees).
 
 ## Setup workflow (`saferun init`, `saferun status`)

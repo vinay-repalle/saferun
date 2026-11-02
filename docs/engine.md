@@ -1,6 +1,8 @@
 # Validation engine (Phase 2) — library reference
 
-Design and host-side analyzer risk: [PROJECT.md](../PROJECT.md#validation-engine-phase-2-saferunengine). Evidence: [IMPLEMENTATION.md](../IMPLEMENTATION.md). The command-line front end is documented in [cli.md](cli.md).
+Design and analyzer isolation: [PROJECT.md](../PROJECT.md#validation-engine-phase-2-saferunengine). Evidence: [IMPLEMENTATION.md](../IMPLEMENTATION.md). The command-line front end is documented in [cli.md](cli.md).
+
+`saferun scan` runs these checks and **executes nothing**; `saferun run` scans a script with them and then executes it only inside the sandbox if the verdict allows it ([cli.md](cli.md)).
 
 ## Usage
 ```python
@@ -15,15 +17,17 @@ runs the checks on the **copy** (never the original directory, never project cod
 
 | Check | Tool | Runs where | Scope |
 |---|---|---|---|
-| `python-static-analysis` | Semgrep, bundled local rules ([python.yml](saferun/engine/rules/python.yml): 11 rules) | **inside the analyzer container** (`saferun-analyzer:local`, verified before every run; no host fallback), project mounted read-only, no network | `.py`/`.pyi` outside `node_modules`, `.venv`, `venv`, `site-packages` |
+| `python-static-analysis` | Semgrep, bundled local rules ([python.yml](../saferun/engine/rules/python.yml): 11 rules) | **inside the analyzer container** (`saferun-analyzer:local`, verified before every run; no host fallback), project mounted read-only, no network | `.py`/`.pyi` outside `node_modules`, `.venv`, `venv`, `site-packages` |
 | `dependency-vulnerabilities` | OSV-Scanner v2 (`scan source --format json --no-resolve`; verified with 2.7.0) | **inside the analyzer container**, no network, offline OSV data mounted read-only (`saferun osv-db update`; missing, unvalidated or tampered data → `error`; data older than `osv_db_max_age_days`=30 → `incomplete`) | **Lockfiles:** `poetry.lock`, `Pipfile.lock`, `pdm.lock`, `uv.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`. **Requirements file (a manifest, not a lockfile):** `requirements.txt` only |
-| `python-syntax` | `compile()` (parse only, nothing imported or run) | **inside the sandbox** (`python:3.12-slim`), one run, fixed driver script | `.py`/`.pyi` (Semgrep does *not* report syntax errors, so this is separate) |
+| `python-syntax` | `compile()` (parse only, nothing imported or run); a "can the scanner read this file" step | **inside the sandbox** (`python:3.12-slim`), one run, fixed driver script | `.py`/`.pyi` (Semgrep does *not* report syntax errors, so this is separate) |
 | `javascript-syntax` | `node --check` | **inside the sandbox** (`node:22-slim`), one run, fixed driver script | `.js`/`.mjs`/`.cjs` outside `node_modules` |
 | `workspace-sensitive-files` | Phase 1 copy | host (copies/inspects files; runs no analyzer) | withheld credential-like files become findings |
 
 Semgrep and OSV-Scanner are not installed on the host any more: they live in the analyzer image (`docker/analyzer/build.sh`; pinned versions, hash-locked wheels, checksummed binary,
 rules baked in). If the image is missing the check is `unavailable`; if its ID, tool versions or rules hash differ from the build lock/pins it is `error` (`AnalyzerIntegrityError`); a
 failed container run is `error`. None of these is ever clean and none falls back to the host.
+
+**JavaScript is experimental:** only `javascript-syntax` (can the scanner read the file) and the npm lockfile scan exist; there are no JavaScript code rules.
 
 **Not implemented (deferred):** npm/pip dependency *installation* and test execution (needs a separate network-enabled step),
 JavaScript test runners, Semgrep rules for JavaScript, transitive resolution (requirements.txt and manifests without lockfiles),

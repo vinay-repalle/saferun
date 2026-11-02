@@ -48,6 +48,7 @@ The scan still runs what it can and the affected checks are `unavailable`/`error
 `setup: OSV vulnerability database is outdated: …  ->  fix: saferun init --only osv-db`. Nothing is skipped silently and nothing falls back to host tools.
 
 ## Usage
+**`scan` executes nothing; `run` scans, then executes in the sandbox.** `saferun scan` reads the files and reports; no project code is run. `saferun run` (below) first performs the same scan on a script and executes it, inside the sandbox only, when the verdict allows it.
 ```bash
 saferun scan ./my-project                 # human-readable report
 saferun scan ./my-project --format json   # the Phase 2 report schema (schema_version 1), nothing else on stdout
@@ -59,6 +60,8 @@ saferun --help
 rules; the CLI adds no validation logic, runs no project code and installs no dependencies. Options: `--format text|json`,
 `--timeout SECONDS` (per tool/sandbox run, default 120, max 3600), `--osv-offline` (no-op: always offline), `--no-python-syntax`, `--no-python-analysis`,
 `--no-dependency-scan`, `--no-javascript-check`. A disabled check is reported as `skipped`, which makes the verdict at best WARNING.
+
+`python-syntax` and `javascript-syntax` answer one question: *can the scanner read this file?* They parse each file (`compile()` / `node --check`) and run none of it; a file that fails to parse is reported because the other checks cannot analyse it. JavaScript support is **experimental**: besides this syntax step there is only the npm lockfile scan, and no JavaScript code rules.
 
 **Network.** Scans never use the network. Semgrep and OSV-Scanner run in the analyzer container (no network, read-only project, see PROJECT.md *Phase 5 security status*);
 OSV-Scanner reads local OSV data. Build the image once with `docker/analyzer/build.sh` and fetch the data with `saferun osv-db update` (the only command that downloads anything:
