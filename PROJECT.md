@@ -7,8 +7,8 @@
 # SafeRun — Project
 
 Developer tool that checks AI-generated code *before* it is run or trusted. CLI + static website
-share one backend, one validation engine, one sandbox. Python first; JavaScript is **experimental** (syntax check and npm-lockfile
-vulnerability scanning exist since Phase 2; there are no JavaScript code rules, and installation and test runners are later work — see *Runtime profiles*).
+share one backend, one validation engine, one sandbox. SafeRun is **Python-only**: JavaScript/Node.js is not
+supported (the JavaScript syntax check and npm-lockfile scan that existed from Phase 2 were removed; npm files get a plain "not supported, not scanned" note — see *Runtime profiles*).
 
 **Non-goals:** generating/repairing code, multi-agent systems, LLM API calls, CI/CD integration (v1),
 any claim that a passing scan means the code is secure.
@@ -28,38 +28,38 @@ preflight) · `copy.py` (fd-relative, identity-verified, limited copy) · `secre
 redaction) · `reaper.py` (orphan recovery) · `controls.py` (what is really in force: daemon capabilities and the applied
 container config, pure functions) · `runner.py` (`build_create_args` holds every security flag; `run_sandboxed` does
 preflight → create → **verify applied config, fail closed** → start → timeout → inspect → cleanup) ·
-`attestation.py` (kernel-view probe inside a sandbox) · `profiles.py` (python / node images) · `config.py`
+`attestation.py` (kernel-view probe inside a sandbox) · `profiles.py` (python image) · `config.py`
 (limits/result types). Uses the docker CLI via argument lists (no shell, no Docker SDK, no socket handed to anything
 untrusted). A future backend interface is **not** introduced in Phase 1 (see *OpenSandbox reuse assessment*).
 
 ## Validation engine (Phase 2, `saferun/engine/`)
 `model.py` (Finding, CheckResult, CheckStatus, Severity, ValidationReport) · `verdict.py` (rules) · `tools.py` (controlled subprocess runner) ·
-`semgrep.py`, `osv.py`, `secretscan.py`, `pysyntax.py`, `node.py` (one module per check, each `run_check(ctx) -> CheckResult`) · `engine.py` (`validate_project`) ·
+`semgrep.py`, `osv.py`, `secretscan.py`, `pysyntax.py` (one module per check, each `run_check(ctx) -> CheckResult`) · `engine.py` (`validate_project`) ·
 `context.py` (injectable runners for tests) · `paths.py` (untrusted-path normalisation) · `rules/python.yml` (bundled Semgrep rules) · `rules/gitleaks.toml` (bundled gitleaks configuration).
 
 Flow: `create_workspace` (Phase 1 sanitized copy) → list files → run enabled checks (each guarded: an exception becomes an `error` result) →
 `compute_verdict` → delete the copy. The sandbox API is unchanged; the engine only *uses* `create_workspace`, `run_sandboxed` and the docker helpers.
 
-**Where each tool runs, and why (since Phase 5B).** Everything that parses untrusted files runs **inside a container**: the two syntax checks (`node --check`, Python `compile()`) in the
-`python`/`node` images, and Semgrep, OSV-Scanner and gitleaks (secrets) in the **analyzer image** (`saferun-analyzer:local`, built by `docker/analyzer/build.sh`). All of them go through the same
+**Where each tool runs, and why (since Phase 5B).** Everything that parses untrusted files runs **inside a container**: the Python syntax check (`compile()`) in the
+`python` image, and Semgrep, OSV-Scanner and gitleaks (secrets) in the **analyzer image** (`saferun-analyzer:local`, built by `docker/analyzer/build.sh`). All of them go through the same
 `run_sandboxed` path with the same verified restrictions (no network, read-only root and project, non-root, all capabilities dropped, seccomp/no-new-privileges, memory/swap/CPU/pids/fd/file-size
 limits, container-side kill deadline). Only OSV-Scanner gets one extra mount: the offline OSV data directory, read-only (the applied mount set is verified exactly, so an unexpected or writable
 mount stops the run). Semgrep runs with the rule file baked into the image (a scanned project cannot supply rules) and `--disable-nosem`. The host never executes Semgrep or OSV-Scanner and the
 host environment is not passed to the container. There is **no fallback**: see *Phase 5 security status*. Neither tool executes project code; they only read it.
 
 **Dependency handling.** SafeRun never installs, fetches or builds dependencies and never runs install scripts. OSV-Scanner reads dependency files only
-(`--no-resolve`): **lockfiles** (`poetry.lock`, `Pipfile.lock`, `pdm.lock`, `uv.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`) and the **manifest** `requirements.txt` (not a lockfile). Scans use no network at all: OSV-Scanner runs offline against local OSV data (`saferun osv-db update` is the only download, of public data; nothing about any project is sent). Without the data the check reports `error`. A manifest without a scannable file beside it (`package.json`, `Pipfile`, `pyproject.toml`) and requirements variants (`requirements-dev.txt`, …) are *coverage gaps*:
+(`--no-resolve`): **lockfiles** (`poetry.lock`, `Pipfile.lock`, `pdm.lock`, `uv.lock`) and the **manifest** `requirements.txt` (not a lockfile). Scans use no network at all: OSV-Scanner runs offline against local OSV data (`saferun osv-db update` is the only download, of public data; nothing about any project is sent). Without the data the check reports `error`. A manifest without a scannable file beside it (`Pipfile`, `pyproject.toml`) and requirements variants (`requirements-dev.txt`, …) are *coverage gaps*:
 status `incomplete`/`skipped`, never clean. `requirements.txt` entries not pinned with `==` are noted as not reliably matched.
 
 **Findings vs operational errors.** A finding is a signal in the project. `error`/`timeout`/`unavailable`/`skipped`/`incomplete` describe the analysis, carry no
 findings (except `incomplete`, which keeps partial results) and force at least `WARNING`. Severity mapping: Semgrep → rule's `saferun_severity` else
 ERROR/WARNING/INFO → high/medium/low; OSV → CVSS score of the vulnerability group (≥9 critical, ≥7 high, ≥4 medium, >0 low) else the database's label,
-else `unknown` (treated as medium); a JavaScript syntax error → medium (a broken file is a validation problem, not a demonstrated vulnerability); a gitleaks secret finding → high (always; the value is never kept); a withheld
+else `unknown` (treated as medium); a Python syntax error → medium (a broken file is a validation problem, not a demonstrated vulnerability); a gitleaks secret finding → high (always; the value is never kept); a withheld
 private key/token → high, a withheld private-mode file → low. Verdict rules: [docs/engine.md](docs/engine.md) / `verdict.py`. All tool-derived strings are stripped of control and
 bidi characters and length-bounded; tool-reported paths are accepted only if they are relative paths inside the copy.
 
-**Limitations.** The bundled Semgrep rules are a small starting set (11 rules, Python only) and do no taint or cross-file analysis; no JavaScript rules; Python syntax is checked with the sandbox image's Python 3.12 only (Semgrep itself tolerates and does not report syntax errors — observed with 1.182.1); OSV matches known vulnerabilities only (no malware detection, no reachability; look-alike package names are a separate, offline hint: `saferun check-names`, not part of `scan`);
-`requirements.txt` is a manifest: unpinned entries are evaluated at their lower bound and transitive dependencies are not resolved; npm lockfile entries without a registry URL are unmatchable (reported `incomplete`); unsupported file formats are not scanned; Semgrep skips files > 1 MB and these are reported `incomplete`; at most 50 lockfiles, 1000 JS files, 1000 findings per check.
+**Limitations.** The bundled Semgrep rules are a small starting set (11 rules, Python only) and do no taint or cross-file analysis; no JavaScript support (npm files are not scanned and only get a plain note); Python syntax is checked with the sandbox image's Python 3.12 only (Semgrep itself tolerates and does not report syntax errors — observed with 1.182.1); OSV matches known vulnerabilities only (no malware detection, no reachability; look-alike package names are a separate, offline hint: `saferun check-names`, not part of `scan`);
+`requirements.txt` is a manifest: unpinned entries are evaluated at their lower bound and transitive dependencies are not resolved; unsupported file formats are not scanned; Semgrep skips files > 1 MB and these are reported `incomplete`; at most 50 lockfiles, 1000 findings per check.
 
 ## Threat model
 
@@ -98,7 +98,7 @@ seccomp filter and AppArmor profile come from the Docker daemon's defaults and a
 | † Non-world-readable files withheld, never read; signature-bearing files withheld by content; hard links to inodes with outside names skipped; output redacted | test_sensitive.py, test_hardlinks.py (each fails when its control is disabled) |
 | † Applied container config verified before start (28 checks, each shown to flip on the opposite value); fail closed (container never started) | test_hardening.py (golden-config mutations, `never_started` tests) |
 | † Daemon preflight: seccomp present and not unconfined, memory/swap/pids/CPU cgroup support; AppArmor reported (not required); unverifiable controls reported as `unavailable`/`unverified`, never `verified` | test_hardening.py (preflight, daemon_controls) |
-| † Kernel-view attestation (`attest(image)`): reads `/proc` and `/sys` inside a sandbox with the real flags (seccomp mode 2, NoNewPrivs, empty capabilities, uid, loopback-only, cgroup limits, swap 0, read-only filesystems, AppArmor profile) — on both the Python and Node images | test_hardening.py, test_node_profile.py |
+| † Kernel-view attestation (`attest(image)`): reads `/proc` and `/sys` inside a sandbox with the real flags (seccomp mode 2, NoNewPrivs, empty capabilities, uid, loopback-only, cgroup limits, swap 0, read-only filesystems, AppArmor profile) — on the Python image | test_hardening.py |
 | † Robustness to unexpected Docker behaviour: malformed JSON, missing state, daemon down (a failed `inspect` no longer counts as "container removed"), hung CLI, non-UTF-8 output, kill that does not stop the container, reaper with daemon down | test_hardening.py |
 | † Concurrent runs (6 in parallel) are isolated and fully cleaned up | test_concurrent_runs_are_isolated_and_all_cleaned_up |
 | † Both cleanup steps always run; original exception preserved (cleanup errors added as notes) | test_cleanup.py |
@@ -154,21 +154,11 @@ The Phase 4 local dashboard (`saferun/api`, `saferun-web`, hostile-ZIP upload, l
 - Out of scope for Phase 1: side channels; archive attacks (Phase 4/5); running scanners on hostile input
   (Phase 2 originally ran Semgrep/OSV-Scanner on the host; since Phase 5B they run only inside the analyzer container, see *Validation engine*); dependency installation (deferred, separate network-enabled step).
 
-## Runtime profiles and JavaScript
+## Runtime profiles
 A *profile* (`profiles.py`) is just a name for an image plus its interpreter; every profile gets exactly the same
-restrictions, verified the same way: **python** → `python:3.12-slim@sha256:78387bc3…`, **node** → `node:22-slim@sha256:4b150b48…` (pinned by digest, must be pulled
-explicitly: `docker pull node:22-slim`).
+restrictions, verified the same way. There is one: **python** → `python:3.12-slim@sha256:78387bc3…` (pinned by digest, pulled by `saferun init`).
 
-| JavaScript / Node.js | Status |
-|---|---|
-| Run a `.js` file in the hardened sandbox (non-root, no network, read-only fs, limits, timeout, output cap, OOM kill, symlink/secret/hard-link handling) | **Implemented and tested** (11 tests + kernel-view attestation on the Node image) |
-| Syntax check (`node --check` on every `.js/.mjs/.cjs`, one sandbox run, fixed driver, no project code executed) | **Implemented** (Phase 2; real-sandbox tests) |
-| npm vulnerability scan from `package-lock.json` / `yarn.lock` / `pnpm-lock.yaml` via OSV-Scanner | **Implemented**; `package-lock.json` verified with the real osv-scanner 2.7.0 (finding, clean, error paths); `yarn.lock`/`pnpm-lock.yaml` passed to the tool but not tested with it |
-| Dependency acquisition (`npm ci --ignore-scripts` in a separate, allowlisted-network sandbox) | **Deferred**: needs a network-enabled acquisition phase; SafeRun installs nothing |
-| Test-runner integration (`node --test`, jest, …), Semgrep JS rules, ESLint/TypeScript | **Deferred** (not required for Phase 2) |
-| Node version selection, digest pinning, V8 heap vs cgroup tuning, Alpine/distroless images | **Not implemented / untested** |
-A JavaScript *SDK that controls a sandbox* (as in OpenSandbox) is not a sandbox that runs JavaScript; this table concerns
-only execution inside SafeRun's own Docker sandbox.
+**JavaScript was removed.** Phase 2 added a `node:22-slim` profile, a `node --check` syntax check and an npm-lockfile scan. SafeRun is now Python-only, so the Node image, the `javascript-syntax` check, the `--no-javascript-check` behaviour (the flag is still accepted, hidden, and does nothing) and the npm OSV data are gone. A project with `package.json`, `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml` gets the dependency-check note "JavaScript/npm dependencies are not supported and were not scanned." (no effect on status or verdict; with only npm files the check is `not_applicable`, never a pass). The secrets scan still reads files of any type. The website in `web/` is built with Node but is not part of the scanner.
 
 ## OpenSandbox reuse assessment
 Source of this assessment: official docs and selected raw files read read-only over the web (no clone, install or
@@ -193,7 +183,7 @@ keep copyright notices, and carry any NOTICE file (none was seen). SafeRun adds 
 | Command semantics (`specs/execd-api.yaml`) | argv vs shell; argv[0] non-empty; NUL invalid | spec only · Apache-2.0 | shell mode exists | **Adapt idea**: SafeRun accepts argv only |
 | Container labels (`created-at`, `expires-at`) | orphan bookkeeping | — | — | **Build own** (done: `saferun.deadline`, reaper) |
 | `resourceLimits` (`cpu`, `memory`, `gpu` strings) | resource request | — | no disk/pids/swap/fd/fsize | **Avoid**; explicit integer limits kept |
-| Code interpreter image / kernels (`sandbox-images`) | Python/Node/Java/Go via Jupyter kernels | Ubuntu 24.04, many OSS · Apache-2.0 (+ bundled licenses) | persistent kernels, root kernels inside Jupyter owner's trust boundary; version via env vars | **Avoid**; JavaScript = plain `node` in a pinned official image (own profile) |
+| Code interpreter image / kernels (`sandbox-images`) | Python/Node/Java/Go via Jupyter kernels | Ubuntu 24.04, many OSS · Apache-2.0 (+ bundled licenses) | persistent kernels, root kernels inside Jupyter owner's trust boundary; version via env vars | **Avoid** |
 | SDKs (`SupportedLanguages`, 5 languages) | host-side clients | Apache-2.0 | they control sandboxes; they do not run code themselves | **Avoid** |
 | Isolation sessions (bubblewrap) | per-run namespaces in one sandbox | bwrap · Apache-2.0 | needs `CAP_SYS_ADMIN` + unconfined AppArmor/seccomp; "hard trust boundaries out of scope" | **Avoid** |
 | gVisor / Kata / Firecracker runtime options | stronger isolation | runsc / kata · Apache-2.0 | gVisor ↔ egress sidecar conflict; Firecracker K8s-only | **Defer**: a future backend could pass `--runtime`; not implemented |
@@ -223,7 +213,7 @@ A phase starts only after the previous one's acceptance criteria are met and app
 3. **Packaging** — done: `[build-system]` exists, the version is 0.0.2 and it is published on PyPI as `saferun-cli`; CI installs the built wheel into a clean venv. The wheel still excludes `docker/` (so `init --build-local` needs a source checkout).
 4. **Project files**: LICENSE (MIT) and SECURITY.md exist; there is no CHANGELOG.
 5. **Docker-less tests** — done: the non-Docker subset (`-m "not docker"`) is a blocking CI job on all three platforms.
-6. **Detection quality**: rules are measured only by a small advisory benchmark of simulated samples (docs/benchmark.md; no independent evaluation); JavaScript (experimental) has only `node --check` and an npm lockfile scan. Planned: STAGES.md.
+6. **Detection quality**: rules are measured only by a small advisory benchmark of simulated samples (docs/benchmark.md; no independent evaluation); SafeRun is Python-only (JavaScript support was removed). Planned: STAGES.md.
 Future enhancements (not release blockers unless a later audit says so): gVisor/Kata backend, ARM64 analyzer.
 
 ## Image pinning (Phase 5A)
@@ -233,7 +223,7 @@ Future enhancements (not release blockers unless a later audit says so): gVisor/
 - Pins were taken from the local images the Phase 1-4 tests ran on and confirmed against Docker Hub on 2026-10-29 (`docker buildx imagetools inspect
   python@sha256:78387bc3…` returned that digest). **The `python:3.12-slim` tag has since moved** to `sha256:aa943ce4…`; the pin intentionally stays on the
   tested digest. Updating a pin is a deliberate, reviewed change (re-run the suite and `verify-images`).
-- Report compatibility: the `tool` string of `python-syntax` / `javascript-syntax` is unchanged (`compile() (python:3.12-slim, sandboxed)`), via `RuntimeProfile.label`; the pinned image is still what runs. Only error text that quotes the image reference (`image ... not present locally`, `digest mismatch`) now shows the full `repo:tag@sha256:` reference.
+- Report compatibility: the `tool` string of `python-syntax` is unchanged (`compile() (python:3.12-slim, sandboxed)`), via `RuntimeProfile.label`; the pinned image is still what runs. Only error text that quotes the image reference (`image ... not present locally`, `digest mismatch`) now shows the full `repo:tag@sha256:` reference.
 - `docker/analyzer/` holds an unwired, unbuilt build recipe for the Phase 5B analyzer image (base by digest, Semgrep wheels hash-locked, OSV-Scanner SHA-256 verified).
 
 ## Phase 5 security status (5B isolation, 5C adversarial testing)
@@ -261,7 +251,7 @@ kernels/Docker versions/rootless Docker/user-namespace remapping, other CPU arch
 
 **Remaining limitations (stated, not hidden).**
 - **Analyzer image trust.** The image is pinned by a local lock file (the image ID, written by `build.sh`), not by a registry digest or a signature. The lock is trusted only if it and its directory are owned by the current user and owner-only (file 0600, directory 0700), it is opened without following symlinks, and anything else fails closed *before* Docker is consulted. This stops accidental or group/other tampering; it does **not** stop the same user, root, or any member of the `docker` group (root-equivalent) from replacing the image and rewriting the lock. The labels checked afterwards (tool versions, rules hash) are set by whoever builds an image and prove nothing on their own; the ID in the lock is the control. `build.sh` locks whatever it just built without human review. Only the immediate lock directory is examined, not its ancestors. Phase 5E adds support for a published, cosign-signed image whose digest is pinned in `ANALYZER_RELEASE` (`analyzer-v1.0.1`; the older `analyzer-v1.0.0` is not recorded, see `docs/release-images.md`); `init` installs it by default and `--build-local` builds locally. In either case the local lock remains the anchor after installation.
-- **OSV data trust.** Before every scan the data is re-validated against `manifest.json` (SHA-256, size, advisory floor, symlinks/readability, timestamps); invalid -> `error`, older than 30 days -> `incomplete`, neither is ever clean. What this does and does not give: the download's MD5 comes from the same server over the same TLS connection, so it detects corruption, not a malicious or compromised server; the SHA-256 is computed locally after download, so it detects later modification but does not authenticate the original download; the manifest sits next to the data, so anyone who can write the directory can rewrite both; OSV publishes no signature that SafeRun checks; the advisory floors (PyPI 5 000, npm 40 000) are sanity checks, not proof of completeness; a file swapped between validation and the container's read is not detected (the window is the scan itself). Freshness is reported in every dependency check's notes and by `saferun osv-db status`.
+- **OSV data trust.** Before every scan the data is re-validated against `manifest.json` (SHA-256, size, advisory floor, symlinks/readability, timestamps); invalid -> `error`, older than 30 days -> `incomplete`, neither is ever clean. What this does and does not give: the download's MD5 comes from the same server over the same TLS connection, so it detects corruption, not a malicious or compromised server; the SHA-256 is computed locally after download, so it detects later modification but does not authenticate the original download; the manifest sits next to the data, so anyone who can write the directory can rewrite both; OSV publishes no signature that SafeRun checks; the advisory floors (PyPI 5 000) are sanity checks, not proof of completeness; a file swapped between validation and the container's read is not detected (the window is the scan itself). Freshness is reported in every dependency check's notes and by `saferun osv-db status`.
 - The OSV-Scanner checksum comes from the same upstream release as the binary (integrity, not authenticity); Semgrep wheel hashes were generated from PyPI at lock time (Linux x86_64, CPython 3.12 only).
 - Coverage cross-check quirk (pre-existing): files whose names contain control characters are reported with sanitized paths, so Semgrep's scanned-file list cannot be matched and the check ends `incomplete` (safe direction, misleading text "e.g. too large").
 - Fixed in 5C: text output could be given extra, forged finding lines by a file name containing a newline / U+2028 (every printed field is now one line; JSON output was never affected).
@@ -281,7 +271,7 @@ A separate command (`saferun/pkgnames.py`); `scan` and `run` do not call it. It 
 
 ## Setup workflow (`saferun init`, `saferun status`)
 Implemented in `saferun/setup.py`; it only orchestrates existing verification (pinned-digest image check, analyzer lock/labels/rules hash, OSV manifest validation) and adds no trust of its own.
-A component is *ready* only if that verification passes at that moment. Installation actions: `docker pull <repo>@<pinned digest>` for the Python/Node images; `docker/analyzer/build.sh` for the analyzer (needs a repository
+A component is *ready* only if that verification passes at that moment. Installation actions: `docker pull <repo>@<pinned digest>` for the Python image; `docker/analyzer/build.sh` for the analyzer (needs a repository
 checkout and internet once); `osvdb.update` for the OSV data (atomic, keeps old data on any failure). Every installed component is re-verified; failure is reported, never assumed. Rebuilding an analyzer that failed verification needs
 `--repair` or an explicit interactive confirmation, because it replaces the image and re-locks it. **Prebuilt analyzer image: `analyzer-v1.0.1`** (recorded in `ANALYZER_RELEASE`; `init` installs it by digest after a cosign check, `--build-local` builds locally; `analyzer-v1.0.0` is superseded; see `docs/release-images.md`);
 the dormant download path pulls by digest, re-verifies and only then locks. Offline: nothing is downloaded, valid components are still used, missing ones are listed with preload instructions; an analyzer cannot yet be installed without

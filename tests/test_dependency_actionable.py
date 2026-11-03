@@ -158,7 +158,7 @@ def test_other_findings_stay_and_status_stays_findings():
 def lodash_project(tmp_path, ws_root, monkeypatch, low_osv_floor):
     make_osv_db(tmp_path / "osvdb")
     monkeypatch.setenv("SAFERUN_OSV_DB", str(tmp_path / "osvdb"))
-    return project(tmp_path, {"package.json": "{}", "package-lock.json": "{}"})
+    return project(tmp_path, {"requirements.txt": "lodash==4.17.15\n"})
 
 
 def scan(p, ents):

@@ -94,7 +94,7 @@ def test_real_sandbox_python_syntax(tmp_path, ws_root):
     (proj / "venv").mkdir()
     (proj / "venv" / "skipped.py").write_text("def (:")
     (proj / "sideeffect.py").write_text("open('/tmp/executed', 'w').write('x')\nraise SystemExit(9)\n")
-    rep = validate_project(proj, ValidationOptions(python_analysis=False, dependency_scan=False, javascript_check=False))
+    rep = validate_project(proj, ValidationOptions(python_analysis=False, dependency_scan=False))
     (c,) = [c for c in rep.checks if c.name == pysyntax.NAME]
     assert c.status is CheckStatus.FINDINGS, c.detail
     assert [(f.path, f.line) for f in c.findings] == [("pkg/broken.py", 2)] and "3 Python file(s)" in c.notes[0]

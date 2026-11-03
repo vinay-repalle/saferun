@@ -121,7 +121,7 @@ def run_checks(*, online: bool = False, status=st.component_status, diagnose=doc
     checks = [check_install(), check_python(), check_os()]
     d = diagnose()
     checks.append(check_docker(d))
-    for key, label in (("python", "Python sandbox image"), ("node", "Node.js sandbox image"), ("analyzer", "Analyzer image")):
+    for key, label in (("python", "Python sandbox image"), ("analyzer", "Analyzer image")):
         if not d.ok:
             checks.append(Check(label, FAIL, "cannot be verified while Docker is unusable", "fix Docker first"))
         else:

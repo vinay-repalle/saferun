@@ -61,8 +61,6 @@ _EXACT = {
     "python.syntax-error":
         "Python could not read this file, so the other Python checks may have missed problems in it. "
         "Fix the syntax error at this line and scan again.",
-    "javascript.syntax-error":
-        "Node could not read this file, so it was not checked further. Fix the syntax error at this line and scan again.",
 }
 _TOKEN = ("This file looks like it holds an access token. SafeRun did not read it or copy it into the sandbox. "
           "Keep tokens out of project files and version control, and revoke and replace it if it was ever shared.")

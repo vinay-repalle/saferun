@@ -189,7 +189,7 @@ def test_analyzer_checks_contain_no_host_execution_path():
 
 
 def test_no_host_process_is_started_when_the_analyzer_is_unavailable(tmp_path, ws_root, monkeypatch):
-    """Dynamic: with the analyzer unavailable, a scan of a Python+npm project starts no host process at all and is never PASS."""
+    """Dynamic: with the analyzer unavailable, a scan of a Python project with a requirements file starts no host process at all and is never PASS."""
     def forbidden(*a, **k):
         raise AssertionError(f"host process started: {a!r}")
     monkeypatch.setattr(subprocess, "Popen", forbidden)
@@ -197,7 +197,7 @@ def test_no_host_process_is_started_when_the_analyzer_is_unavailable(tmp_path, w
     p = tmp_path / "p"
     p.mkdir()
     (p / "app.py").write_text("eval(input())\n")
-    (p / "package-lock.json").write_text("{}")
+    (p / "requirements.txt").write_text("a==1\n")
 
     def no_analyzer():
         raise sa.AnalyzerUnavailable("not built")

@@ -219,7 +219,7 @@ jobs:
 
       - name: Pull the pinned sandbox images and build the analyzer locally
         # SafeRun pulls by pinned digest and verifies it; the analyzer is built from docker/analyzer (no signed release is used or needed).
-        run: saferun init --only python,node,analyzer --build-local
+        run: saferun init --only python,analyzer --build-local
 
       - name: Run the Docker-dependent tests
         run: python -m pytest -q -ra -m docker
@@ -247,7 +247,7 @@ jobs:
 
       - name: Pull the pinned sandbox images, build the analyzer locally and download the OSV data
         run: |
-          saferun init --only python,node,analyzer --build-local
+          saferun init --only python,analyzer --build-local
           saferun osv-db update
 
       - name: Run the benchmark (prints the report in the log)

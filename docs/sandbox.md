@@ -10,14 +10,13 @@ Most users never call the library: `saferun run my_script.py` (installed with `p
 ## Library usage
 ```python
 from saferun.sandbox import run_sandboxed, SandboxLimits
-from saferun.sandbox.profiles import PYTHON, NODE
+from saferun.sandbox.profiles import PYTHON
 r = run_sandboxed("./proj", ["python", "-I", "main.py"], SandboxLimits(timeout_s=10, memory_mb=128), image=PYTHON.image)
-r = run_sandboxed("./js",   ["node", "main.js"], image=NODE.image)            # same restrictions, Node image
 print(r.exit_code, r.stdout, r.timed_out, r.oom_killed)
 print([(c.name, c.state) for c in r.controls])   # verified / violated / unavailable / unverified, per run
 
 from saferun.sandbox.attestation import attest
-print(attest(NODE.image).ok)                      # kernel-view check from inside a sandbox (one short container run)
+print(attest(PYTHON.image).ok)                      # kernel-view check from inside a sandbox (one short container run)
 ```
 - `run_sandboxed(..., readonly_mounts=((host_dir, "/name"),))` (Phase 5B) adds read-only bind mounts (existing real directories only; fresh top-level target name, never a system path). The applied mount set is verified exactly after `docker create`; the network stays off. Used for the offline OSV data.
 - The project is copied (symlinks and special files dropped, external hard links skipped, credential-like files withheld,

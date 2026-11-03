@@ -34,7 +34,7 @@ def semgrep_ids():
 
 KNOWN = ([finding(i) for i in semgrep_ids()]
          + [finding("withheld.private-key", "workspace"), finding("withheld.private-mode", "workspace"),
-            finding("python.syntax-error", "syntax"), finding("javascript.syntax-error", "syntax")]
+            finding("python.syntax-error", "syntax")]
          + [finding(f"withheld.token:{k}", "workspace") for k in TOKEN_KINDS]
          + [finding("secrets.aws-access-token", "secret"), finding("secrets.some-new-vendor-rule", "secret")]
          + [dep(), dep("1.2.3", ("1.3.0",)), dep("1.2.3", ("2.0.0",)), dep(fixed=())])

@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .config import SandboxError
-from .images import NODE_IMAGE, PYTHON_IMAGE
+from .images import PYTHON_IMAGE
 
 
 @dataclass(frozen=True)
@@ -29,8 +29,7 @@ class RuntimeProfile:
 
 
 PYTHON = RuntimeProfile("python", PYTHON_IMAGE.reference, "python", "CPython 3.12 (Debian slim)")
-NODE = RuntimeProfile("node", NODE_IMAGE.reference, "node", "Node.js 22 LTS (Debian slim)")
-PROFILES: dict[str, RuntimeProfile] = {p.name: p for p in (PYTHON, NODE)}
+PROFILES: dict[str, RuntimeProfile] = {p.name: p for p in (PYTHON,)}
 
 
 def get_profile(name: str) -> RuntimeProfile:

@@ -4,7 +4,7 @@ Checks AI-generated code before you run or trust it. Executing untrusted code in
 code; it does **not** prove the code is safe, and a passing scan does not guarantee security.
 **Current release: 0.0.2** · [PyPI](https://pypi.org/project/saferun-cli/) · [GitHub Releases](https://github.com/vinay-repalle/saferun/releases) · [Website](https://safe-run.netlify.app) · [Security policy](https://github.com/vinay-repalle/saferun/blob/main/SECURITY.md)
 
-Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Only a small, advisory benchmark exists (SafeRun's own simulated samples against Bandit and pip-audit, see [docs/benchmark.md](https://github.com/vinay-repalle/saferun/blob/main/docs/benchmark.md)); not yet done: an independent detection-quality evaluation, JavaScript code rules (JavaScript support is experimental), and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
+Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Only a small, advisory benchmark exists (SafeRun's own simulated samples against Bandit and pip-audit, see [docs/benchmark.md](https://github.com/vinay-repalle/saferun/blob/main/docs/benchmark.md)); not yet done: an independent detection-quality evaluation, and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
 
 **Requirements:** Python 3.12 or newer and Docker (running Linux containers). Linux, Windows and macOS are supported; Linux is the fully tested platform.
 
@@ -23,7 +23,7 @@ SafeRun is released under the [MIT License](https://github.com/vinay-repalle/saf
 
 ## Key features
 - **Restricted Docker sandbox** (Phase 1): read-only sanitized project copy, no network, non-root, no capabilities, resource limits, verified at run time.
-- **Validation engine** (Phase 2): Python syntax check and `node --check` (a "can the scanner read this file" step: it parses the file, it does not run it) in the sandbox; Semgrep (Python), an **offline** OSV-Scanner dependency scan and a **hardcoded-secrets scan** (gitleaks), all run **only inside a verified, locked-down analyzer container** (Phase 5B, no host-side fallback); one normalized report and a PASS / WARNING / FAIL verdict.
+- **Validation engine** (Phase 2): Python syntax check (a "can the scanner read this file" step: it parses the file, it does not run it) in the sandbox; Semgrep (Python), an **offline** OSV-Scanner dependency scan and a **hardcoded-secrets scan** (gitleaks), all run **only inside a verified, locked-down analyzer container** (Phase 5B, no host-side fallback); one normalized report and a PASS / WARNING / FAIL verdict.
 - **CLI** (Phase 3): `saferun scan PATH`, text or JSON output, deterministic exit codes. Incomplete scans never report PASS.
 
 ## Prerequisites
@@ -46,7 +46,7 @@ saferun status          # which components are installed and verified (exit 0 on
 ```
 What `saferun init` does, in order, and what it never does:
 1. **Checks the host and Docker** (OS, installed, daemon running, permissions, local endpoint) and prints platform-specific guidance if something is missing. If Docker is unusable nothing is installed.
-2. **Pulls the sandbox images by pinned digest** (python, node) and re-checks the digest afterwards.
+2. **Pulls the sandbox images by pinned digest** (python) and re-checks the digest afterwards.
 3. **Installs the analyzer image** (Semgrep, OSV-Scanner, gitleaks, rules): it first obtains **cosign** by itself if you have none (a pinned release, downloaded over HTTPS into SafeRun's own data directory and accepted only if its SHA-256 equals the value written in SafeRun's source; it is re-hashed on every use), then verifies the image's **signature and identity** (this repository's release workflow on an `analyzer-v*` tag) **before anything is pulled**, pulls it by digest, checks digest, labels, tool versions and rules hash, and locks it. There is no unsigned install; `--build-local` is the explicit alternative and needs a source checkout.
 4. **Downloads and caches the OSV vulnerability data** (about 260 MB, public data from `osv-vulnerabilities.storage.googleapis.com`, nothing about your projects is sent) into your user data directory with integrity hashes. Only what is missing, invalid or older than 30 days is downloaded; a current database is left alone. Failed downloads are retried and never replace good data. If the data cannot be refreshed, `init` says how old the existing data is and scans report the dependency check as INCOMPLETE; **stale data is never treated as current**. Refresh later with `saferun osv-db update` (`--if-stale` to skip when it is current).
 5. **Verifies everything again** and prints a result per component.
@@ -113,7 +113,8 @@ Under each finding the text report adds one short line, **"In plain words:"**, s
 | Runtime | Image | Status |
 |---|---|---|
 | Python | `python:3.12-slim` | sandbox, syntax check and Semgrep implemented (the secrets scan reads files of any type) |
-| JavaScript / Node.js | `node:22-slim` | **experimental**: sandbox, `node --check` (can the scanner read the file) and npm lockfile scan only; **there are no JavaScript code rules, and dependency installation and test runners are not implemented** |
+
+SafeRun is **Python-only**. JavaScript/Node.js projects are not analysed: JavaScript files get no syntax check or code rules, and npm lockfiles are not scanned (the dependency check says so in a plain note and never counts it as a clean pass). The secrets scan reads files of any type.
 
 ## Documentation
 - [docs/cli.md](https://github.com/vinay-repalle/saferun/blob/main/docs/cli.md) — CLI options, exit codes, output examples

@@ -135,7 +135,7 @@ def test_engine_runs_the_check_and_a_disabled_check_is_skipped(tmp_path, ws_root
     p.mkdir()
     (p / "deploy.js").write_text("x\n")
     over = {"analyzer": FakeRunner(tool_run(json.dumps([entry()]))), "analyzer_available": lambda: "sha256:" + "0" * 64}
-    only = dict(python_analysis=False, python_syntax=False, dependency_scan=False, javascript_check=False)
+    only = dict(python_analysis=False, python_syntax=False, dependency_scan=False)
     rep = validate_project(p, ValidationOptions(**only), ctx_overrides=over)
     c = {x.name: x for x in rep.checks}[secretscan.NAME]
     assert c.status is CheckStatus.FINDINGS and rep.verdict is Verdict.FAIL
@@ -222,7 +222,7 @@ def _analyzer() -> bool:
 
 HAVE_ANALYZER = _analyzer()
 needs_analyzer = pytest.mark.docker(pytest.mark.skipif(not HAVE_ANALYZER, reason="analyzer image not built or not current (docker/analyzer/build.sh)"))
-ONLY = dict(python_analysis=False, python_syntax=False, dependency_scan=False, javascript_check=False)
+ONLY = dict(python_analysis=False, python_syntax=False, dependency_scan=False)
 
 
 def fake_token() -> str:

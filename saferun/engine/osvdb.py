@@ -40,14 +40,14 @@ from pathlib import Path
 
 from .. import hostos
 
-ECOSYSTEMS = ("PyPI", "npm")
+ECOSYSTEMS = ("PyPI",)
 BASE_URL = "https://osv-vulnerabilities.storage.googleapis.com"
 MAX_BYTES = 2 * 1024 ** 3
 MANIFEST_NAME = "manifest.json"
 MANIFEST_SCHEMA = 1
-# Sanity floors (about a fifth of what OSV listed in October 2026: PyPI 26 726, npm 230 914 advisories). They catch empty, stub and badly
+# Sanity floors (about a fifth of what OSV listed in October 2026: PyPI 26 726 advisories). They catch empty, stub and badly
 # truncated archives; they are not proof that an archive is complete.
-MIN_ENTRIES = {"PyPI": 5_000, "npm": 40_000}
+MIN_ENTRIES = {"PyPI": 5_000}
 DEFAULT_MAX_AGE_DAYS = 30.0
 FUTURE_SKEW_S = 24 * 3600
 _HEX64 = frozenset("0123456789abcdef")

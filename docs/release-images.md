@@ -4,7 +4,7 @@
 
 | Component | How `saferun init` gets it | Trust anchor |
 |---|---|---|
-| Python / Node.js sandbox images | `docker pull python@sha256:… / node@sha256:…` (digest from `saferun/sandbox/images.py`) | The pinned manifest digest, verified again afterwards against the image's `RepoDigests` (`saferun verify-images`). Docker rejects content that does not hash to the digest. |
+| Python sandbox image | `docker pull python@sha256:…` (digest from `saferun/sandbox/images.py`) | The pinned manifest digest, verified again afterwards against the image's `RepoDigests` (`saferun verify-images`). Docker rejects content that does not hash to the digest. |
 | Analyzer image (Semgrep, OSV-Scanner, gitleaks, rules) | The cosign-signed release recorded in `ANALYZER_RELEASE` (`analyzer-v1.0.1`), installed by `saferun init`; `--build-local` builds it locally with `docker/analyzer/build.sh` instead | Local build: hash-locked wheels, checksum-verified OSV-Scanner and gitleaks, digest-pinned base, owner-only lock file. Published release: the cosign signature (GitHub Actions identity of this repository's release workflow) **and** the pinned digest, then labels/tool versions/rules hash, then an owner-only lock file. |
 | OSV vulnerability data | `saferun osv-db update` (HTTPS, public data) | Server MD5 + a locally recorded SHA-256 manifest. Detects corruption and later changes, **not** a malicious server (see `docs/cli.md`). |
 

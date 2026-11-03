@@ -4,8 +4,7 @@ import shutil
 import pytest
 
 from engine_helpers import OSV_JSON, SEMGREP_JSON, FakeRunner, make_osv_db, overrides, sg_json, tool_run
-from saferun.engine import CheckStatus, ValidationOptions, Verdict, node, osv, pysyntax, semgrep, validate_project
-from test_engine_node import BAD, DONE2, OK, out
+from saferun.engine import CheckStatus, ValidationOptions, Verdict, osv, pysyntax, semgrep, validate_project
 
 
 @pytest.fixture
@@ -57,7 +56,7 @@ def test_python_project_with_findings_fails(tmp_path, ws_root, tools_present):
     c = by_name(rep)
     assert rep.verdict is Verdict.FAIL
     assert c[semgrep.NAME].status is CheckStatus.FINDINGS and c[osv.NAME].status is CheckStatus.PASSED
-    assert c[node.NAME].status is CheckStatus.NOT_APPLICABLE and c[pysyntax.NAME].status is CheckStatus.PASSED
+    assert c[pysyntax.NAME].status is CheckStatus.PASSED
     assert any("python-static-analysis" in r for r in rep.reasons)
     assert list(ws_root.iterdir()) == []                      # workspace removed
 
@@ -68,13 +67,13 @@ def test_python_project_clean_passes(tmp_path, ws_root, tools_present):
     assert rep.verdict is Verdict.PASS and rep.complete
 
 
-def test_node_project_dependency_and_syntax(tmp_path, ws_root, tools_present):
-    p = project(tmp_path, {"a.js": "", "b.js": "", "package.json": "{}", "package-lock.json": "{}"})
-    rep = validate_project(p, ctx_overrides=overrides(routed(osv_out=tool_run(OSV_JSON, exit_code=1)), node_stdout=out(OK, BAD, DONE2)))
+def test_dependency_findings_fail_the_verdict(tmp_path, ws_root, tools_present):
+    p = project(tmp_path, {"app.py": "x=1\n", "requirements.txt": "lodash==4.17.15\n"})
+    rep = validate_project(p, ctx_overrides=overrides(routed(osv_out=tool_run(OSV_JSON, exit_code=1))))
     c = by_name(rep)
-    assert c[osv.NAME].status is CheckStatus.FINDINGS and c[node.NAME].status is CheckStatus.FINDINGS
-    assert rep.verdict is Verdict.FAIL                         # lodash GHSA scores 7.2 -> high
-    assert {f.category for f in rep.findings} == {"dependency", "syntax"}
+    assert c[osv.NAME].status is CheckStatus.FINDINGS
+    assert rep.verdict is Verdict.FAIL                         # the fake advisory scores 7.2 -> high
+    assert {f.category for f in rep.findings} == {"dependency"}
 
 
 def test_all_tools_missing_is_warning_never_pass(tmp_path, ws_root, monkeypatch):
@@ -86,7 +85,7 @@ def test_all_tools_missing_is_warning_never_pass(tmp_path, ws_root, monkeypatch)
 
     def no_analyzer():
         raise AnalyzerUnavailable("not built")
-    p = project(tmp_path, {"app.py": "x=1\n", "a.js": "", "package-lock.json": "{}"})
+    p = project(tmp_path, {"app.py": "x=1\n", "requirements.txt": "a==1\n"})
     rep = validate_project(p, ctx_overrides={"image_available": no_docker, "analyzer_available": no_analyzer})
     assert rep.verdict is Verdict.WARNING and not rep.complete and not rep.findings
     assert {c.status for c in rep.checks if c.analysis} == {CheckStatus.UNAVAILABLE}
@@ -128,7 +127,7 @@ def test_skipped_symlink_makes_scan_partial(tmp_path, ws_root, tools_present):
 
 def test_disabled_checks_are_skipped_not_clean(tmp_path, ws_root, tools_present):
     p = project(tmp_path, {"app.py": "x=1\n"})
-    rep = validate_project(p, ValidationOptions(python_analysis=False, python_syntax=False, dependency_scan=False, javascript_check=False,
+    rep = validate_project(p, ValidationOptions(python_analysis=False, python_syntax=False, dependency_scan=False,
                                                    secrets_check=False))
     assert {c.status for c in rep.checks if c.analysis} == {CheckStatus.SKIPPED} and rep.verdict is Verdict.WARNING
 
@@ -169,7 +168,7 @@ def test_real_semgrep_on_bundled_rules(tmp_path, ws_root):
         "bad.py": "import os, subprocess, pickle\neval(input())\nos.system('ls')\nsubprocess.run('ls', shell=True)\n"
                   "pickle.loads(b'')\npassword = 'hunter2'\n",
         "good.py": "import subprocess\nsubprocess.run(['ls'])\n"})
-    rep = validate_project(p, ValidationOptions(python_syntax=False, dependency_scan=False, javascript_check=False))
+    rep = validate_project(p, ValidationOptions(python_syntax=False, dependency_scan=False))
     c = by_name(rep)[semgrep.NAME]
     assert c.status is CheckStatus.FINDINGS, (c.status, c.detail)
     assert {f.path for f in c.findings} == {"bad.py"}

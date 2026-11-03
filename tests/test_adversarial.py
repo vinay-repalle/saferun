@@ -35,12 +35,12 @@ def _built() -> bool:
 
 
 BUILT = _built()
-HAVE_DB = BUILT and osvdb.validate(osvdb.default_dir(), ["PyPI", "npm"]).ok
+HAVE_DB = BUILT and osvdb.validate(osvdb.default_dir(), ["PyPI"]).ok
 needs_analyzer = [pytest.mark.docker, pytest.mark.skipif(not BUILT, reason="analyzer image not built (docker/analyzer/build.sh)")]
-needs_db = pytest.mark.skipif(not HAVE_DB, reason="no offline OSV database for PyPI+npm (saferun osv-db update / SAFERUN_OSV_DB)")
+needs_db = pytest.mark.skipif(not HAVE_DB, reason="no offline OSV database for PyPI (saferun osv-db update / SAFERUN_OSV_DB)")
 
-ONLY_SEMGREP = ValidationOptions(python_syntax=False, dependency_scan=False, javascript_check=False, tool_timeout_s=120)
-ONLY_OSV = ValidationOptions(python_syntax=False, python_analysis=False, javascript_check=False, tool_timeout_s=120)
+ONLY_SEMGREP = ValidationOptions(python_syntax=False, dependency_scan=False, tool_timeout_s=120)
+ONLY_OSV = ValidationOptions(python_syntax=False, python_analysis=False, tool_timeout_s=120)
 ALL = ValidationOptions(tool_timeout_s=120)
 
 
@@ -89,7 +89,7 @@ class TestHostileSource:
 
     def test_deeply_nested_source_is_contained_and_never_clean(self, tmp_path, _):
         p = project(tmp_path, {"deep.py": "x = " + "(" * 20000 + "1" + ")" * 20000 + "\n", "ok.py": "y = 1\n"})
-        rep = validate_project(p, ValidationOptions(tool_timeout_s=120, dependency_scan=False, javascript_check=False))
+        rep = validate_project(p, ValidationOptions(tool_timeout_s=120, dependency_scan=False))
         c = by_name(rep)
         assert not_clean(rep) and c["python-syntax"].status is not CheckStatus.PASSED       # the broken file is surfaced by the syntax check
         assert all("Traceback" not in x.detail for x in rep.checks)
@@ -102,7 +102,7 @@ class TestHostileSource:
     def test_binary_nul_and_invalid_utf8_sources(self, tmp_path, _):
         p = project(tmp_path, {"nul.py": b"x = 1\x00\nprint(2)\n", "latin.py": b"# \xe9\xe8\nx = 1\n", "bom.py": b"\xef\xbb\xbfx = 1\n",
                                "junk.py": os.urandom(4096), "empty.py": b""})
-        rep = validate_project(p, ValidationOptions(tool_timeout_s=120, dependency_scan=False, javascript_check=False))
+        rep = validate_project(p, ValidationOptions(tool_timeout_s=120, dependency_scan=False))
         assert not_clean(rep)                                  # the broken files are reported, so the scan cannot be a clean pass
         assert all("Traceback" not in c.detail for c in rep.checks)
 
@@ -156,16 +156,19 @@ class TestHostileManifests:
 
     def test_malformed_lockfiles_are_never_clean(self, tmp_path):
         for name, content in (("package-lock.json", "{"), ("package-lock.json", b"\xff\xfe\x00garbage"), ("yarn.lock", ""),
+                              ("Pipfile.lock", "{"), ("uv.lock", b"\xff\xfe\x00garbage"), ("pdm.lock", ""),
                               ("poetry.lock", "[[package]]\nname = "), ("requirements.txt", b"\x00" * 100)):
             p = project(tmp_path, {name: content}, name=f"p-{uuid.uuid4().hex[:6]}")
             rep = validate_project(p, ONLY_OSV)
             assert by_name(rep)[osv.NAME].status is not CheckStatus.PASSED and rep.verdict is not Verdict.PASS, (name, content)
 
     def test_deeply_nested_and_huge_lockfiles_are_contained(self, tmp_path):
-        deep = project(tmp_path, {"package-lock.json": "[" * 300_000 + "]" * 300_000}, name="deep")
+        deep = project(tmp_path, {"Pipfile.lock": "[" * 300_000 + "]" * 300_000}, name="deep")
         assert by_name(validate_project(deep, ONLY_OSV))[osv.NAME].status is not CheckStatus.PASSED
-        pk = {f"node_modules/pkg{i}": {"version": "1.0.0", "resolved": f"https://registry.npmjs.org/pkg{i}/-/pkg{i}-1.0.0.tgz"} for i in range(30000)}
-        big = project(tmp_path, {"package-lock.json": json.dumps({"lockfileVersion": 3, "packages": {"": {"name": "t"}, **pk}})}, name="big")
+        deep_js = project(tmp_path, {"package-lock.json": "[" * 300_000 + "]" * 300_000}, name="deep-js")       # not scanned at all, never clean
+        assert by_name(validate_project(deep_js, ONLY_OSV))[osv.NAME].status is not CheckStatus.PASSED
+        pk = {f"pkg{i}": {"version": "==1.0.0", "hashes": []} for i in range(30000)}
+        big = project(tmp_path, {"Pipfile.lock": json.dumps({"_meta": {}, "default": pk, "develop": {}})}, name="big")
         t0 = time.monotonic()
         c = by_name(validate_project(big, ONLY_OSV))[osv.NAME]
         assert time.monotonic() - t0 < 115 and c.status in (CheckStatus.PASSED, CheckStatus.FINDINGS, CheckStatus.ERROR, CheckStatus.TIMEOUT, CheckStatus.INCOMPLETE)
@@ -188,10 +191,10 @@ class TestHostileManifests:
         marker = f"LOCK-SECRET-{uuid.uuid4().hex}"
         (outside / "real.json").write_text(json.dumps({"lockfileVersion": 3, "packages": {"": {"name": marker}}}))
         p = project(tmp_path, {"ok.py": "x = 1\n"})
-        (p / "package-lock.json").symlink_to(outside / "real.json")
+        (p / "Pipfile.lock").symlink_to(outside / "real.json")
         rep = validate_project(p, ONLY_OSV)
         assert marker not in json.dumps(rep.to_dict()) and rep.verdict is not Verdict.PASS
-        assert any(s["path"] == "package-lock.json" for s in rep.workspace["skipped"])
+        assert any(s["path"] == "Pipfile.lock" for s in rep.workspace["skipped"])
 
 
 # ======================================================================== C. workspace / symlinks / special files
@@ -324,7 +327,7 @@ class TestResourceExhaustion:
 
     def test_engine_timeout_kills_the_container_and_reports_timeout(self, tmp_path):
         p = project(tmp_path, {"a.py": "x = 1\n"})
-        rep = validate_project(p, ValidationOptions(python_syntax=False, dependency_scan=False, javascript_check=False, tool_timeout_s=0.05))
+        rep = validate_project(p, ValidationOptions(python_syntax=False, dependency_scan=False, tool_timeout_s=0.05))
         c = by_name(rep)[semgrep.NAME]
         assert c.status is CheckStatus.TIMEOUT and rep.verdict is Verdict.WARNING and not rep.complete
 
@@ -390,7 +393,7 @@ class TestCliCompatibility:
         assert set(rep) == self.TOP and rep["schema_version"] == 1 and rep["verdict"] == "PASS" and rep["complete"] is True
         assert set(rep["workspace"]) == self.WS and all(set(c) == self.CHECK for c in rep["checks"])
         assert [c["name"] for c in rep["checks"]] == ["workspace-sensitive-files", "python-syntax", "python-static-analysis",
-                                                       "dependency-vulnerabilities", "javascript-syntax", "hardcoded-secrets"]
+                                                       "dependency-vulnerabilities", "hardcoded-secrets"]
         tools = {c["name"]: c["tool"] for c in rep["checks"]}
         assert tools["python-syntax"] == "compile() (python:3.12-slim, sandboxed)" and tools["python-static-analysis"] == "semgrep"
 

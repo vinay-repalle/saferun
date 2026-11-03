@@ -20,7 +20,7 @@ CLEAN = json.dumps({"results": []})
 DAY = 86400
 
 
-def run_check(tmp_path, runner, files=("package-lock.json",), **opts):
+def run_check(tmp_path, runner, files=("uv.lock",), **opts):
     ctx = make_ctx(tmp_path, files, runner, options=opts)
     return osv.run_check(ctx)
 
@@ -30,6 +30,13 @@ def db(tmp_path, monkeypatch, low_osv_floor):
     root = make_osv_db(tmp_path / "db")
     monkeypatch.setenv("SAFERUN_OSV_DB", str(root))
     return root
+
+
+@pytest.fixture
+def two_ecosystems(monkeypatch):
+    """The code is generic over ecosystems; SafeRun ships one (PyPI), so tests of multi-ecosystem behaviour add a second name."""
+    monkeypatch.setattr(osvdb, "ECOSYSTEMS", ("PyPI", "Go"))
+    monkeypatch.setattr(osvdb, "MIN_ENTRIES", {"PyPI": 1, "Go": 1})
 
 
 def manifest(root):
@@ -46,7 +53,7 @@ def test_a_valid_fresh_database_passes_and_reports_its_freshness(tmp_path, db):
     res = run_check(tmp_path, r)
     assert res.status is CheckStatus.PASSED and r.calls
     notes = "\n".join(res.notes)
-    assert "OSV database npm: updated" in notes and "days ago" in notes and "sha256" in notes and "download MD5 verified" in notes
+    assert "OSV database PyPI: updated" in notes and "days ago" in notes and "sha256" in notes and "download MD5 verified" in notes
     assert "does not authenticate the original download" in notes
 
 
@@ -59,40 +66,40 @@ def mutate(fn):
 
 
 def replace_with_empty_zip(root):
-    p = root / "osv-scalibr" / "npm" / "all.zip"
+    p = root / "osv-scalibr" / "PyPI" / "all.zip"
     buf = io.BytesIO()
     zipfile.ZipFile(buf, "w").close()
     p.write_bytes(buf.getvalue())
     m = manifest(root)
-    m["ecosystems"]["npm"].update(sha256=hashlib.sha256(buf.getvalue()).hexdigest(), size=len(buf.getvalue()), entries=0)
+    m["ecosystems"]["PyPI"].update(sha256=hashlib.sha256(buf.getvalue()).hexdigest(), size=len(buf.getvalue()), entries=0)
     save(root, m)
 
 
 def replace_content_keep_manifest(root):
-    p = root / "osv-scalibr" / "npm" / "all.zip"
+    p = root / "osv-scalibr" / "PyPI" / "all.zip"
     p.write_bytes(p.read_bytes() + b"x")                      # size and hash no longer match
 
 
 def flip_a_byte_same_size(root):
-    p = root / "osv-scalibr" / "npm" / "all.zip"
+    p = root / "osv-scalibr" / "PyPI" / "all.zip"
     b = bytearray(p.read_bytes())
     b[5] ^= 0xFF
     p.write_bytes(bytes(b))
 
 
 def swap_for_symlink(root):
-    p = root / "osv-scalibr" / "npm" / "all.zip"
+    p = root / "osv-scalibr" / "PyPI" / "all.zip"
     real = root / "real.zip"
     p.rename(real)
     p.symlink_to(real)
 
 
 def unreadable_for_others(root):
-    (root / "osv-scalibr" / "npm" / "all.zip").chmod(0o600)
+    (root / "osv-scalibr" / "PyPI" / "all.zip").chmod(0o600)
 
 
 def directory_not_traversable(root):
-    (root / "osv-scalibr" / "npm").chmod(0o700)
+    (root / "osv-scalibr" / "PyPI").chmod(0o700)
 
 
 BAD_STATES = {
@@ -101,25 +108,25 @@ BAD_STATES = {
     "manifest-is-a-list": lambda root: save(root, []),
     "manifest-wrong-schema": mutate(lambda r, m: m.update(schema=99)),
     "manifest-no-ecosystems": mutate(lambda r, m: m.update(ecosystems={})),
-    "ecosystem-missing-from-manifest": mutate(lambda r, m: m["ecosystems"].pop("npm")),
-    "entry-not-an-object": mutate(lambda r, m: m["ecosystems"].update(npm="x")),
-    "sha-not-hex": mutate(lambda r, m: m["ecosystems"]["npm"].update(sha256="z" * 64)),
-    "sha-too-short": mutate(lambda r, m: m["ecosystems"]["npm"].update(sha256="ab")),
-    "size-zero": mutate(lambda r, m: m["ecosystems"]["npm"].update(size=0)),
-    "size-bool": mutate(lambda r, m: m["ecosystems"]["npm"].update(size=True)),
-    "entries-negative": mutate(lambda r, m: m["ecosystems"]["npm"].update(entries=-1)),
-    "entries-string": mutate(lambda r, m: m["ecosystems"]["npm"].update(entries="3")),
-    "timestamp-missing": mutate(lambda r, m: m["ecosystems"]["npm"].pop("updated_epoch")),
-    "timestamp-nan": mutate(lambda r, m: m["ecosystems"]["npm"].update(updated_epoch=float("nan"))),
-    "timestamp-in-the-future": mutate(lambda r, m: m["ecosystems"]["npm"].update(updated_epoch=int(time.time()) + 30 * DAY)),
-    "md5-status-unknown": mutate(lambda r, m: m["ecosystems"]["npm"].update(md5="maybe")),
+    "ecosystem-missing-from-manifest": mutate(lambda r, m: m["ecosystems"].pop("PyPI")),
+    "entry-not-an-object": mutate(lambda r, m: m["ecosystems"].update(PyPI="x")),
+    "sha-not-hex": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(sha256="z" * 64)),
+    "sha-too-short": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(sha256="ab")),
+    "size-zero": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(size=0)),
+    "size-bool": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(size=True)),
+    "entries-negative": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(entries=-1)),
+    "entries-string": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(entries="3")),
+    "timestamp-missing": mutate(lambda r, m: m["ecosystems"]["PyPI"].pop("updated_epoch")),
+    "timestamp-nan": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(updated_epoch=float("nan"))),
+    "timestamp-in-the-future": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(updated_epoch=int(time.time()) + 30 * DAY)),
+    "md5-status-unknown": mutate(lambda r, m: m["ecosystems"]["PyPI"].update(md5="maybe")),
     "empty-zip-with-matching-manifest": replace_with_empty_zip,
     "file-size-changed": replace_content_keep_manifest,
     "file-same-size-different-content": flip_a_byte_same_size,
     "data-file-is-a-symlink": swap_for_symlink,
     "data-file-unreadable-for-the-sandbox-user": unreadable_for_others,
     "ecosystem-dir-not-traversable-for-the-sandbox-user": directory_not_traversable,
-    "data-file-missing": lambda root: (root / "osv-scalibr" / "npm" / "all.zip").unlink(),
+    "data-file-missing": lambda root: (root / "osv-scalibr" / "PyPI" / "all.zip").unlink(),
 }
 
 
@@ -148,12 +155,14 @@ def test_database_directory_unreadable_by_others_is_an_error(tmp_path, db):
     assert res.status is CheckStatus.ERROR and "uid 65534" in res.detail
 
 
-def test_incomplete_database_missing_the_needed_ecosystem(tmp_path, monkeypatch, low_osv_floor):
+def test_incomplete_database_missing_the_needed_ecosystem(tmp_path, monkeypatch, low_osv_floor, two_ecosystems):
+    only_go = make_osv_db(tmp_path / "go-only", ecosystems=("Go",))
+    monkeypatch.setenv("SAFERUN_OSV_DB", str(only_go))
+    r = FakeRunner(tool_run(CLEAN))
+    assert run_check(tmp_path, r, files=["requirements.txt"]).status is CheckStatus.ERROR        # needs PyPI, which is not in the database
+    assert not r.calls
     only_pypi = make_osv_db(tmp_path / "pypi-only", ecosystems=("PyPI",))
     monkeypatch.setenv("SAFERUN_OSV_DB", str(only_pypi))
-    r = FakeRunner(tool_run(CLEAN))
-    assert run_check(tmp_path, r, files=["package-lock.json"]).status is CheckStatus.ERROR        # needs npm
-    assert not r.calls
     assert run_check(tmp_path, FakeRunner(tool_run(CLEAN)), files=["requirements.txt"]).status is CheckStatus.PASSED   # needs only PyPI
 
 
@@ -188,17 +197,18 @@ def test_age_limit_is_configurable_and_the_boundary_is_exclusive(tmp_path, db):
     make_osv_db(db, age_days=10)
     assert run_check(tmp_path, FakeRunner(tool_run(CLEAN))).status is CheckStatus.PASSED
     assert run_check(tmp_path, FakeRunner(tool_run(CLEAN)), osv_db_max_age_days=5).status is CheckStatus.INCOMPLETE
-    entry_time = manifest(db)["ecosystems"]["npm"]["updated_epoch"]
-    assert osvdb.validate(db, ["npm"], max_age_days=10, now=entry_time + 10 * DAY).stale == ""           # exactly at the limit: fresh
-    assert "days old" in osvdb.validate(db, ["npm"], max_age_days=10, now=entry_time + 10 * DAY + 3600).stale   # just beyond: stale
+    entry_time = manifest(db)["ecosystems"]["PyPI"]["updated_epoch"]
+    assert osvdb.validate(db, ["PyPI"], max_age_days=10, now=entry_time + 10 * DAY).stale == ""           # exactly at the limit: fresh
+    assert "days old" in osvdb.validate(db, ["PyPI"], max_age_days=10, now=entry_time + 10 * DAY + 3600).stale   # just beyond: stale
 
 
-def test_the_oldest_needed_ecosystem_decides_freshness(tmp_path, db, low_osv_floor):
+def test_the_oldest_needed_ecosystem_decides_freshness(tmp_path, db, low_osv_floor, two_ecosystems):
+    make_osv_db(db, ecosystems=("PyPI", "Go"))
     m = manifest(db)
     m["ecosystems"]["PyPI"]["updated_epoch"] = int(time.time()) - 60 * DAY
     save(db, m)
-    assert osvdb.validate(db, ["npm"]).stale == ""
-    assert "60 days old" in osvdb.validate(db, ["PyPI", "npm"]).stale
+    assert osvdb.validate(db, ["Go"]).stale == ""
+    assert "60 days old" in osvdb.validate(db, ["PyPI", "Go"]).stale
     assert run_check(tmp_path, FakeRunner(tool_run(CLEAN)), files=["requirements.txt"]).status is CheckStatus.INCOMPLETE
 
 
@@ -249,17 +259,17 @@ def opener(data, goog=None, urls=None):
     return op
 
 
-def test_update_installs_verified_data_with_a_full_manifest(tmp_path, low_osv_floor):
+def test_update_installs_verified_data_with_a_full_manifest(tmp_path, low_osv_floor, two_ecosystems):
     data, urls = archive(5), []
     root = tmp_path / "db"
-    res = osvdb.update(root, ("PyPI", "npm"), opener=opener(data, urls=urls), clock=lambda: 1_700_000_000)
-    assert urls == [f"{osvdb.BASE_URL}/PyPI/all.zip", f"{osvdb.BASE_URL}/npm/all.zip"]
-    e = manifest(root)["ecosystems"]["npm"]
-    assert e == res["npm"] and e["sha256"] == hashlib.sha256(data).hexdigest() and e["size"] == len(data)
+    res = osvdb.update(root, ("PyPI", "Go"), opener=opener(data, urls=urls), clock=lambda: 1_700_000_000)
+    assert urls == [f"{osvdb.BASE_URL}/PyPI/all.zip", f"{osvdb.BASE_URL}/Go/all.zip"]
+    e = manifest(root)["ecosystems"]["Go"]
+    assert e == res["Go"] and e["sha256"] == hashlib.sha256(data).hexdigest() and e["size"] == len(data)
     assert e["entries"] == 5 and e["updated_epoch"] == 1_700_000_000 and e["md5"] == "verified" and e["updated_at"].endswith("UTC")
     assert osvdb.validate(root, now=1_700_000_000 + DAY).ok
-    assert stat.S_IMODE((root / "osv-scalibr" / "npm" / "all.zip").stat().st_mode) == 0o644
-    assert [p.name for p in (root / "osv-scalibr" / "npm").iterdir()] == ["all.zip"]               # no temp debris
+    assert stat.S_IMODE((root / "osv-scalibr" / "Go" / "all.zip").stat().st_mode) == 0o644
+    assert [p.name for p in (root / "osv-scalibr" / "Go").iterdir()] == ["all.zip"]               # no temp debris
 
 
 def test_md5_is_found_when_the_server_sends_crc32c_and_md5_as_separate_headers(tmp_path, low_osv_floor):
@@ -268,28 +278,28 @@ def test_md5_is_found_when_the_server_sends_crc32c_and_md5_as_separate_headers(t
     r = Resp(data, ["crc32c=AAAAAA==", md5_header(data)])
     assert osvdb._goog_md5(osvdb._header_values(r.headers, "x-goog-hash")) == hashlib.md5(data).hexdigest()
     with pytest.raises(ValueError, match="MD5 mismatch"):
-        osvdb.update(tmp_path / "db", ("npm",), opener=opener(data, ["crc32c=AAAAAA==", md5_header(data, wrong=True)]))
+        osvdb.update(tmp_path / "db", ("PyPI",), opener=opener(data, ["crc32c=AAAAAA==", md5_header(data, wrong=True)]))
 
 
 @pytest.mark.parametrize("goog", [[], ["crc32c=AAAAAA=="], ["md5="], ["md5=%%%notbase64"], ["md5=" + base64.b64encode(b"short").decode()]])
 def test_missing_or_unusable_md5_header_is_refused_by_default(tmp_path, low_osv_floor, goog):
     root = tmp_path / "db"
     with pytest.raises(ValueError, match="cannot be integrity-checked.*--allow-unverified"):
-        osvdb.update(root, ("npm",), opener=opener(archive(3), goog))
-    assert not (root / "osv-scalibr" / "npm" / "all.zip").exists() and not (root / "manifest.json").exists()
+        osvdb.update(root, ("PyPI",), opener=opener(archive(3), goog))
+    assert not (root / "osv-scalibr" / "PyPI" / "all.zip").exists() and not (root / "manifest.json").exists()
 
 
 def test_allow_unverified_installs_but_records_and_reports_it(tmp_path, low_osv_floor):
     root = tmp_path / "db"
-    res = osvdb.update(root, ("npm",), opener=opener(archive(3), []), allow_unverified=True)
-    assert res["npm"]["md5"] == "unverified" and manifest(root)["ecosystems"]["npm"]["md5"] == "unverified"
+    res = osvdb.update(root, ("PyPI",), opener=opener(archive(3), []), allow_unverified=True)
+    assert res["PyPI"]["md5"] == "unverified" and manifest(root)["ecosystems"]["PyPI"]["md5"] == "unverified"
     rep = osvdb.validate(root)
     assert rep.ok and any("WITHOUT a server-provided hash" in n for n in rep.notes)
 
 
 def test_a_wrong_md5_is_refused_even_with_allow_unverified(tmp_path, low_osv_floor):
     with pytest.raises(ValueError, match="MD5 mismatch"):
-        osvdb.update(tmp_path / "db", ("npm",), opener=opener(archive(3), [md5_header(archive(3), wrong=True)]), allow_unverified=True)
+        osvdb.update(tmp_path / "db", ("PyPI",), opener=opener(archive(3), [md5_header(archive(3), wrong=True)]), allow_unverified=True)
 
 
 def test_empty_incomplete_and_corrupt_archives_are_never_installed(tmp_path):
@@ -304,37 +314,37 @@ def test_empty_incomplete_and_corrupt_archives_are_never_installed(tmp_path):
 
 def test_failed_update_keeps_the_previous_data_and_manifest_consistent(tmp_path, low_osv_floor):
     root = tmp_path / "db"
-    osvdb.update(root, ("npm",), opener=opener(archive(4)))
-    before = (root / "osv-scalibr" / "npm" / "all.zip").read_bytes(), manifest(root)
+    osvdb.update(root, ("PyPI",), opener=opener(archive(4)))
+    before = (root / "osv-scalibr" / "PyPI" / "all.zip").read_bytes(), manifest(root)
     with pytest.raises(ValueError):
-        osvdb.update(root, ("npm",), opener=opener(archive(5), [md5_header(archive(5), wrong=True)]))
-    assert ((root / "osv-scalibr" / "npm" / "all.zip").read_bytes(), manifest(root)) == before and osvdb.validate(root).ok
+        osvdb.update(root, ("PyPI",), opener=opener(archive(5), [md5_header(archive(5), wrong=True)]))
+    assert ((root / "osv-scalibr" / "PyPI" / "all.zip").read_bytes(), manifest(root)) == before and osvdb.validate(root).ok
 
 
-def test_a_partial_update_still_validates_for_the_ecosystems_that_succeeded(tmp_path, low_osv_floor):
+def test_a_partial_update_still_validates_for_the_ecosystems_that_succeeded(tmp_path, low_osv_floor, two_ecosystems):
     root = tmp_path / "db"
     calls = []
 
     def op(url, timeout=None):
         calls.append(url)
-        if "npm" in url:
+        if "Go" in url:
             raise OSError("network down")
         d = archive(3)
         return Resp(d, [md5_header(d)])
     with pytest.raises(OSError):
-        osvdb.update(root, ("PyPI", "npm"), opener=op)
-    assert osvdb.validate(root, ["PyPI"]).ok and not osvdb.validate(root, ["npm"]).ok
+        osvdb.update(root, ("PyPI", "Go"), opener=op)
+    assert osvdb.validate(root, ["PyPI"]).ok and not osvdb.validate(root, ["Go"]).ok
 
 
 def test_http_unknown_ecosystem_and_oversize_are_refused(tmp_path, monkeypatch, low_osv_floor):
     with pytest.raises(ValueError, match="https"):
-        osvdb.update(tmp_path / "d", ("npm",), base_url="http://osv.example", opener=opener(archive(3)))
+        osvdb.update(tmp_path / "d", ("PyPI",), base_url="http://osv.example", opener=opener(archive(3)))
     with pytest.raises(ValueError, match="unsupported ecosystem"):
         osvdb.update(tmp_path / "d", ("../../etc",), opener=opener(archive(3)))
     monkeypatch.setattr(osvdb, "MAX_BYTES", 10)
     with pytest.raises(ValueError, match="exceeds"):
-        osvdb.update(tmp_path / "d", ("npm",), opener=opener(archive(3)))
-    assert not list((tmp_path / "d" / "osv-scalibr" / "npm").glob("*"))
+        osvdb.update(tmp_path / "d", ("PyPI",), opener=opener(archive(3)))
+    assert not list((tmp_path / "d" / "osv-scalibr" / "PyPI").glob("*"))
 
 
 # ============================================================ directory permissions
@@ -342,7 +352,7 @@ def test_update_never_changes_the_permissions_of_an_existing_directory(tmp_path,
     home = tmp_path / "home"
     home.mkdir()
     home.chmod(0o700)
-    osvdb.update(home, ("npm",), opener=opener(archive(3)))                    # `--dir ~`-style: the directory already exists
+    osvdb.update(home, ("PyPI",), opener=opener(archive(3)))                    # `--dir ~`-style: the directory already exists
     assert stat.S_IMODE(home.stat().st_mode) == 0o700                           # untouched
     assert stat.S_IMODE((home / "osv-scalibr").stat().st_mode) == 0o755         # only what SafeRun created is made readable
     assert not osvdb.validate(home).ok                                          # ...and the unreadable root is REPORTED, not silently fixed
@@ -364,10 +374,10 @@ def test_directories_created_by_update_are_readable_by_the_sandbox_user_whatever
     old = os.umask(0o077)
     try:
         root = tmp_path / "fresh" / "db"
-        osvdb.update(root, ("npm",), opener=opener(archive(3)))
+        osvdb.update(root, ("PyPI",), opener=opener(archive(3)))
     finally:
         os.umask(old)
-    for p in (root, root / "osv-scalibr", root / "osv-scalibr" / "npm"):
+    for p in (root, root / "osv-scalibr", root / "osv-scalibr" / "PyPI"):
         assert stat.S_IMODE(p.stat().st_mode) == 0o755
     assert stat.S_IMODE((root / "manifest.json").stat().st_mode) == 0o644 and osvdb.validate(root).ok
     assert stat.S_IMODE(root.parent.stat().st_mode) == 0o700                    # the created parent follows the umask: SafeRun does not chmod it
@@ -379,12 +389,12 @@ def test_symlinked_database_directories_are_refused(tmp_path, low_osv_floor):
     link = tmp_path / "link"
     link.symlink_to(real)
     with pytest.raises(ValueError, match="symlink"):
-        osvdb.update(link, ("npm",), opener=opener(archive(3)))
+        osvdb.update(link, ("PyPI",), opener=opener(archive(3)))
     root = tmp_path / "db"
     root.mkdir()
     (root / "osv-scalibr").symlink_to(real)
     with pytest.raises(ValueError, match="symlink"):
-        osvdb.update(root, ("npm",), opener=opener(archive(3)))
+        osvdb.update(root, ("PyPI",), opener=opener(archive(3)))
     assert list(real.iterdir()) == []
 
 

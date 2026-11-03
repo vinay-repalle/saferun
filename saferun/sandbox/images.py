@@ -37,9 +37,7 @@ class PinnedImage:
 
 PYTHON_IMAGE = PinnedImage("python", "python", "3.12-slim",
                            "sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea", "2026-10-29")
-NODE_IMAGE = PinnedImage("node", "node", "22-slim",
-                         "sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da", "2026-10-29")
-PINNED_IMAGES: tuple[PinnedImage, ...] = (PYTHON_IMAGE, NODE_IMAGE)
+PINNED_IMAGES: tuple[PinnedImage, ...] = (PYTHON_IMAGE,)
 
 # Where the prebuilt analyzer image is published, and WHO may have signed it (Phase 5E).
 # The image is built and pushed by .github/workflows/release-analyzer.yml and signed with cosign "keyless": the signature is bound to

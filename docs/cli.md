@@ -18,9 +18,8 @@ Prints a two-line introduction, shows the components with their state, size and 
 | # | Component | Enables | Obtained by |
 |---|---|---|---|
 | 1 `python` | Python sandbox image | `python-syntax` | `docker pull python@sha256:…` (pinned digest) |
-| 2 `node` | Node.js sandbox image | `javascript-syntax` | `docker pull node@sha256:…` (pinned digest) |
-| 3 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, gitleaks, rules | `python-static-analysis`, `dependency-vulnerabilities`, `hardcoded-secrets` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest. cosign is obtained automatically (see below); with `--build-local` a local build instead (`docker/analyzer/build.py`, source checkout only), see [release-images.md](release-images.md) |
-| 4 `osv-db` | Local OSV vulnerability data | `dependency-vulnerabilities` | the `saferun osv-db update` download (~260 MB); only missing, invalid or stale ecosystems are fetched |
+| 2 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, gitleaks, rules | `python-static-analysis`, `dependency-vulnerabilities`, `hardcoded-secrets` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest. cosign is obtained automatically (see below); with `--build-local` a local build instead (`docker/analyzer/build.py`, source checkout only), see [release-images.md](release-images.md) |
+| 3 `osv-db` | Local OSV vulnerability data | `dependency-vulnerabilities` | the `saferun osv-db update` download (PyPI advisories, about 40 MB); only missing, invalid or stale ecosystems are fetched |
 
 **Docker first.** Before pulling anything `init` diagnoses Docker: not installed, daemon not running, permission denied, or a remote endpoint. It prints platform-specific guidance (Linux: Docker Engine and the `docker` group; macOS and Windows: Docker Desktop) and installs nothing while Docker is unusable.
 
@@ -28,16 +27,16 @@ Prints a two-line introduction, shows the components with their state, size and 
 
 **OSV data.** `init` checks the database like every scan does (integrity manifest, age limit 30 days). A current database is skipped (its age is shown); a missing, invalid or stale one is downloaded, per ecosystem. If the network fails, `init` reports the state of the existing data (age or problem), leaves it untouched and exits 1; scans stay INCOMPLETE (never PASS) until it is current.
 
-Answer with numbers or names (`1,3`, `all`, `all -osv-db`, `-2`); Enter = all. **Before anything is fetched** each component is verified with the existing checks (image registry digest, analyzer lock + labels + rules hash, OSV
+Answer with numbers or names (`1,2`, `all`, `all -osv-db`, `-2`); Enter = all. **Before anything is fetched** each component is verified with the existing checks (image registry digest, analyzer lock + labels + rules hash, OSV
 manifest hashes and age); a valid one is skipped and never rebuilt or re-downloaded, and a tag that merely exists locally is not trusted. Missing, invalid or outdated components are offered for install/repair/update; everything
 installed is verified again afterwards, and a component that does not verify is reported as failed.
 
-Scripts and CI (no prompts): `saferun init --all`, `--only python,node` (several), `--skip osv-db` (everything except), `--yes` (confirm prompts), `--build-local` (build the analyzer locally even when a signed release exists), `--repair` (allow rebuilding an analyzer image that FAILED verification:
+Scripts and CI (no prompts): `saferun init --all`, `--only python,analyzer` (several), `--skip osv-db` (everything except), `--yes` (confirm prompts), `--build-local` (build the analyzer locally even when a signed release exists), `--repair` (allow rebuilding an analyzer image that FAILED verification:
 this replaces the image and its lock, so it is never done silently). Without a flag and without a terminal the command exits 64. Exit codes: 0 every selected component is ready · 1 at least one is not · 64 usage ·
 70 reserved for fatal errors · 130 interrupted. Offline: components that need a download are listed as "no internet access" with preload instructions; valid ones are still used, and nothing else is claimed ready.
 
 ### `saferun doctor [--online] [--format json]`
-Read-only diagnosis, one line per check, `PASS` / `WARNING` / `FAIL`, and a fix for every problem: SafeRun version, Python (3.12+), operating system, Docker state (as above), the python and node sandbox images (pinned digest), the analyzer image (lock, labels, rules hash), cosign (SafeRun's pinned copy or PATH), the OSV database (integrity and age; stale = WARNING, missing or invalid = FAIL), the data directory (writable) and `SAFERUN_*` overrides. `--online` also verifies the cosign signature of the published analyzer release. A check that cannot be carried out is never a PASS (with Docker unusable, the image checks FAIL). Exit 0 when nothing FAILED (warnings allowed), 1 otherwise. JSON: `{"schema_version": 1, "ok": bool, "checks": [{"name", "level", "detail", "fix"}]}`.
+Read-only diagnosis, one line per check, `PASS` / `WARNING` / `FAIL`, and a fix for every problem: SafeRun version, Python (3.12+), operating system, Docker state (as above), the python sandbox image (pinned digest), the analyzer image (lock, labels, rules hash), cosign (SafeRun's pinned copy or PATH), the OSV database (integrity and age; stale = WARNING, missing or invalid = FAIL), the data directory (writable) and `SAFERUN_*` overrides. `--online` also verifies the cosign signature of the published analyzer release. A check that cannot be carried out is never a PASS (with Docker unusable, the image checks FAIL). Exit 0 when nothing FAILED (warnings allowed), 1 otherwise. JSON: `{"schema_version": 1, "ok": bool, "checks": [{"name", "level", "detail", "fix"}]}`.
 
 ### `saferun status [--only a,b] [--format json]`
 Verifies every component now and prints state (`ready`, `missing`, `invalid`, `outdated`, `unknown`), what it enables and the exact fix. Exit 0 only if all selected components are ready. JSON:
@@ -53,13 +52,13 @@ The scan still runs what it can and the affected checks are `unavailable`/`error
 saferun scan ./my-project                 # human-readable report
 saferun scan ./my-project --format json   # the Phase 2 report schema (schema_version 1), nothing else on stdout
 saferun scan ./my-project --osv-offline   # accepted for compatibility; scans are always offline
-saferun scan . --no-javascript-check --timeout 60
+saferun scan . --no-secrets-check --timeout 60
 saferun --help
 ```
 `saferun scan PATH` is a thin front end over `validate_project`: same sanitized copy, same sandbox, same checks and verdict
 rules; the CLI adds no validation logic, runs no project code and installs no dependencies. Options: `--format text|json`,
 `--timeout SECONDS` (per tool/sandbox run, default 120, max 3600), `--osv-offline` (no-op: always offline), `--no-python-syntax`, `--no-python-analysis`,
-`--no-dependency-scan`, `--no-javascript-check`, `--no-secrets-check`, `--accept-file FILE`. A disabled check is reported as `skipped`, which makes the verdict at best WARNING.
+`--no-dependency-scan`, `--no-secrets-check`, `--accept-file FILE` (the old `--no-javascript-check` is still accepted, hidden, and does nothing). A disabled check is reported as `skipped`, which makes the verdict at best WARNING.
 
 ### Secrets scan (`hardcoded-secrets`)
 Searches the project's files for hardcoded credentials with gitleaks 8.30.1, **inside the analyzer container** (no network, project mounted read-only, same limits and image verification as Semgrep and OSV-Scanner; no host fallback). `scan` still executes nothing.
@@ -90,7 +89,7 @@ saferun scan ./my-project --accept-file ~/saferun-accepts.toml
 - **After the `expires` date the entry stops applying**: the finding counts again and a note says it expired. A note also lists entries that matched nothing in this scan (they can be removed). Only dependency findings the scan actually reported can be accepted; if the report was capped (`further finding(s) not listed`) the hidden ones still count.
 - `saferun run` does not take an accept file.
 
-`python-syntax` and `javascript-syntax` answer one question: *can the scanner read this file?* They parse each file (`compile()` / `node --check`) and run none of it; a file that fails to parse is reported because the other checks cannot analyse it. JavaScript support is **experimental**: besides this syntax step there is only the npm lockfile scan, and no JavaScript code rules.
+`python-syntax` answers one question: *can the scanner read this file?* It parses each file (`compile()`) and runs none of it; a file that fails to parse is reported because the other checks cannot analyse it. SafeRun is Python-only: JavaScript files are not checked, and npm lockfiles (`package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`) are not scanned. The dependency check adds the plain note "JavaScript/npm dependencies are not supported and were not scanned." It does not change that check's status or the verdict, and a project with only those files shows the check as `not_applicable`, never as a pass.
 
 **Network.** Scans never use the network. Semgrep, OSV-Scanner and gitleaks run in the analyzer container (no network, read-only project, see PROJECT.md *Phase 5 security status*);
 OSV-Scanner reads local OSV data. Build the image once with `docker/analyzer/build.sh` and fetch the data with `saferun osv-db update` (the only command that downloads anything, apart from the opt-in `saferun check-names --online`, which sends package names only:
@@ -159,8 +158,8 @@ release workflow on an `analyzer-v*` tag and name exactly the pinned repository 
 See [engine.md](engine.md) for the checks, statuses and verdict rules, and [PROJECT.md](../PROJECT.md) for limitations.
 
 ## `saferun osv-db`
-`update [--dir D] [--allow-unverified] [--if-stale] [--max-age-days N]` downloads `PyPI` and `npm` data (HTTPS). It refuses a download when the server sends no usable MD5 hash (unless `--allow-unverified`, which is recorded and shown in every
-later scan), refuses archives that are unreadable or list fewer advisories than a sanity floor (PyPI 5 000, npm 40 000; October 2026: 26 726 / 230 914), (connection failures and HTTP 408/429/5xx are retried three times with a back-off; any other failure keeps the previous file and manifest, and the data does not become "fresher"). `--if-stale` downloads only when the data is missing, invalid or older than `--max-age-days` (default 30). It records SHA-256, size, advisory count and time in
+`update [--dir D] [--allow-unverified] [--if-stale] [--max-age-days N]` downloads `PyPI` data (HTTPS). It refuses a download when the server sends no usable MD5 hash (unless `--allow-unverified`, which is recorded and shown in every
+later scan), refuses archives that are unreadable or list fewer advisories than a sanity floor (PyPI 5 000; October 2026: 26 726), (connection failures and HTTP 408/429/5xx are retried three times with a back-off; any other failure keeps the previous file and manifest, and the data does not become "fresher"). `--if-stale` downloads only when the data is missing, invalid or older than `--max-age-days` (default 30). It records SHA-256, size, advisory count and time in
 `manifest.json`. An existing directory passed with `--dir` is **never chmod'ed**; directories it creates are 0755 so the analyzer container (uid 65534) can read them. `status [--dir D] [--max-age-days N]` validates the data and prints
 its age (exit 0 usable and fresh, 1 otherwise). Every scan re-validates: manifest present and well-formed, SHA-256 and size equal the recorded values, no symlinks, readable by the container user, advisory count above the floor, timestamp not
 in the future. Any failure -> the dependency check is `error`; valid but older than 30 days -> `incomplete` (findings are still reported).
@@ -183,7 +182,7 @@ Looks for dependency names that resemble popular PyPI packages (`reqeusts` for `
 ### Plain-English explanations (`In plain words:`)
 Under each finding the text and styled reports print one extra line, `In plain words: ...`: one or two short sentences on what it is, why it matters and how to fix it. It is shown by default (no flag). The finding's `message` is unchanged.
 - **JSON:** the finding gets an `explanation` string, only when one exists (reports and findings without one are unchanged; `schema_version` stays 1).
-- **Covered:** the 11 Semgrep rules, withheld-file findings, Python and JavaScript syntax errors, secrets (one generic text for every `secrets.*` rule, never containing the value), and dependency findings. Anything else has no explanation.
+- **Covered:** the 11 Semgrep rules, withheld-file findings, Python syntax errors, secrets (one generic text for every `secrets.*` rule, never containing the value), and dependency findings. Anything else has no explanation.
 - **Dependency findings** use a fixed template filled from the finding's own data (package, installed version, fixed versions, patch/minor/major label); advisory texts are not rewritten. With no fixed version it says so.
 - **Wording:** "can" / "could" only. It never says an attack will happen or that a fix makes the project safe.
 

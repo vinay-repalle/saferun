@@ -41,7 +41,7 @@ class CheckStatus(str, Enum):
     TIMEOUT = "timeout"                  # tool exceeded its time limit; nothing can be concluded
     UNAVAILABLE = "unavailable"          # tool or runtime missing; the check did not run
     SKIPPED = "skipped"                  # applicable, but deliberately not run (reason given)
-    NOT_APPLICABLE = "not_applicable"    # nothing for this check to look at (e.g. no JavaScript files)
+    NOT_APPLICABLE = "not_applicable"    # nothing for this check to look at (e.g. no Python files)
 
     @property
     def completed(self) -> bool:
@@ -74,7 +74,7 @@ def clean_text(value, limit: int = MAX_TEXT) -> str:
 class PackageRef:
     name: str
     version: str = ""
-    ecosystem: str = ""   # OSV ecosystem name, e.g. "PyPI", "npm"
+    ecosystem: str = ""   # OSV ecosystem name, e.g. "PyPI"
 
 
 @dataclass(frozen=True)

@@ -65,29 +65,21 @@ OSV_JSON = json.dumps({"results": [{
     }]}]})
 
 
-def smart_sandbox(node_stdout=None):
-    """Fake sandbox: answers the Python syntax driver by listing .py files (all valid), and the Node driver
-    with `node_stdout` (default: all valid .js files)."""
+def smart_sandbox():
+    """Fake sandbox: answers the Python syntax driver by listing .py files (all valid)."""
     import json as _json
 
     def fake(project, command, limits=None, image=None, **_):
         from types import SimpleNamespace
         proj = Path(project)
-        if command[0] == "python":
-            files = sorted(p.relative_to(proj).as_posix() for p in proj.rglob("*") if p.suffix in (".py", ".pyi") and p.is_file())
-            lines = [_json.dumps({"file": f, "ok": True}) for f in files] + [_json.dumps({"done": True, "count": len(files), "truncated": False})]
-        elif node_stdout is not None:
-            lines = [node_stdout]
-        else:
-            files = sorted(p.relative_to(proj).as_posix() for p in proj.rglob("*") if p.suffix in (".js", ".mjs", ".cjs") and p.is_file())
-            lines = [_json.dumps({"file": f, "status": 0, "signal": None, "failed": False, "err": ""}) for f in files]
-            lines.append(_json.dumps({"done": True, "count": len(files), "truncated": False}))
+        files = sorted(p.relative_to(proj).as_posix() for p in proj.rglob("*") if p.suffix in (".py", ".pyi") and p.is_file())
+        lines = [_json.dumps({"file": f, "ok": True}) for f in files] + [_json.dumps({"done": True, "count": len(files), "truncated": False})]
         return SimpleNamespace(exit_code=0, stdout="\n".join(lines) + "\n", stderr="", timed_out=False, oom_killed=False, output_truncated=False)
     return fake
 
 
-def overrides(run=None, node_stdout=None):
-    d = {"sandbox": smart_sandbox(node_stdout), "image_available": lambda image: None,
+def overrides(run=None):
+    d = {"sandbox": smart_sandbox(), "image_available": lambda image: None,
          "analyzer_available": lambda: "sha256:" + "0" * 64}
     if run is not None:
         d["analyzer"] = run
@@ -102,7 +94,7 @@ def sg_json(results=(), scanned=("app.py", "lib/h.py"), errors=()):
     return json.dumps(d)
 
 
-def make_osv_db(root, ecosystems=("PyPI", "npm"), entries=3, age_days=0.0, md5="verified", now=None):
+def make_osv_db(root, ecosystems=("PyPI",), entries=3, age_days=0.0, md5="verified", now=None):
     """A REAL, internally consistent offline OSV database in `root` (zip files with `entries` advisories + manifest).
     Tests must lower osvdb.MIN_ENTRIES (see the `low_osv_floor` fixture) for small databases."""
     import hashlib

@@ -194,10 +194,10 @@ def test_doctor_all_good(tmp_path, monkeypatch):
 
 def test_doctor_levels_for_problems(tmp_path, monkeypatch):
     data_home(monkeypatch, str(tmp_path))
-    checks = {c.name: c for c in doctor.run_checks(status=status_of(**{"osv-db": st.OUTDATED, "analyzer": st.INVALID, "node": st.MISSING}), diagnose=ok_docker)}
+    checks = {c.name: c for c in doctor.run_checks(status=status_of(**{"osv-db": st.OUTDATED, "analyzer": st.INVALID, "python": st.MISSING}), diagnose=ok_docker)}
     assert checks["OSV database"].level == doctor.WARN          # stale is shown, never silently current
     assert checks["Analyzer image"].level == doctor.FAIL and "--repair" in checks["Analyzer image"].fix
-    assert checks["Node.js sandbox image"].level == doctor.FAIL
+    assert checks["Python sandbox image"].level == doctor.FAIL
     assert doctor.exit_code(list(checks.values())) == 1
 
 
@@ -461,9 +461,9 @@ def test_stale_ecosystems_only_lists_what_needs_downloading(tmp_path, monkeypatc
     db = make_osv_db(tmp_path / "db")
     assert osvdb.stale_ecosystems(db) == []                                    # valid and fresh: nothing to download
     m = json.loads((db / "manifest.json").read_text())
-    m["ecosystems"]["npm"]["updated_epoch"] -= 90 * 86400                       # only npm becomes stale
+    m["ecosystems"]["PyPI"]["updated_epoch"] -= 90 * 86400                      # PyPI becomes stale
     (db / "manifest.json").write_text(json.dumps(m))
-    assert osvdb.stale_ecosystems(db) == ["npm"]
+    assert osvdb.stale_ecosystems(db) == ["PyPI"]
     assert osvdb.stale_ecosystems(tmp_path / "missing") == list(osvdb.ECOSYSTEMS)
 
 

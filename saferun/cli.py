@@ -47,7 +47,7 @@ examples:
   saferun status                            show which components are installed and verified
   saferun osv-db update                     download the offline OSV vulnerability data used by the dependency scan
   saferun check-names --project .           look for dependency names that resemble popular PyPI packages (offline)
-  saferun scan . --no-javascript-check --timeout 60
+  saferun scan . --no-secrets-check --timeout 60
 
 exit codes:
   0 PASS   1 FAIL (high/critical finding)   2 WARNING (lower-severity findings or incomplete scan)
@@ -98,7 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--no-python-syntax", action="store_true", help="skip the sandboxed Python syntax check")
     v.add_argument("--no-python-analysis", action="store_true", help="skip Semgrep analysis of Python files")
     v.add_argument("--no-dependency-scan", action="store_true", help="skip the OSV dependency scan (no network use)")
-    v.add_argument("--no-javascript-check", action="store_true", help="skip the sandboxed `node --check`")
+    v.add_argument("--no-javascript-check", action="store_true", help=argparse.SUPPRESS)   # hidden no-op: the JavaScript check was removed; accepted so existing scripts keep working
     v.add_argument("--no-secrets-check", action="store_true", help="skip the gitleaks scan for hardcoded secrets (a skipped check keeps the verdict at WARNING at best)")
     w = sub.add_parser("verify-images", help="check that local Docker images match the pinned digests", description=(
         "Check that the container images SafeRun runs are present locally with the digests pinned in the code. "
@@ -109,7 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
         "The dependency scan runs without network access, against local OSV data. `update` downloads it (public data from "
         "osv-vulnerabilities.storage.googleapis.com; nothing about any project is sent)."))
     dsub = d.add_subparsers(dest="osv_db_command", metavar="ACTION", parser_class=_Parser)
-    u = dsub.add_parser("update", help="download/refresh the OSV data for PyPI and npm")
+    u = dsub.add_parser("update", help="download/refresh the OSV data for PyPI")
     u.add_argument("--if-stale", action="store_true", help="only download when the local data is missing, invalid or older than --max-age-days")
     u.add_argument("--max-age-days", type=float, default=osvdb.DEFAULT_MAX_AGE_DAYS, help="age limit used by --if-stale (default: 30)")
     u.add_argument("--dir", help="database directory (default: $SAFERUN_OSV_DB or ~/.local/share/saferun/osv-db)")
@@ -118,8 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
     st = dsub.add_parser("status", help="validate the local OSV data and show its age; exit 0 if usable and fresh, 1 otherwise", parents=[common])
     st.add_argument("--dir", help="database directory (default: $SAFERUN_OSV_DB or ~/.local/share/saferun/osv-db)")
     st.add_argument("--max-age-days", type=float, default=osvdb.DEFAULT_MAX_AGE_DAYS, help="older data is reported as stale (default: 30)")
-    w.add_argument("--base-only", action="store_true", help="only the python/node base images, not the locally built analyzer image")
-    w.add_argument("--only", metavar="NAME[,NAME]", help="only these pinned images (python, node); implies --base-only")
+    w.add_argument("--base-only", action="store_true", help="only the python base image, not the locally built analyzer image")
+    w.add_argument("--only", metavar="NAME[,NAME]", help="only these pinned images (python); implies --base-only")
     w.add_argument("--signature", action="store_true", help="ONLINE: also verify the cosign signature of the published analyzer release "
                    "(needs cosign and internet; fails if no release is configured)")
     cn = sub.add_parser("check-names", help="check dependency names for look-alikes of popular PyPI packages", description=(
@@ -135,7 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
     cn.add_argument("--format", choices=("text", "json"), default="text", help="output format (default: text)")
     ini = sub.add_parser("init", help="first-run setup: install and verify what the checks need", description=(
         "Interactive (or scripted) setup. Detects what is already installed and verified, skips it, and installs/repairs/updates the rest: "
-        "the Python and Node.js sandbox images (pulled by pinned digest), the analyzer image (Semgrep, OSV-Scanner, gitleaks, rules) and the local OSV "
+        "the Python sandbox image (pulled by pinned digest), the analyzer image (Semgrep, OSV-Scanner, gitleaks, rules) and the local OSV "
         "vulnerability data. Nothing is trusted because a tag or directory exists; everything is verified after installation."), parents=[common])
     ini.add_argument("--all", action="store_true", help="install/verify every component, without prompts")
     ini.add_argument("--only", metavar="COMPONENT[,COMPONENT]", help=f"only these components ({', '.join(setup_mod.KEYS)}), without prompts")
@@ -619,7 +619,7 @@ def main(argv: list[str] | None = None) -> int:
     options = ValidationOptions(
         accept=entries,
         python_analysis=not args.no_python_analysis, python_syntax=not args.no_python_syntax,
-        dependency_scan=not args.no_dependency_scan, javascript_check=not args.no_javascript_check, secrets_check=not args.no_secrets_check,
+        dependency_scan=not args.no_dependency_scan, secrets_check=not args.no_secrets_check,
         tool_timeout_s=args.timeout, osv_offline=True)   # always offline; --osv-offline is a no-op
     t0 = time.monotonic()
     try:

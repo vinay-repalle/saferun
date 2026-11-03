@@ -16,14 +16,14 @@ def _analyzer() -> bool:
 
 
 HAVE_ANALYZER = _analyzer()
-HAVE_DB = HAVE_ANALYZER and osvdb.validate(osvdb.default_dir(), ["PyPI", "npm"]).ok
-OSV_ONLY = ValidationOptions(python_analysis=False, python_syntax=False, javascript_check=False)
-SEMGREP_ONLY = ValidationOptions(python_syntax=False, dependency_scan=False, javascript_check=False)
+HAVE_DB = HAVE_ANALYZER and osvdb.validate(osvdb.default_dir(), ["PyPI"]).ok
+OSV_ONLY = ValidationOptions(python_analysis=False, python_syntax=False)
+SEMGREP_ONLY = ValidationOptions(python_syntax=False, dependency_scan=False)
 
 
 needs_analyzer = pytest.mark.docker(pytest.mark.skipif(not HAVE_ANALYZER, reason="analyzer image not built"))
 needs_osv = needs_semgrep = pytest.mark.skipif(not HAVE_ANALYZER, reason="analyzer image not built (docker/analyzer/build.sh)")
-needs_net = pytest.mark.skipif(not HAVE_DB, reason="no offline OSV database for PyPI+npm (saferun osv-db update / SAFERUN_OSV_DB)")
+needs_net = pytest.mark.skipif(not HAVE_DB, reason="no offline OSV database for PyPI (saferun osv-db update / SAFERUN_OSV_DB)")
 
 
 def proj(tmp_path, files):
@@ -52,12 +52,11 @@ def test_real_osv_vulnerable_python_requirement(tmp_path, ws_root):
 
 
 @needs_net
-def test_real_osv_vulnerable_npm_lockfile(tmp_path, ws_root):
-    c = osv_check(validate_project(proj(tmp_path, {"web/package-lock.json": NPM_LOCK % ("lodash", "4.17.15", "lodash", "lodash", "4.17.15")}), OSV_ONLY))
-    assert c.status is CheckStatus.FINDINGS
-    hi = next(f for f in c.findings if "GHSA-35jh-r3h4-6jhm" in f.vulnerability_ids)
-    assert (hi.package.name, hi.package.version, hi.package.ecosystem, hi.path) == ("lodash", "4.17.15", "npm", "web/package-lock.json")
-    assert hi.severity.value == "high" and "CVE-2021-23337" in hi.vulnerability_ids and "4.17.21" in hi.fixed_versions
+def test_real_npm_lockfile_is_not_scanned_and_is_never_a_clean_pass(tmp_path, ws_root):
+    rep = validate_project(proj(tmp_path, {"web/package-lock.json": NPM_LOCK % ("lodash", "4.17.15", "lodash", "lodash", "4.17.15")}), OSV_ONLY)
+    c = osv_check(rep)
+    assert c.status is CheckStatus.NOT_APPLICABLE and not c.findings and osv.JS_NOTE in c.notes and osv.JS_NOTE in c.detail
+    assert rep.verdict is not Verdict.PASS
 
 
 @needs_net
@@ -68,13 +67,13 @@ def test_real_osv_clean_result(tmp_path, ws_root):
 
 @needs_net
 def test_real_osv_empty_lockfile_is_incomplete(tmp_path, ws_root):       # exit 128
-    c = osv_check(validate_project(proj(tmp_path, {"package-lock.json": '{"lockfileVersion":3,"packages":{}}'}), OSV_ONLY))
+    c = osv_check(validate_project(proj(tmp_path, {"Pipfile.lock": '{"_meta":{},"default":{},"develop":{}}'}), OSV_ONLY))
     assert c.status is CheckStatus.INCOMPLETE
 
 
 @needs_net
 def test_real_osv_malformed_lockfile_is_error(tmp_path, ws_root):        # exit 127
-    rep = validate_project(proj(tmp_path, {"package-lock.json": "not json{"}), OSV_ONLY)
+    rep = validate_project(proj(tmp_path, {"Pipfile.lock": "not json{"}), OSV_ONLY)
     assert osv_check(rep).status is CheckStatus.ERROR and rep.verdict is Verdict.WARNING
 
 
@@ -120,12 +119,3 @@ def test_real_semgrep_clean_project_is_complete_pass(tmp_path, ws_root):
     p = proj(tmp_path, {"a.py": "print(1)\n", "pkg/b.py": "y = 2\n", "stubs/c.pyi": "def f() -> int: ...\n"})
     c = next(c for c in validate_project(p, SEMGREP_ONLY).checks if c.name == semgrep.NAME)
     assert c.status is CheckStatus.PASSED, (c.status, c.detail)
-
-
-@needs_net
-def test_real_osv_lockfile_entry_without_registry_url_is_not_reported_clean(tmp_path, ws_root):
-    """Real osv-scanner silently skips such an entry (exit 0, no results); the engine must not call that clean."""
-    lock = '{"lockfileVersion":3,"packages":{"":{"name":"t"},"node_modules/lodash":{"version":"4.17.15"}}}'
-    rep = validate_project(proj(tmp_path, {"package-lock.json": lock}), OSV_ONLY)
-    c = osv_check(rep)
-    assert c.status is CheckStatus.INCOMPLETE and not c.findings and rep.verdict is Verdict.WARNING and not rep.complete

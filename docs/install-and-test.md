@@ -33,7 +33,7 @@ Prerequisites per platform: Linux: Docker Engine and membership of the `docker` 
 ```bash
 git clone https://github.com/vinay-repalle/saferun.git && cd saferun
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-.venv/bin/saferun init --all          # pulls the pinned python/node images, installs the signed analyzer (cosign fetched and verified, by digest), downloads the OSV data (~260 MB)
+.venv/bin/saferun init --all          # pulls the pinned python image, installs the signed analyzer (cosign fetched and verified, by digest), downloads the OSV data (~40 MB)
 .venv/bin/saferun doctor              # exit 0 if nothing FAILED
 .venv/bin/saferun scan ./some-project
 ```
@@ -68,7 +68,7 @@ Runs on every pull request and every push to `main`. Read-only token, no secrets
 | `web` | yes | `npm ci --ignore-scripts`, `npm test`, `npm run build` |
 | `package` | yes | `python -m build`, checks wheel and sdist contents, installs the wheel into a clean venv and starts the CLI (a built wheel is the supported install, see above) |
 | `audit` | no (advisory) | `npm audit` (website production dependencies) |
-| `docker` | no (advisory) | `saferun init --only python,node,analyzer --build-local`, then `pytest -m docker` on the runner's Docker daemon |
+| `docker` | no (advisory) | `saferun init --only python,analyzer --build-local`, then `pytest -m docker` on the runner's Docker daemon |
 | `benchmark` | no (advisory) | `pip install -e '.[bench]'`, builds the analyzer, downloads the OSV data, runs `tools/benchmark/run.py --split all` (needs network), prints the report and uploads it as an artifact; see [benchmark.md](benchmark.md) |
 
 The `docker` job is advisory because it depends on the runner's Docker/cgroup configuration and has never been run; promote it to blocking only after you have seen it pass. There is no lint step: the repository has no linter configuration, and adding one unconfigured would only produce noise.

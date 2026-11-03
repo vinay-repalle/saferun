@@ -89,13 +89,24 @@ def test_json_output_is_the_engine_schema_only(monkeypatch, proj, capsys):
     assert json.loads(capsys.readouterr().out) == rep.to_dict()          # stdout is exactly the report
 
 
+def test_removed_javascript_flag_is_accepted_and_does_nothing(monkeypatch, proj, capsys):
+    calls = stub(monkeypatch, PASS_R())
+    assert cli.main(["scan", str(proj), "--no-javascript-check"]) == 0
+    assert not hasattr(calls[0][1], "javascript_check")
+    try:
+        cli.main(["scan", "--help"])
+    except SystemExit:
+        pass
+    assert "--no-javascript-check" not in capsys.readouterr().out      # hidden from the help
+
+
 def test_options_are_passed_to_engine(monkeypatch, proj, capsys):
     calls = stub(monkeypatch, PASS_R())
     cli.main(["scan", str(proj), "--osv-offline", "--no-python-syntax", "--no-python-analysis",
               "--no-dependency-scan", "--no-javascript-check", "--timeout", "30"])
     o = calls[0][1]
-    assert (o.osv_offline, o.python_syntax, o.python_analysis, o.dependency_scan, o.javascript_check,
-            o.tool_timeout_s) == (True, False, False, False, False, 30.0)
+    assert (o.osv_offline, o.python_syntax, o.python_analysis, o.dependency_scan,
+            o.tool_timeout_s) == (True, False, False, False, 30.0)
     cli.main(["scan", str(proj)])
     d = calls[1][1]
     assert d.dependency_scan and d.osv_offline and d.python_syntax and d.tool_timeout_s == 120.0
@@ -162,7 +173,7 @@ def test_real_engine_all_checks_disabled_is_warning_not_pass(proj, capsys):
     assert cli.main(argv) == 2
     data = json.loads(capsys.readouterr().out)
     assert data["verdict"] == "WARNING" and data["complete"] is False and data["schema_version"] == 1
-    assert [c["status"] for c in data["checks"][1:]] == ["skipped"] * 5
+    assert [c["status"] for c in data["checks"][1:]] == ["skipped"] * 4
 
 
 def test_real_engine_missing_tools_do_not_crash_or_pass(proj, monkeypatch, capsys):

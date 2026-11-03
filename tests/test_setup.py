@@ -47,7 +47,7 @@ class World:
     def pull(self, ref):
         self.calls.append(("pull", ref))
         if self.pull_rc == 0 and self.install_makes_ready:
-            self.state["python" if ref.startswith("python") else "node"] = R
+            self.state["python"] = R
         return self.pull_rc
 
     def build(self, log):
@@ -101,8 +101,8 @@ def world(monkeypatch):
 # ============================================================ the component list is derived from the code
 def test_components_cover_every_pinned_image_the_analyzer_the_database_and_every_check():
     assert {i.name for i in im.PINNED_IMAGES} <= set(su.KEYS) and {"analyzer", "osv-db"} <= set(su.KEYS)
-    from saferun.engine import node, osv, pysyntax, secretscan, semgrep
-    assert set(su.CHECK_NEEDS) == {pysyntax.NAME, semgrep.NAME, osv.NAME, node.NAME, secretscan.NAME}
+    from saferun.engine import osv, pysyntax, secretscan, semgrep
+    assert set(su.CHECK_NEEDS) == {pysyntax.NAME, semgrep.NAME, osv.NAME, secretscan.NAME}
     for needs in su.CHECK_NEEDS.values():
         assert set(needs) <= set(su.KEYS)
     assert all(c.purpose and c.size and c.checks for c in su.COMPONENTS)
@@ -115,16 +115,16 @@ def test_the_introduction_is_short():
 
 # ============================================================ selection
 @pytest.mark.parametrize("text,expected", [
-    ("all", ["python", "node", "analyzer", "osv-db"]), ("5", ["python", "node", "analyzer", "osv-db"]), ("a", list(su.KEYS)),
-    ("1", ["python"]), ("1,3", ["python", "analyzer"]), ("3 1", ["python", "analyzer"]), ("osv-db, node", ["node", "osv-db"]),
-    ("NODE", ["node"]), ("all -osv-db", ["python", "node", "analyzer"]), ("-4", ["python", "node", "analyzer"]),
-    ("!2,!3", ["python", "osv-db"]), ("1,2 -2", ["python"]), ("all,-1,-2,-3", ["osv-db"]),
+    ("all", ["python", "analyzer", "osv-db"]), ("4", ["python", "analyzer", "osv-db"]), ("a", list(su.KEYS)),
+    ("1", ["python"]), ("1,2", ["python", "analyzer"]), ("2 1", ["python", "analyzer"]), ("osv-db, analyzer", ["analyzer", "osv-db"]),
+    ("ANALYZER", ["analyzer"]), ("all -osv-db", ["python", "analyzer"]), ("-3", ["python", "analyzer"]),
+    ("!2", ["python", "osv-db"]), ("1,2 -2", ["python"]), ("all,-1,-2", ["osv-db"]),
 ])
 def test_parse_selection(text, expected):
     assert su.parse_selection(text) == expected
 
 
-@pytest.mark.parametrize("text", ["", "   ", "0", "6", "banana", "1,x", "all -all", "-1,-2,-3,-4", "1 -1", "python;node", "../etc"])
+@pytest.mark.parametrize("text", ["", "   ", "0", "5", "banana", "1,x", "all -all", "-1,-2,-3", "1 -1", "python;node", "../etc"])
 def test_parse_selection_rejects(text):
     with pytest.raises(ValueError):
         su.parse_selection(text)
@@ -133,10 +133,10 @@ def test_parse_selection_rejects(text):
 def test_flag_selection():
     assert su.select(False, None, None) is None                                   # no flag -> interactive
     assert su.select(True, None, None) == list(su.KEYS)
-    assert su.select(False, "python,node", None) == ["python", "node"]
-    assert su.select(False, None, "osv-db") == ["python", "node", "analyzer"]       # --skip alone excludes from everything
-    assert su.select(True, None, "node,analyzer") == ["python", "osv-db"]
-    assert su.select(False, "python,node,osv-db", "node") == ["python", "osv-db"]
+    assert su.select(False, "python,analyzer", None) == ["python", "analyzer"]
+    assert su.select(False, None, "osv-db") == ["python", "analyzer"]               # --skip alone excludes from everything
+    assert su.select(True, None, "analyzer") == ["python", "osv-db"]
+    assert su.select(False, "python,analyzer,osv-db", "analyzer") == ["python", "osv-db"]
     for bad in (("x", None), (None, "x"), ("python", "python")):
         with pytest.raises(ValueError):
             su.select(False, *bad)
@@ -162,9 +162,9 @@ def test_an_image_whose_tag_exists_but_digest_differs_is_invalid_not_ready(monke
 
 def test_image_missing_and_docker_errors(monkeypatch):
     fake_inspect(monkeypatch, rc=1, err="Error response from daemon: No such image: python")
-    assert su.component_status("node").state == M
+    assert su.component_status("python").state == M
     fake_inspect(monkeypatch, rc=1, err="Cannot connect to the Docker daemon")
-    s = su.component_status("node")
+    s = su.component_status("python")
     assert s.state == U and "docker" in s.detail.lower()
 
 
@@ -183,7 +183,7 @@ def test_osv_states_use_the_integrity_validation(tmp_path, monkeypatch, low_osv_
     assert su.component_status("osv-db").state == R
     make_osv_db(tmp_path / "db", age_days=90)
     assert su.component_status("osv-db").state == O
-    (tmp_path / "db" / "osv-scalibr" / "npm" / "all.zip").write_bytes(b"tampered")
+    (tmp_path / "db" / "osv-scalibr" / "PyPI" / "all.zip").write_bytes(b"tampered")
     assert su.component_status("osv-db").state == I
     (tmp_path / "db" / "manifest.json").unlink()
     assert su.component_status("osv-db").state == I                                   # data without a manifest is invalid, not "installed"
@@ -199,14 +199,14 @@ def test_valid_components_are_skipped_and_nothing_is_touched(world):
     s = world.setup()
     assert s.run(list(su.KEYS)) == 0
     assert world.calls == [] and world.online_hosts == []                            # no download, no build, not even a connectivity probe
-    assert s.text.getvalue().count("skipped (already installed and verified)") == 4
+    assert s.text.getvalue().count("skipped (already installed and verified)") == 3
 
 
 def test_missing_images_are_pulled_by_pinned_digest_and_verified(world):
-    world.state.update(python=M, node=M)
+    world.state.update(python=M)
     s = world.setup()
-    assert s.run(["python", "node"]) == 0
-    assert world.calls == [("pull", im.PYTHON_IMAGE.pull_reference), ("pull", im.NODE_IMAGE.pull_reference)]
+    assert s.run(["python"]) == 0
+    assert world.calls == [("pull", im.PYTHON_IMAGE.pull_reference)]
     assert "@sha256:" in world.calls[0][1] and ":3.12" not in world.calls[0][1]      # a digest, never a floating tag
     assert "installed and verified" in s.text.getvalue()
 
@@ -218,18 +218,18 @@ def test_an_image_with_the_wrong_digest_is_repaired_by_pulling_the_pin(world):
 
 
 def test_failed_pull_is_reported_and_not_ready(world):
-    world.state["node"] = M
+    world.state["python"] = M
     world.pull_rc = 1
     s = world.setup()
-    assert s.run(["node"]) == 1
-    assert "FAILED: docker pull failed (exit 1)" in s.text.getvalue() and "Not ready: node" in s.text.getvalue()
+    assert s.run(["python"]) == 1
+    assert "FAILED: docker pull failed (exit 1)" in s.text.getvalue() and "Not ready: python" in s.text.getvalue()
 
 
 def test_installation_that_still_fails_verification_is_a_failure(world):
-    world.state["node"] = M
+    world.state["python"] = M
     world.install_makes_ready = False
     s = world.setup()
-    assert s.run(["node"]) == 1 and "installed but still missing" in s.text.getvalue()
+    assert s.run(["python"]) == 1 and "installed but still missing" in s.text.getvalue()
 
 
 def test_analyzer_missing_is_built_locally_when_no_release_is_configured(world):
@@ -306,10 +306,10 @@ def test_ctrl_c_during_install_returns_130_and_trusts_nothing(world):
 
 
 def test_interactive_confirmation_can_decline_individual_components(world):
-    world.state.update(python=M, node=M)
+    world.state.update(python=M, analyzer=M)
     s = world.setup(answers=["n", "y"], interactive=True)
-    assert s.run(["python", "node"]) == 1
-    assert world.calls == [("pull", im.NODE_IMAGE.pull_reference)] and "not installed (declined)" in s.text.getvalue()
+    assert s.run(["python", "analyzer"]) == 1
+    assert world.calls == [("build",)] and "not installed (declined)" in s.text.getvalue()
     world.calls.clear()
     world.state.update(python=M)
     assert world.setup(interactive=True).run(["python"], assume_yes=True) == 0 and world.actions() == ["pull"]
@@ -321,7 +321,7 @@ def test_offline_installs_nothing_lists_what_is_missing_and_explains_preloading(
     world.state["osv-db"] = M
     world.online_ok = False
     s = world.setup()
-    assert s.run(["python", "node", "osv-db"]) == 1
+    assert s.run(["python", "analyzer", "osv-db"]) == 1
     text = s.text.getvalue()
     assert world.calls == [] and "no internet access" in text and "To set up without internet access" in text
     assert "saferun osv-db update --dir" in text and "docker save" in text and "Not ready: python, osv-db" in text
@@ -344,27 +344,27 @@ def test_unusable_docker_blocks_image_components_but_not_the_database(world, tmp
 
 
 def test_components_that_cannot_be_examined_are_not_touched(world):
-    world.state["node"] = U
+    world.state["python"] = U
     s = world.setup()
-    assert s.run(["node"]) == 1 and world.calls == [] and "could not be examined" in s.text.getvalue()
+    assert s.run(["python"]) == 1 and world.calls == [] and "could not be examined" in s.text.getvalue()
 
 
 # ============================================================ interactive menu
 def test_menu_shows_state_purpose_and_size_and_accepts_free_form_answers(world):
     world.state["osv-db"] = M
-    s = world.setup(answers=["1, 4"], interactive=True)
+    s = world.setup(answers=["1, 3"], interactive=True)
     assert s.choose() == ["python", "osv-db"]
     t = s.text.getvalue()
-    assert su.INTRO in t and "[missing]" in t and "[ready]" in t and "All components" in t and "about 260 MB" in t
+    assert su.INTRO in t and "[missing]" in t and "[ready]" in t and "All components" in t and "about 40 MB" in t
     for c in su.COMPONENTS:
         assert c.title in t and c.purpose in t
 
 
 def test_menu_default_exclusion_and_invalid_answers(world):
     assert world.setup(answers=[""], interactive=True).choose() == list(su.KEYS)
-    assert world.setup(answers=["all -osv-db"], interactive=True).choose() == ["python", "node", "analyzer"]
+    assert world.setup(answers=["all -osv-db"], interactive=True).choose() == ["python", "analyzer"]
     s = world.setup(answers=["9", "x", "2"], interactive=True)
-    assert s.choose() == ["node"] and s.text.getvalue().count("not a component") == 2
+    assert s.choose() == ["analyzer"] and s.text.getvalue().count("not a component") == 2
     with pytest.raises(ValueError):
         world.setup(answers=["9", "9", "9"], interactive=True).choose()
     with pytest.raises(ValueError):
@@ -397,7 +397,7 @@ def test_interrupted_download_keeps_valid_data_and_leaves_no_debris(tmp_path, lo
     root = make_osv_db(tmp_path / "db", age_days=40)                                  # valid but stale
     before = {p: p.read_bytes() for p in root.rglob("*") if p.is_file()}
     s = su.Setup(out=io.StringIO(), status=lambda k: su.component_status(k), online=lambda h: True, free_bytes=lambda p: 10**12,
-                 osv_update=lambda d, progress: osvdb.update(d, ("npm",), opener=lambda url, timeout=None: BrokenResp(b"x" * 100, 0)))
+                 osv_update=lambda d, progress: osvdb.update(d, ("PyPI",), opener=lambda url, timeout=None: BrokenResp(b"x" * 100, 0)))
     os.environ["SAFERUN_OSV_DB"] = str(root)
     try:
         assert s.run(["osv-db"]) == 1
@@ -549,7 +549,7 @@ def test_init_without_flags_needs_a_terminal(capsys):
 
 
 def test_init_flag_errors_exit_64(capsys):
-    for argv in (["init", "--only", "bogus"], ["init", "--skip", "x"], ["init", "--only", "node", "--skip", "node"]):
+    for argv in (["init", "--only", "bogus"], ["init", "--skip", "x"], ["init", "--only", "analyzer", "--skip", "analyzer"]):
         assert cli.main(argv) == 64
 
 
@@ -569,8 +569,8 @@ def test_init_passes_the_selection_and_flags_to_the_workflow(monkeypatch):
     monkeypatch.setattr(cli.setup_mod, "Setup", Stub)
     assert cli.main(["init", "--all", "--repair", "--yes"]) == 0 and seen["chosen"] == list(su.KEYS) and seen["repair"] and seen["yes"]
     assert seen["kw"]["interactive"] is False
-    assert cli.main(["init", "--skip", "osv-db,node"]) == 0 and seen["chosen"] == ["python", "analyzer"]
-    assert cli.main(["init", "--only", "node"]) == 0 and seen["chosen"] == ["node"]
+    assert cli.main(["init", "--skip", "osv-db"]) == 0 and seen["chosen"] == ["python", "analyzer"]
+    assert cli.main(["init", "--only", "analyzer"]) == 0 and seen["chosen"] == ["analyzer"]
 
 
 def test_init_interrupt_exit_code(monkeypatch):
@@ -596,7 +596,7 @@ def test_status_text_json_and_exit_codes(monkeypatch, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["schema_version"] == 1 and data["ok"] is False and [c["component"] for c in data["components"]] == list(su.KEYS)
     assert set(data["components"][0]) == {"component", "title", "state", "detail", "enables"}
-    assert cli.main(["status", "--only", "python,node"]) == 0
+    assert cli.main(["status", "--only", "python,analyzer"]) == 0
     assert cli.main(["status", "--only", "nope"]) == 64
 
 
@@ -651,14 +651,14 @@ def test_a_failing_hint_never_changes_the_scan_outcome(monkeypatch, tmp_path, ca
 # ============================================================ real Docker: the existing installation is detected and left alone
 @pytest.mark.docker
 def test_real_status_of_the_pinned_images_and_init_skips_them(monkeypatch):
-    s = su.component_status("python"), su.component_status("node")
-    assert [x.state for x in s] == [R, R], s
+    s = su.component_status("python")
+    assert s.state == R, s
     w = World()
     monkeypatch.setattr(su, "docker_pull", lambda ref: (_ for _ in ()).throw(AssertionError("must not pull a verified image")))
     setup = su.Setup(out=io.StringIO(), online=lambda h: (_ for _ in ()).throw(AssertionError("no network probe needed")),
                      pull=lambda ref: (_ for _ in ()).throw(AssertionError("no pull")))
-    assert setup.run(["python", "node"]) == 0
-    assert setup.out.getvalue().count("skipped (already installed and verified)") == 2
+    assert setup.run(["python"]) == 0
+    assert setup.out.getvalue().count("skipped (already installed and verified)") == 1
 
 
 def test_recorded_release_is_the_verified_analyzer_v1_0_1_pinned_by_digest():

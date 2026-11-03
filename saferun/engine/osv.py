@@ -13,13 +13,15 @@ anything else = error.
 
 Terminology (verified against osv-scanner 2.7.0): a *lockfile* records resolved, exact versions; a *manifest* /
 requirements file declares wanted versions. Scanned, by exact file name:
-  lockfiles    - Python: poetry.lock, Pipfile.lock, pdm.lock, uv.lock; npm: package-lock.json, yarn.lock, pnpm-lock.yaml
+  lockfiles    - Python: poetry.lock, Pipfile.lock, pdm.lock, uv.lock
   requirements - Python: requirements.txt ONLY. It is a manifest, not a lockfile: OSV-Scanner (which labels every
                  input "lockfile" in its JSON) reads it, but an unpinned entry such as `flask>=1.0` is evaluated as
                  the exact version 1.0 - results for it are unreliable (a note is added), and transitive
                  dependencies are not covered (--no-resolve).
-Other manifests (package.json, Pipfile, pyproject.toml) and other names (requirements-dev.txt, ...) are NOT scanned;
+Other manifests (Pipfile, pyproject.toml) and other names (requirements-dev.txt, ...) are NOT scanned;
 a manifest with no scannable file beside it is reported as a coverage gap (INCOMPLETE/SKIPPED), never as clean.
+JavaScript/npm files (package.json, package-lock.json, yarn.lock, pnpm-lock.yaml) are NOT supported: they get a plain note
+(`JS_NOTE`) and do not change the status or the verdict; a project that has only those files is NOT_APPLICABLE, never PASSED.
 """
 from __future__ import annotations
 
@@ -42,8 +44,9 @@ DB_MOUNT = "/osv-db"
 NAME = "dependency-vulnerabilities"
 PY_LOCKFILES = ("poetry.lock", "Pipfile.lock", "pdm.lock", "uv.lock")
 PY_REQUIREMENTS = ("requirements.txt",)   # a manifest, not a lockfile
-NPM_LOCKFILES = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")
-SUPPORTED = frozenset(PY_LOCKFILES + PY_REQUIREMENTS + NPM_LOCKFILES)
+SUPPORTED = frozenset(PY_LOCKFILES + PY_REQUIREMENTS)
+JS_FILES = frozenset({"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"})   # recognised only to say they are not scanned
+JS_NOTE = "JavaScript/npm dependencies are not supported and were not scanned."
 VENDORED = frozenset({"node_modules", ".venv", "venv", "site-packages", ".git"})
 MAX_LOCKFILES = 50
 MAX_MANIFEST_BYTES = 1024 * 1024
@@ -69,9 +72,7 @@ def discover(files: list[str]) -> tuple[list[str], list[str], list[str]]:
     for f in own:
         d, b = _dir(f), _basename(f)
         sib = lambda n: (f"{d}/{n}" if d else n)  # noqa: E731
-        if b == "package.json" and not any(sib(n) in present for n in NPM_LOCKFILES):
-            gaps.append(f"{f}: no npm lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml); dependencies not scanned")
-        elif b not in SUPPORTED and re.fullmatch(r"(?i).*requirements.*\.txt", b):
+        if b not in SUPPORTED and re.fullmatch(r"(?i).*requirements.*\.txt", b):
             gaps.append(f"{f}: requirements-file variants are not scanned (only a file named exactly requirements.txt is)")
         elif b == "Pipfile" and sib("Pipfile.lock") not in present:
             gaps.append(f"{f}: no Pipfile.lock; dependencies not scanned")
@@ -79,6 +80,11 @@ def discover(files: list[str]) -> tuple[list[str], list[str], list[str]]:
             gaps.append(f"{f}: no Python lockfile (poetry.lock/uv.lock/pdm.lock/Pipfile.lock); dependencies declared there are not scanned"
                         + (" (a requirements.txt beside it is scanned separately)" if sib("requirements.txt") in present else ""))
     return locks, unsafe, sorted(gaps)
+
+
+def has_js_files(files: list[str]) -> bool:
+    """True if the project has JavaScript/npm dependency files outside vendored folders (they are never scanned)."""
+    return any(_basename(f) in JS_FILES and not any(p in VENDORED for p in f.split("/")[:-1]) for f in files)
 
 
 def build_argv(lockfiles: list[str], exe: str = OSV_EXE) -> list[str]:
@@ -185,38 +191,6 @@ def parse_output(text: str, root: Path) -> list[Finding]:
     return findings
 
 
-def npm_unmatched(path: Path) -> int | None:
-    """Number of package-lock.json entries OSV-Scanner counts but cannot match (verified with 2.7.0: an entry with no
-    registry `resolved` URL, or one resolved from git, yields no vulnerability results and exit 0). Local `link`
-    entries are ignored. None if the file cannot be read as a lockfile (OSV-Scanner then reports it)."""
-    try:
-        if path.stat().st_size > MAX_MANIFEST_BYTES * 20:
-            return None
-        data = json.loads(path.read_text("utf-8", "replace"))
-    except (OSError, ValueError, RecursionError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    n = 0
-
-    def bad(e) -> bool:
-        return (isinstance(e, dict) and isinstance(e.get("version"), str) and not e.get("link")
-                and not (isinstance(e.get("resolved"), str) and e["resolved"].startswith(("https://", "http://"))))
-
-    pk = data.get("packages")
-    if isinstance(pk, dict):
-        n += sum(1 for k, e in pk.items() if k and bad(e))
-    else:
-        stack = [data.get("dependencies")]
-        while stack:
-            d = stack.pop()
-            for e in (d.values() if isinstance(d, dict) else []):
-                n += bad(e)
-                if isinstance(e, dict):
-                    stack.append(e.get("dependencies"))
-    return n
-
-
 _PROGRESS = ("Starting filesystem walk", "Scanned ", "End status")
 
 
@@ -247,10 +221,11 @@ def _unpinned_notes(ctx: CheckContext, locks: list[str]) -> list[str]:
 def run_check(ctx: CheckContext) -> CheckResult:
     locks, unsafe, gaps = discover(ctx.files)
     gaps = gaps + [f"{f}: unsupported file name for scanning; skipped" for f in unsafe]
+    js = [JS_NOTE] if has_js_files(ctx.files) else []   # a plain note: never a gap, never part of the status or verdict
     if not locks and not gaps:
-        return CheckResult(NAME, CheckStatus.NOT_APPLICABLE, detail="no dependency files")
+        return CheckResult(NAME, CheckStatus.NOT_APPLICABLE, notes=js, detail=JS_NOTE if js else "no dependency files")
     if not locks:
-        return CheckResult(NAME, CheckStatus.SKIPPED, tool="osv-scanner", notes=gaps,
+        return CheckResult(NAME, CheckStatus.SKIPPED, tool="osv-scanner", notes=gaps + js,
                            detail="dependency manifests found but no scannable lockfile or requirements.txt; dependencies not scanned")
     if len(locks) > MAX_LOCKFILES:
         gaps.append(f"{len(locks) - MAX_LOCKFILES} lockfile(s) beyond the limit of {MAX_LOCKFILES} not scanned")
@@ -264,8 +239,7 @@ def run_check(ctx: CheckContext) -> CheckResult:
         return CheckResult(NAME, CheckStatus.UNAVAILABLE, tool="osv-scanner", notes=gaps,
                            detail=clean_text(f"analyzer image unavailable; OSV-Scanner was not run (no host fallback): {e}"))
     db_dir = Path(ctx.options.get("osv_db_dir") or osvdb.default_dir())
-    needed = sorted({"npm" if _basename(lf) in NPM_LOCKFILES else "PyPI" for lf in locks})
-    db = osvdb.validate(db_dir, needed, max_age_days=ctx.options.get("osv_db_max_age_days") or osvdb.DEFAULT_MAX_AGE_DAYS)
+    db = osvdb.validate(db_dir, ["PyPI"], max_age_days=ctx.options.get("osv_db_max_age_days") or osvdb.DEFAULT_MAX_AGE_DAYS)
     if not db.ok:
         return CheckResult(NAME, CheckStatus.ERROR, tool="osv-scanner", notes=gaps,
                            detail=clean_text("the offline OSV vulnerability database cannot be trusted, so dependencies were NOT checked: "
@@ -302,11 +276,7 @@ def run_check(ctx: CheckContext) -> CheckResult:
         return res
     res.findings = findings[: ctx.max_findings]
     res.truncated_findings = max(0, len(findings) - ctx.max_findings)
-    for lf in locks:
-        if _basename(lf) == "package-lock.json" and (n := npm_unmatched(ctx.project / lf)):
-            gaps.append(f"{lf}: {n} package(s) without a registry URL (or from git) cannot be matched by osv-scanner")
-            res.notes.append(gaps[-1])
-    res.notes += [f"scanned file(s): {', '.join(locks)}", *_unpinned_notes(ctx, locks), *db.notes]   # database facts last: earlier note positions are unchanged
+    res.notes += [f"scanned file(s): {', '.join(locks)}", *_unpinned_notes(ctx, locks), *db.notes, *js]   # database facts after the earlier notes; the JavaScript note last
     if gaps:
         res.status = CheckStatus.INCOMPLETE
         res.detail = f"{len(gaps)} dependency file(s) not scanned: " + "; ".join(gaps)[:400]

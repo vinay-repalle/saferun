@@ -47,23 +47,22 @@ class Component:
 
 COMPONENTS: tuple[Component, ...] = (
     Component("python", "Python sandbox image", "Runs the Python syntax check in a locked-down container.", ("python-syntax",), "about 190 MB"),
-    Component("node", "Node.js sandbox image", "Runs the JavaScript syntax check in a locked-down container.", ("javascript-syntax",), "about 330 MB"),
     Component("analyzer", "Analyzer image (Semgrep, OSV-Scanner, gitleaks, rules)", "Runs the static code analysis, the secrets scan, and holds the dependency scanner.",
               ("python-static-analysis", "dependency-vulnerabilities", "hardcoded-secrets"), "about 770 MB, a signed image download (a local build takes a few minutes)"),
     Component("osv-db", "OSV vulnerability database", "Local vulnerability data so dependency scans run offline.", ("dependency-vulnerabilities",),
-              "about 260 MB download"),
+              "about 40 MB download"),
 )
 KEYS = tuple(c.key for c in COMPONENTS)
 BY_KEY = {c.key: c for c in COMPONENTS}
-CHECK_NEEDS = {"python-syntax": ("python",), "javascript-syntax": ("node",), "python-static-analysis": ("analyzer",),
+CHECK_NEEDS = {"python-syntax": ("python",), "python-static-analysis": ("analyzer",),
                "dependency-vulnerabilities": ("analyzer", "osv-db"), "hardcoded-secrets": ("analyzer",)}
-IMAGE_FOR = {"python": im.PYTHON_IMAGE, "node": im.NODE_IMAGE}
+IMAGE_FOR = {"python": im.PYTHON_IMAGE}
 HOSTS = {"image": ("registry-1.docker.io",), "build": ("pypi.org", "github.com"), "osv": ("osv-vulnerabilities.storage.googleapis.com",),
          # a published analyzer: the registry, plus the Sigstore trust root and transparency log that `cosign verify` contacts
          "release": ("ghcr.io", "tuf-repo-cdn.sigstore.dev", "rekor.sigstore.dev")}
 HOSTS_COSIGN = ("github.com",)   # the pinned cosign download (only when no cosign is installed yet)
 
-INTRO = ("SafeRun checks a project WITHOUT running it: Python/JavaScript syntax, static analysis (Semgrep), hardcoded secrets (gitleaks) and known-vulnerable dependencies (OSV).\n"
+INTRO = ("SafeRun checks a project WITHOUT running it: Python syntax, static analysis (Semgrep), hardcoded secrets (gitleaks) and known-vulnerable dependencies (OSV).\n"
          "Every check runs in a locked-down container and scans work offline; setup fetches what each check needs, once.")
 
 def banner_lines(th: "ui.Theme") -> list[str]:
@@ -298,7 +297,7 @@ class Setup:
 
     # -- individual installers: return an error string, or "" on success (the caller re-verifies afterwards)
     def _osv_update(self, directory: Path, progress) -> None:
-        """Download only the ecosystems that are missing, invalid or stale; a valid, fresh one is left alone (no needless 260 MB download)."""
+        """Download only the ecosystems that are missing, invalid or stale; a valid, fresh one is left alone (no needless download)."""
         need = osvdb.stale_ecosystems(directory)
         if need:
             self.say(f"    refreshing: {', '.join(need)}" + (f" (kept as is: {', '.join(e for e in osvdb.ECOSYSTEMS if e not in need)})" if len(need) < len(osvdb.ECOSYSTEMS) else ""))
@@ -389,7 +388,7 @@ class Setup:
         free = self.free_bytes(probe)
         if free < 700 * MB:
             return f"not enough free disk space at {probe}: {free // MB} MB free, about 700 MB needed during the download"
-        self.say(f"    downloading PyPI and npm advisories to {d} (about 260 MB, ~{free // MB // 1000} GB free) …")
+        self.say(f"    downloading PyPI advisories to {d} (about 36 MB, ~{free // MB // 1000} GB free) …")
         try:
             self.osv_update(d, ProgressPrinter(self.out, self.tty, self.th))
         except KeyboardInterrupt:

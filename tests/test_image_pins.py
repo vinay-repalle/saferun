@@ -14,7 +14,7 @@ from saferun import cli
 from saferun.sandbox import DEFAULT_IMAGE, SandboxError, run_sandboxed
 from saferun.sandbox import docker as dk
 from saferun.sandbox import images, verify
-from saferun.sandbox.profiles import NODE, PROFILES, PYTHON
+from saferun.sandbox.profiles import PROFILES, PYTHON
 
 ROOT = Path(__file__).resolve().parent.parent
 ANALYZER = ROOT / "docker" / "analyzer"
@@ -49,7 +49,7 @@ def test_pins_are_wellformed_and_profiles_use_them():
         assert img.pull_reference == f"{img.repository}@{img.digest}"
         assert images.digest_of(img.reference) == img.digest
         dk.validate_image(img.reference)
-    assert PYTHON.image == images.PYTHON_IMAGE.reference and NODE.image == images.NODE_IMAGE.reference
+    assert PYTHON.image == images.PYTHON_IMAGE.reference
     assert DEFAULT_IMAGE == PYTHON.image
     assert all(images.digest_of(p.image) for p in PROFILES.values())  # no profile may fall back to a bare tag
 
@@ -175,11 +175,11 @@ def checks(*statuses):
 
 
 def test_cli_verify_images_exit_codes(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "verify_images", lambda **kw: checks("verified", "verified"))
+    monkeypatch.setattr(cli, "verify_images", lambda **kw: checks("verified"))
     assert cli.main(["verify-images"]) == 0
     assert "all pinned images verified" in capsys.readouterr().out
     for bad in ("missing", "mismatch", "error"):
-        monkeypatch.setattr(cli, "verify_images", lambda bad=bad, **kw: checks("verified", bad))
+        monkeypatch.setattr(cli, "verify_images", lambda bad=bad, **kw: checks(bad))
         assert cli.main(["verify-images"]) == 1
         assert "NOT VERIFIED" in capsys.readouterr().out
     monkeypatch.setattr(cli, "verify_images", lambda **kw: (_ for _ in ()).throw(SandboxError("daemon down")))
@@ -188,11 +188,11 @@ def test_cli_verify_images_exit_codes(monkeypatch, capsys):
 
 
 def test_cli_verify_images_json(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "verify_images", lambda **kw: checks("verified", "mismatch"))
+    monkeypatch.setattr(cli, "verify_images", lambda **kw: checks("mismatch"))
     assert cli.main(["verify-images", "--format", "json"]) == 1
     data = json.loads(capsys.readouterr().out)
     assert data["schema_version"] == 1 and data["ok"] is False
-    assert [i["status"] for i in data["images"]] == ["verified", "mismatch"]
+    assert [i["status"] for i in data["images"]] == ["mismatch"]
     assert set(data["images"][0]) == {"name", "reference", "pinned_digest", "status", "detail"}
 
 

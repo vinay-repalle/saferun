@@ -5,7 +5,7 @@ Windows: use both PowerShell and Command Prompt for steps 1-4. Replace the pytho
 
 1. `docker version` shows a Server with `OS/Arch: linux/...`; `docker info --format "{{.OSType}}"` prints `linux`.
 2. From a checkout: `python -m pip install -e ".[dev]"`, then `saferun --help`.
-3. `saferun init --only python,node,analyzer --build-local` (or the signed analyzer if `cosign` is installed).
+3. `saferun init --only python,analyzer --build-local` (or the signed analyzer if `cosign` is installed).
 4. `saferun status` and `saferun verify-images`.
 5. `python -m pytest -q -ra -m docker` — record passes, failures, skips and the exact error text of any failure (especially `required control ... is unavailable`
    and mount errors).
