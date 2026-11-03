@@ -380,7 +380,7 @@ class TestCliCompatibility:
     CHECK = {"detail", "duration_s", "errors", "findings", "name", "notes", "status", "tool", "truncated_findings"}
     WS = {"copied_bytes", "copied_dirs", "copied_files", "entries_scanned", "skipped", "withheld"}
     FINDING = {"category", "check", "cwe", "end_line", "fixed_versions", "line", "message", "package", "path", "rule_id", "severity",
-               "vulnerability_ids"}
+               "vulnerability_ids", "explanation"}
 
     def test_exit_codes_and_schema_with_the_real_analyzers(self, tmp_path):
         clean = project(tmp_path, {"a.py": "print(1)\n"}, name="clean")

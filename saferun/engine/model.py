@@ -92,6 +92,7 @@ class Finding:
     fixed_versions: tuple[str, ...] = ()
     cwe: tuple[str, ...] = ()
     fix_kind: str = ""              # dependency findings: "patch" | "minor" | "major" for the nearest fixed release; "" = unknown
+    explanation: str = ""           # plain-English text (see explain.py), filled in by the engine; "" = none, key left out of JSON
 
     def to_dict(self) -> dict:
         d = {
@@ -104,6 +105,8 @@ class Finding:
         }
         if self.fix_kind:       # added in a backward-compatible way: absent when unknown
             d["fix_kind"] = self.fix_kind
+        if self.explanation:    # likewise additive: `message` is unchanged, the key is absent when there is no explanation
+            d["explanation"] = self.explanation
         return d
 
 

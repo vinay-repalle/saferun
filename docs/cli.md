@@ -180,6 +180,13 @@ Looks for dependency names that resemble popular PyPI packages (`reqeusts` for `
 
 **Limits (measured, not guaranteed).** It is a hint, not proof. Tested against the bundled snapshot with the dataset itself: about 98% of single-edit typos of popular names are caught; about 7% of real packages ranked just below the snapshot are flagged as similar to a popular one (a false alarm), roughly half of that from the 2-edit rule. It cannot recognise look-alikes of packages outside the snapshot, nor prefix/suffix tricks (`python-requests`) or other kinds of look-alikes. The snapshot ages; refresh it with `python tools/update_top_pypi.py` before a release and review the diff.
 
+### Plain-English explanations (`In plain words:`)
+Under each finding the text and styled reports print one extra line, `In plain words: ...`: one or two short sentences on what it is, why it matters and how to fix it. It is shown by default (no flag). The finding's `message` is unchanged.
+- **JSON:** the finding gets an `explanation` string, only when one exists (reports and findings without one are unchanged; `schema_version` stays 1).
+- **Covered:** the 11 Semgrep rules, withheld-file findings, Python and JavaScript syntax errors, secrets (one generic text for every `secrets.*` rule, never containing the value), and dependency findings. Anything else has no explanation.
+- **Dependency findings** use a fixed template filled from the finding's own data (package, installed version, fixed versions, patch/minor/major label); advisory texts are not rewritten. With no fixed version it says so.
+- **Wording:** "can" / "could" only. It never says an attack will happen or that a fix makes the project safe.
+
 ## Reading the output (colours, icons, progress)
 On a terminal the commands are laid out for quick reading; piped output, CI logs and `--format json` stay plain and unchanged.
 - **Verdict banner**: green `✓ PASS`, yellow `! WARNING`, red `✗ FAIL`, then why, then one line per check with an icon (`✓` passed, `✗` findings or error, `!` incomplete/unavailable/timeout, `–` skipped / not applicable).

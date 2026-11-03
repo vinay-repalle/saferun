@@ -11,6 +11,7 @@ from ..sandbox import SensitivePolicy, WorkspaceLimits
 from ..sandbox.workspace import create_workspace
 from . import accept as accept_mod, node, osv, pysyntax, secretscan, semgrep
 from .context import CheckContext
+from .explain import with_explanation
 from .model import CheckResult, CheckStatus, Finding, Severity, ValidationReport, clean_text
 from .verdict import compute_verdict
 
@@ -89,6 +90,8 @@ def validate_project(project_dir, options: ValidationOptions | None = None, *, c
                 checks.append(_guarded(name, mod.run_check, ctx))
             else:
                 checks.append(CheckResult(name, CheckStatus.SKIPPED, detail="disabled by options"))
+        for c in checks:
+            c.findings = [with_explanation(f) for f in c.findings]
         partial = []
         if ws.skipped:
             partial.append(f"{len(ws.skipped)} entr(y/ies) skipped (symlinks, special files or external hard links)")

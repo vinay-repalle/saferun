@@ -1,3 +1,9 @@
+
+## Plain-English findings (Stage 12)
+**What changed.** A finding can carry `explanation`: one or two short sentences (what it is, why it matters, how to fix it) next to the unchanged `message`. The text report prints it as `In plain words: ...` directly under the message (default on, no flag); the JSON has the `explanation` key only when one exists. Texts are in `saferun/engine/explain.py` (tested table keyed by rule id, plus a template for dependency findings filled from existing finding data). Covered: the 11 Semgrep rules, withheld-file rules, syntax findings, one generic text for `secrets.*`, dependency findings. Unknown ids have none.
+**Decisions (owner-confirmed).** One line per finding, no separate table; wording uses "can"/"could" and never claims an attack will happen or that a fix guarantees safety; texts are not in the Semgrep rules file or the image, so no analyzer release is needed.
+**Unchanged.** `message`, the Upgrade plan, `schema_version` (1), the website fixture. The engine fills `explanation` after the checks run, so findings built by hand (like the fixture's) have none.
+**Limits.** Texts are short general guidance, not advice for a specific code base; the dependency text does not describe the particular vulnerability. Follow-ups not done here: grouping dependency findings by package, and not showing git commit hashes under "fixed in".
 # SafeRun — Project
 
 Developer tool that checks AI-generated code *before* it is run or trusted. CLI + static website

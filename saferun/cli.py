@@ -253,6 +253,8 @@ def render_text(report: ValidationReport, path: str) -> str:
     for f in findings:
         out.append(f"  [{f.severity.value.upper()}] {_s(f.rule_id)}  {_location(f)}")
         out.append(f"      {_s(f.message)}")
+        if f.explanation:
+            out.append(f"      In plain words: {_s(f.explanation)}")
         if f.package:
             out.append(f"      package: {_s(f.package.name)} {_s(f.package.version)} ({_s(f.package.ecosystem)})")
         if f.fixed_versions:
@@ -357,6 +359,8 @@ def render_styled(report: ValidationReport, path: str, th: "ui.Theme", elapsed: 
         out.append(f"  {tag} {p(_s(f.rule_id), 'bold')}  {_location(f)}")
         for line in textwrap.wrap(_s(f.message), width=width) or [""]:
             out.append("      " + p(line, "dim"))
+        if f.explanation:
+            out += textwrap.wrap(f"In plain words: {_s(f.explanation)}", width=width, initial_indent="      ", subsequent_indent="        ")
         if f.package:
             out.append(f"      package: {_s(f.package.name)} {_s(f.package.version)} ({_s(f.package.ecosystem)})")
         if f.fixed_versions:

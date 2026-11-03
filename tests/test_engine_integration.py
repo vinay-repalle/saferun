@@ -152,7 +152,7 @@ def test_report_is_json_serializable_and_schema_stable(tmp_path, ws_root, tools_
     d2 = json.loads(json.dumps(d))
     assert d2["schema_version"] == 1 and d2["verdict"] == "FAIL" and set(d2) == {"schema_version", "verdict", "reasons", "complete", "workspace", "checks"}
     f = next(c for c in d2["checks"] if c["name"] == semgrep.NAME)["findings"][0]
-    assert set(f) == {"check", "rule_id", "severity", "message", "category", "path", "line", "end_line", "package", "vulnerability_ids", "fixed_versions", "cwe"}
+    assert set(f) == {"check", "rule_id", "severity", "message", "category", "path", "line", "end_line", "package", "vulnerability_ids", "fixed_versions", "cwe", "explanation"}
 
 
 def test_invalid_project_path_raises(tmp_path):

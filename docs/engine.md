@@ -32,6 +32,8 @@ failed container run is `error`. None of these is ever clean and none falls back
 
 **Dependency findings** also carry `fix_kind` (`patch`/`minor`/`major`, by version numbers only; absent when unknown). With `saferun scan --accept-file FILE` (`validate_project(..., ValidationOptions(accept=...))`) reviewed dependency findings move out of the verdict into `ValidationReport.accepted` until their expiry date; the file is never read from the scanned project. See [cli.md](cli.md).
 
+**Plain-English explanations.** `Finding.explanation` (JSON key `explanation`, absent when empty) holds a one-or-two-sentence text next to the unchanged `message`. `validate_project` fills it in after the checks run, from [explain.py](../saferun/engine/explain.py): a table keyed by rule id (the 11 Semgrep rules, withheld files, syntax errors, one generic `secrets.*` text) plus a template for dependency findings built only from the finding's package, installed version, fixed versions and `fix_kind`. The texts live in the engine, not in the Semgrep rules file or the analyzer image. A rule id with no entry has no explanation. Findings created by hand are not changed.
+
 **JavaScript is experimental:** only `javascript-syntax` (can the scanner read the file) and the npm lockfile scan exist; there are no JavaScript code rules.
 
 **Not implemented (deferred):** npm/pip dependency *installation* and test execution (needs a separate network-enabled step),
