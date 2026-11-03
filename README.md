@@ -4,7 +4,7 @@ Checks AI-generated code before you run or trust it. Executing untrusted code in
 code; it does **not** prove the code is safe, and a passing scan does not guarantee security.
 **Current release: 0.0.2** · [PyPI](https://pypi.org/project/saferun-cli/) · [GitHub Releases](https://github.com/vinay-repalle/saferun/releases) · [Website](https://safe-run.netlify.app) · [Security policy](https://github.com/vinay-repalle/saferun/blob/main/SECURITY.md)
 
-Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Not yet done: a detection-quality benchmark, JavaScript code rules (JavaScript support is experimental), and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
+Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.0.1` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Only a small, advisory benchmark exists (SafeRun's own simulated samples against Bandit and pip-audit, see [docs/benchmark.md](https://github.com/vinay-repalle/saferun/blob/main/docs/benchmark.md)); not yet done: an independent detection-quality evaluation, JavaScript code rules (JavaScript support is experimental), and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
 
 **Requirements:** Python 3.12 or newer and Docker (running Linux containers). Linux, Windows and macOS are supported; Linux is the fully tested platform.
 
@@ -111,6 +111,7 @@ Pages are switched by the URL hash, so no redirect rules are needed.
 - [docs/cli.md](https://github.com/vinay-repalle/saferun/blob/main/docs/cli.md) — CLI options, exit codes, output examples
 - [docs/engine.md](https://github.com/vinay-repalle/saferun/blob/main/docs/engine.md) — validation engine: checks, dependency coverage, statuses, verdict rules
 - [docs/install-and-test.md](https://github.com/vinay-repalle/saferun/blob/main/docs/install-and-test.md) — clean-environment install, validation, CI
+- [docs/benchmark.md](https://github.com/vinay-repalle/saferun/blob/main/docs/benchmark.md) — benchmark of the scan against Bandit and pip-audit (dev tool, advisory, small simulated sample set)
 - [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md) — Linux, Windows and macOS status and evidence
 - [docs/release-pypi.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-pypi.md) — maintainer procedure for PyPI releases
 - [docs/sandbox.md](https://github.com/vinay-repalle/saferun/blob/main/docs/sandbox.md) — sandbox library usage and guarantees

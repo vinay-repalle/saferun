@@ -38,6 +38,7 @@ saferun = "saferun.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruamel.yaml>=0.18", "build>=1.2", "twine>=5"]   # ruamel.yaml: validates the release workflow YAML in tests; build, twine: wheel/sdist build and metadata check
+bench = ["bandit==1.9.4", "pip-audit==2.10.1"]   # benchmark comparison tools (tools/benchmark); dev environment only, never installed with SafeRun itself
 # no "analysis" extra: Semgrep and OSV-Scanner run only inside the analyzer container (docker/analyzer/build.sh), never from the host environment
 
 # The wheel is the supported install (`pip install saferun-cli`): `saferun init` installs the signed analyzer image and needs nothing outside the package.

@@ -217,7 +217,7 @@ A phase starts only after the previous one's acceptance criteria are met and app
 3. **Packaging** — done: `[build-system]` exists, the version is 0.0.2 and it is published on PyPI as `saferun-cli`; CI installs the built wheel into a clean venv. The wheel still excludes `docker/` (so `init --build-local` needs a source checkout).
 4. **Project files**: LICENSE (MIT) and SECURITY.md exist; there is no CHANGELOG.
 5. **Docker-less tests** — done: the non-Docker subset (`-m "not docker"`) is a blocking CI job on all three platforms.
-6. **Detection quality**: rules are unmeasured (no false-positive/negative benchmark); JavaScript (experimental) has only `node --check` and an npm lockfile scan. Planned: STAGES.md.
+6. **Detection quality**: rules are measured only by a small advisory benchmark of simulated samples (docs/benchmark.md; no independent evaluation); JavaScript (experimental) has only `node --check` and an npm lockfile scan. Planned: STAGES.md.
 Future enhancements (not release blockers unless a later audit says so): gVisor/Kata backend, ARM64 analyzer.
 
 ## Image pinning (Phase 5A)

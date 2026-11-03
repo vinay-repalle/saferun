@@ -40,7 +40,7 @@ def test_ci_runs_on_pull_requests_and_pushes_to_main_and_feature_branches_only(c
 def test_ci_is_valid_yaml_with_the_expected_jobs():
     ruamel = pytest.importorskip("ruamel.yaml")
     doc = ruamel.YAML(typ="safe").load(CI.read_text())
-    assert set(doc["jobs"]) == {"python", "platforms", "web", "package", "audit", "docker"}
+    assert set(doc["jobs"]) == {"python", "platforms", "web", "package", "audit", "docker", "benchmark"}
     blocking = {k for k, v in doc["jobs"].items() if not v.get("continue-on-error")}
     assert blocking == {"python", "web", "package"}   # "platforms" sets continue-on-error per matrix leg (only Intel macOS is advisory)
     for job in doc["jobs"].values():
