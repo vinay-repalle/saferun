@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import os
 import tempfile
+from datetime import date
 from dataclasses import dataclass, replace
 from pathlib import Path
 
 from ..sandbox import SensitivePolicy, WorkspaceLimits
 from ..sandbox.workspace import create_workspace
-from . import node, osv, pysyntax, semgrep
+from . import accept as accept_mod, node, osv, pysyntax, semgrep
 from .context import CheckContext
 from .model import CheckResult, CheckStatus, Finding, Severity, ValidationReport, clean_text
 from .verdict import compute_verdict
@@ -28,6 +29,7 @@ class ValidationOptions:
     osv_db_max_age_days: float = 30.0  # older (but valid) OSV data makes the dependency check INCOMPLETE, never clean
     workspace_limits: WorkspaceLimits | None = None
     sensitive_policy: SensitivePolicy | None = None
+    accept: tuple = ()                 # accept.AcceptEntry items from --accept-file; only dependency findings can be accepted
 
 
 def _list_files(root: Path) -> list[str]:
@@ -94,7 +96,10 @@ def validate_project(project_dir, options: ValidationOptions | None = None, *, c
                      "copied_dirs": ws.copied_dirs, "copied_bytes": ws.copied_bytes,
                      "skipped": [{"path": clean_text(s.path, 300), "reason": s.reason} for s in ws.skipped],
                      "withheld": [{"path": clean_text(w.path, 300), "reason": clean_text(w.reason, 60)} for w in ws.withheld]}
+        accepted, accept_notes = accept_mod.apply(checks, opts.accept, date.today()) if opts.accept else ([], [])
         verdict, reasons, complete = compute_verdict(checks, "; ".join(partial))
-        return ValidationReport(verdict, reasons, complete, checks, workspace)
+        if accepted:
+            reasons.append(f"{len(accepted)} dependency finding(s) accepted via --accept-file: listed in the report, not counted here")
+        return ValidationReport(verdict, reasons, complete, checks, workspace, accepted=accepted, accept_notes=accept_notes)
     finally:
         ws.cleanup()

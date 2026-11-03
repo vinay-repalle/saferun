@@ -18,12 +18,13 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import re
 import sys
 import time
 from pathlib import Path
 
+from .engine import accept as accept_mod
 from .engine import osvdb
+from .engine.osv import fix_kind, version_key as _vkey
 from .engine import ValidationOptions, ValidationReport, Verdict, validate_project
 from .engine.model import CheckResult, clean_text
 from .sandbox import SandboxError
@@ -91,6 +92,9 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--osv-offline", action="store_true",
                    help="accepted for compatibility: the dependency scan is always offline (nothing is sent to OSV.dev); "
                         "it needs the data from `saferun osv-db update`")
+    v.add_argument("--accept-file", metavar="FILE",
+                   help="TOML file of accepted dependency risks ([[accept]] entries with id, reason, expires; optional package). Accepted findings are "
+                        "listed in the report but not counted in the verdict until they expire. Never read from the scanned project automatically")
     v.add_argument("--no-python-syntax", action="store_true", help="skip the sandboxed Python syntax check")
     v.add_argument("--no-python-analysis", action="store_true", help="skip Semgrep analysis of Python files")
     v.add_argument("--no-dependency-scan", action="store_true", help="skip the OSV dependency scan (no network use)")
@@ -176,16 +180,6 @@ def _location(f) -> str:
     return loc
 
 
-_HASH = re.compile(r"^[0-9a-f]{40}$", re.I)
-
-
-def _vkey(v: str):
-    """Sortable key for a release number ('1.26.17' -> (1, 26, 17)); None for commit hashes and anything non-numeric."""
-    if _HASH.match(v) or not re.match(r"^\d+(\.\d+)*", v):
-        return None
-    return tuple(int(n) for n in re.match(r"^\d+(?:\.\d+)*", v).group(0).split("."))
-
-
 def upgrade_plan(report: ValidationReport) -> list[dict]:
     """One row per vulnerable package: how many findings it has, the worst severity, and the lowest release that fixes
     every one of them (for each finding the nearest fixed release above the installed one; for the package the highest of
@@ -207,6 +201,8 @@ def upgrade_plan(report: ValidationReport) -> list[dict]:
             best = min(above)
             if row["_key"] is None or best[0] > row["_key"]:
                 row["_key"], row["upgrade_to"] = best
+    for r in rows.values():
+        r["kind"] = fix_kind(str(r["version"]), [r["upgrade_to"]]) if r["upgrade_to"] else ""
     return sorted(rows.values(), key=lambda r: (-r["severity"].rank, r["name"]))
 
 
@@ -214,11 +210,29 @@ def _plan_lines(plan: list[dict], paint=None) -> list[str]:
     """The upgrade-plan table as aligned lines (shared by the plain and the styled report)."""
     paint = paint or (lambda t, *a: t)
     head = ("PACKAGE", "INSTALLED", "UPGRADE TO", "FINDINGS", "WORST")
-    body = [(_s(r["name"]), _s(r["version"]), ("\u2265 " + _s(r["upgrade_to"])) if r["upgrade_to"] else "no fix listed",
+    body = [(_s(r["name"]), _s(r["version"]), (("\u2265 " + _s(r["upgrade_to"]) + (f" ({r['kind']})" if r["kind"] else "")) if r["upgrade_to"] else "no fix listed"),
              str(r["findings"]), r["severity"].value.upper()) for r in plan]
     w = [max(len(x[i]) for x in [head] + body) for i in range(5)]
     fmt = lambda row: "  " + "  ".join(c.ljust(w[i]) for i, c in enumerate(row)).rstrip()
     return [paint(fmt(head), "dim")] + [fmt(row) for row in body]
+
+
+def _kind_note(f) -> str:
+    return f"  (nearest fix: {f.fix_kind} upgrade)" if f.fix_kind else ""
+
+
+def _accepted_lines(report: ValidationReport) -> list[str]:
+    """Accepted dependency risks and notes about the accept file, shown in both report styles (empty without --accept-file)."""
+    out = []
+    if report.accepted:
+        out += [f"Accepted risks ({len(report.accepted)}): not counted in the verdict"]
+        for a in sorted(report.accepted, key=lambda a: (-a.finding.severity.rank, a.finding.rule_id)):
+            f = a.finding
+            pk = f"{_s(f.package.name)} {_s(f.package.version)}" if f.package else "-"
+            out.append(f"  [{f.severity.value.upper()}] {_s(f.rule_id)}  {pk}")
+            out.append(f"      accepted until {a.entry.expires.isoformat()}: {_s(a.entry.reason)}")
+    out += [f"  note: {_s(n)}" for n in report.accept_notes]
+    return out
 
 
 def render_text(report: ValidationReport, path: str) -> str:
@@ -241,7 +255,10 @@ def render_text(report: ValidationReport, path: str) -> str:
         if f.package:
             out.append(f"      package: {_s(f.package.name)} {_s(f.package.version)} ({_s(f.package.ecosystem)})")
         if f.fixed_versions:
-            out.append(f"      fixed in: {', '.join(_s(v) for v in f.fixed_versions)}")
+            out.append(f"      fixed in: {', '.join(_s(v) for v in f.fixed_versions)}{_kind_note(f)}")
+    acc = _accepted_lines(report)
+    if acc:
+        out += [""] + acc
     gaps = _gaps(report)
     if gaps:
         out += ["", "Coverage gaps and operational problems:"] + [f"  - {g}" for g in gaps]
@@ -340,7 +357,10 @@ def render_styled(report: ValidationReport, path: str, th: "ui.Theme", elapsed: 
         if f.package:
             out.append(f"      package: {_s(f.package.name)} {_s(f.package.version)} ({_s(f.package.ecosystem)})")
         if f.fixed_versions:
-            out.append("      " + p(f"fixed in: {', '.join(_s(v) for v in f.fixed_versions)}", "green"))
+            out.append("      " + p(f"fixed in: {', '.join(_s(v) for v in f.fixed_versions)}{_kind_note(f)}", "green"))
+    acc = _accepted_lines(report)
+    if acc:
+        out += ["", p(acc[0], "bold", "cyan") if report.accepted else p("Accept file", "bold", "cyan")] + (acc[1:] if report.accepted else acc)
     gaps = _gaps(report)
     if gaps:
         out += ["", p("Coverage gaps and operational problems", "bold", "yellow")] + [f"  {th.icons['warn']} {g}" if not g.startswith("    ") else g for g in gaps]
@@ -580,7 +600,17 @@ def main(argv: list[str] | None = None) -> int:
         return _fail(f"path does not exist: {args.path}", EXIT_USAGE)
     if not project.is_dir():
         return _fail(f"not a directory: {args.path}", EXIT_USAGE)
+    entries = ()
+    if args.accept_file:
+        try:
+            entries = accept_mod.load(args.accept_file)
+        except accept_mod.AcceptFileError as e:
+            return _fail(f"--accept-file: {e}", EXIT_USAGE)
+    elif (project / ".saferun-accept.toml").is_file():
+        print("note: .saferun-accept.toml found in the project but ignored: a scanned project is untrusted. "
+              "Keep the file outside it and pass --accept-file PATH", file=sys.stderr)
     options = ValidationOptions(
+        accept=entries,
         python_analysis=not args.no_python_analysis, python_syntax=not args.no_python_syntax,
         dependency_scan=not args.no_dependency_scan, javascript_check=not args.no_javascript_check,
         tool_timeout_s=args.timeout, osv_offline=True)   # always offline; --osv-offline is a no-op

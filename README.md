@@ -63,6 +63,7 @@ What `saferun init` does, in order, and what it never does:
 saferun scan ./my-project                 # human-readable report; nothing is executed
 saferun scan ./my-project --format json   # machine-readable report (schema_version 1)
 saferun run my_script.py -- arg1 arg2     # scan first, then run inside the sandbox only if allowed
+saferun scan ./my-project --accept-file ~/accepts.toml   # dependency findings you have reviewed and accepted until a date (reason required; see docs/cli.md)
 saferun check-names --project ./my-project   # separate, offline: dependency names that look like typos of popular PyPI packages
 ```
 Exit codes of `scan`: **0** PASS · **1** FAIL · **2** WARNING (including any incomplete scan) · **64** invalid usage/path · **70** fatal · **130** interrupted.

@@ -91,9 +91,10 @@ class Finding:
     vulnerability_ids: tuple[str, ...] = ()   # primary id first, then aliases (CVE-..., GHSA-...)
     fixed_versions: tuple[str, ...] = ()
     cwe: tuple[str, ...] = ()
+    fix_kind: str = ""              # dependency findings: "patch" | "minor" | "major" for the nearest fixed release; "" = unknown
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "check": self.check, "rule_id": self.rule_id, "severity": self.severity.value,
             "message": self.message, "category": self.category, "path": self.path,
             "line": self.line, "end_line": self.end_line,
@@ -101,6 +102,9 @@ class Finding:
             "vulnerability_ids": list(self.vulnerability_ids),
             "fixed_versions": list(self.fixed_versions), "cwe": list(self.cwe),
         }
+        if self.fix_kind:       # added in a backward-compatible way: absent when unknown
+            d["fix_kind"] = self.fix_kind
+        return d
 
 
 @dataclass
@@ -133,14 +137,20 @@ class ValidationReport:
     checks: list[CheckResult]
     workspace: dict = field(default_factory=dict)   # copy accounting (entries, skipped, withheld)
     schema_version: int = SCHEMA_VERSION
+    accepted: list = field(default_factory=list)       # AcceptedFinding items moved out of the verdict (see accept.py)
+    accept_notes: list[str] = field(default_factory=list)   # expired / unused accept entries
 
     @property
     def findings(self) -> list[Finding]:
         return [f for c in self.checks for f in c.findings]
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "schema_version": self.schema_version, "verdict": self.verdict.value, "reasons": list(self.reasons),
             "complete": self.complete, "workspace": dict(self.workspace),
             "checks": [c.to_dict() for c in self.checks],
         }
+        if self.accepted or self.accept_notes:      # only when an accept file was used: reports without one are unchanged
+            d["accepted"] = [a.to_dict() for a in self.accepted]
+            d["accept_notes"] = list(self.accept_notes)
+        return d

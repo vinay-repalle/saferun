@@ -101,6 +101,33 @@ def _severity(vuln: dict, score_by_id: dict[str, str]) -> Severity:
             "MEDIUM": Severity.MEDIUM, "LOW": Severity.LOW}.get(label, Severity.UNKNOWN)
 
 
+_HASH = re.compile(r"^[0-9a-f]{40}$", re.I)
+
+
+def version_key(v: str):
+    """Sortable key for a release number ('1.26.17' -> (1, 26, 17)); None for commit hashes and anything non-numeric."""
+    m = re.match(r"^\d+(?:\.\d+)*", v)
+    if _HASH.match(v) or not m:
+        return None
+    return tuple(int(n) for n in m.group(0).split("."))
+
+
+def fix_kind(installed: str, fixed: tuple[str, ...] | list[str]) -> str:
+    """How big the jump to the nearest fixed release above `installed` is, judged by the numbers only: "major" (first number
+    changes), "minor" (second) or "patch" (anything later). "" when the installed version or every fixed version is not a plain
+    release number, or no fixed release is above the installed one. It says nothing about whether the upgrade is safe."""
+    cur = version_key(installed)
+    keys = [k for v in fixed if (k := version_key(v)) is not None]
+    if cur is None or not keys:
+        return ""
+    above = [k for k in keys if k > cur]
+    if not above:
+        return ""
+    pad = lambda k: (k + (0, 0, 0))[:3]  # noqa: E731
+    a, b = pad(cur), pad(min(above))
+    return "major" if a[0] != b[0] else "minor" if a[1] != b[1] else "patch"
+
+
 def _fixed(vuln: dict, name: str) -> tuple[str, ...]:
     out: list[str] = []
     for a in vuln.get("affected") or []:
@@ -148,11 +175,12 @@ def parse_output(text: str, root: Path) -> list[Finding]:
                     continue
                 seen.update(ids)
                 summary = v.get("summary") or v.get("details") or ""
+                fixed = _fixed(v, ref.name)
                 findings.append(Finding(
                     check=NAME, rule_id=clean_text(v["id"], 100), severity=_severity(v, score_by_id),
                     message=clean_text(f"{ref.name} {ref.version}: {summary}".strip()), category="dependency",
                     path=path, package=ref, vulnerability_ids=tuple(clean_text(i, 100) for i in ids),
-                    fixed_versions=_fixed(v, ref.name),
+                    fixed_versions=fixed, fix_kind=fix_kind(ref.version, fixed),
                 ))
     return findings
 

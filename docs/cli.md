@@ -59,7 +59,28 @@ saferun --help
 `saferun scan PATH` is a thin front end over `validate_project`: same sanitized copy, same sandbox, same checks and verdict
 rules; the CLI adds no validation logic, runs no project code and installs no dependencies. Options: `--format text|json`,
 `--timeout SECONDS` (per tool/sandbox run, default 120, max 3600), `--osv-offline` (no-op: always offline), `--no-python-syntax`, `--no-python-analysis`,
-`--no-dependency-scan`, `--no-javascript-check`. A disabled check is reported as `skipped`, which makes the verdict at best WARNING.
+`--no-dependency-scan`, `--no-javascript-check`, `--accept-file FILE`. A disabled check is reported as `skipped`, which makes the verdict at best WARNING.
+
+### Dependency findings: what to upgrade to, and accepting a risk
+Each dependency finding shows the fixed version(s) from the OSV data, its severity and a one-line description. New: next to the fix, a label says how big the jump is *by the version numbers only*: **patch** (`4.17.15` to `4.17.21`), **minor** (`1.2.3` to `1.3.0`) or **major** (`1.2.3` to `2.0.0`). It is computed for the nearest fixed release above the installed version, the **Upgrade plan** table shows it for the release that fixes every finding of a package, and `--format json` adds `fix_kind` to the finding (absent when unknown: no fixed version, or a version that is not a plain release number such as a commit hash). The label is a hint, not a promise: a patch can still break things and a `0.x` minor bump is often breaking, so read the changelog. Only data OSV already provides is used; nothing is looked up online.
+
+**Accepting a risk** (`--accept-file FILE`, suggested name `.saferun-accept.toml`). When a vulnerability does not matter for your use, record why instead of ignoring the whole scan:
+```toml
+[[accept]]
+id = "GHSA-35jh-r3h4-6jhm"      # the vulnerability id or any alias, e.g. CVE-2021-23337
+package = "lodash"              # optional: only this package (names compare case-insensitively, "-", "_" and "." alike)
+reason = "only used by a build script that never sees user input"
+expires = 2026-12-31            # required: the last day the acceptance holds
+```
+```bash
+saferun scan ./my-project --accept-file ~/saferun-accepts.toml
+```
+- **The file is never read from the scanned project.** A project is untrusted; a `.saferun-accept.toml` shipped inside it could hide its own vulnerable dependencies, so it is ignored (stderr says so) unless you pass it with `--accept-file` from a location you control.
+- `id`, `reason` and `expires` are required; unknown keys, a missing or non-date `expires`, an unreadable or invalid file are a usage error (exit 64) and **nothing is scanned**, so a broken file never turns into "accept everything".
+- Only dependency findings can be accepted (code, syntax and workspace findings never).
+- An accepted finding is **not counted in the verdict** (the scan can become PASS) but is listed under **Accepted risks** with its reason and expiry, the verdict reasons say how many were accepted, and the JSON report gets `accepted` (finding, `accepted_id`, `reason`, `expires`) and `accept_notes`. Reports of scans without an accept file are unchanged.
+- **After the `expires` date the entry stops applying**: the finding counts again and a note says it expired. A note also lists entries that matched nothing in this scan (they can be removed). Only dependency findings the scan actually reported can be accepted; if the report was capped (`further finding(s) not listed`) the hidden ones still count.
+- `saferun run` does not take an accept file.
 
 `python-syntax` and `javascript-syntax` answer one question: *can the scanner read this file?* They parse each file (`compile()` / `node --check`) and run none of it; a file that fails to parse is reported because the other checks cannot analyse it. JavaScript support is **experimental**: besides this syntax step there is only the npm lockfile scan, and no JavaScript code rules.
 
