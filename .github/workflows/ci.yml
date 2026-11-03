@@ -149,6 +149,7 @@ jobs:
           set -eu
           wheel=$(ls dist/*.whl)
           python -m zipfile -l "$wheel" | grep -q 'saferun/engine/rules/python.yml'
+          python -m zipfile -l "$wheel" | grep -q 'saferun/engine/rules/gitleaks.toml'
           python -m zipfile -l "$wheel" | grep -q 'saferun/cli.py'
           python -m zipfile -l "$wheel" | grep -q 'saferun/doctor.py'
           for bad in 'docker/' 'tests/' 'web/' 'node_modules' '\.venv'; do

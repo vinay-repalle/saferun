@@ -99,6 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--no-python-analysis", action="store_true", help="skip Semgrep analysis of Python files")
     v.add_argument("--no-dependency-scan", action="store_true", help="skip the OSV dependency scan (no network use)")
     v.add_argument("--no-javascript-check", action="store_true", help="skip the sandboxed `node --check`")
+    v.add_argument("--no-secrets-check", action="store_true", help="skip the gitleaks scan for hardcoded secrets (a skipped check keeps the verdict at WARNING at best)")
     w = sub.add_parser("verify-images", help="check that local Docker images match the pinned digests", description=(
         "Check that the container images SafeRun runs are present locally with the digests pinned in the code. "
         "Read-only: nothing is pulled or changed. Exit 0 when every image is verified, 1 when one is missing or "
@@ -134,7 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
     cn.add_argument("--format", choices=("text", "json"), default="text", help="output format (default: text)")
     ini = sub.add_parser("init", help="first-run setup: install and verify what the checks need", description=(
         "Interactive (or scripted) setup. Detects what is already installed and verified, skips it, and installs/repairs/updates the rest: "
-        "the Python and Node.js sandbox images (pulled by pinned digest), the analyzer image (Semgrep, OSV-Scanner, rules) and the local OSV "
+        "the Python and Node.js sandbox images (pulled by pinned digest), the analyzer image (Semgrep, OSV-Scanner, gitleaks, rules) and the local OSV "
         "vulnerability data. Nothing is trusted because a tag or directory exists; everything is verified after installation."), parents=[common])
     ini.add_argument("--all", action="store_true", help="install/verify every component, without prompts")
     ini.add_argument("--only", metavar="COMPONENT[,COMPONENT]", help=f"only these components ({', '.join(setup_mod.KEYS)}), without prompts")
@@ -292,6 +293,8 @@ def _next_steps(report: ValidationReport) -> list[str]:
         steps.append("Review or fix the flagged lines, then scan again.")
     if "syntax" in cats:
         steps.append("Fix the syntax errors, then scan again.")
+    if "secret" in cats:
+        steps.append("Remove the hardcoded secrets, rotate any that were real (they may already be exposed), and read them from the environment instead.")
     if "workspace" in cats:
         steps.append("Remove or rotate the credential-like files that were found.")
     if _gaps(report):
@@ -612,11 +615,11 @@ def main(argv: list[str] | None = None) -> int:
     options = ValidationOptions(
         accept=entries,
         python_analysis=not args.no_python_analysis, python_syntax=not args.no_python_syntax,
-        dependency_scan=not args.no_dependency_scan, javascript_check=not args.no_javascript_check,
+        dependency_scan=not args.no_dependency_scan, javascript_check=not args.no_javascript_check, secrets_check=not args.no_secrets_check,
         tool_timeout_s=args.timeout, osv_offline=True)   # always offline; --osv-offline is a no-op
     t0 = time.monotonic()
     try:
-        with ui.Spinner(sys.stderr, "Scanning: syntax, static analysis, dependencies (each in a locked-down container)", ui.theme_for(sys.stderr, args.color)):
+        with ui.Spinner(sys.stderr, "Scanning: syntax, static analysis, secrets, dependencies (each in a locked-down container)", ui.theme_for(sys.stderr, args.color)):
             report = validate_project(project, options)
     except KeyboardInterrupt:
         return _fail("interrupted", EXIT_INTERRUPTED)

@@ -83,6 +83,9 @@ ANALYZER_RELEASE: AnalyzerRelease | None = AnalyzerRelease(
 SEMGREP_VERSION = "1.182.1"
 OSV_SCANNER_VERSION = "2.7.0"
 OSV_SCANNER_LINUX_AMD64_SHA256 = "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
+GITLEAKS_VERSION = "8.30.1"
+# SHA-256 of the release ARCHIVE gitleaks_<version>_linux_x64.tar.gz (equal to its line in the release's gitleaks_<version>_checksums.txt)
+GITLEAKS_LINUX_AMD64_TARBALL_SHA256 = "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
 
 
 def digest_of(reference: str) -> str | None:

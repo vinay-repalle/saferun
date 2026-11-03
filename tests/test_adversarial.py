@@ -390,7 +390,7 @@ class TestCliCompatibility:
         assert set(rep) == self.TOP and rep["schema_version"] == 1 and rep["verdict"] == "PASS" and rep["complete"] is True
         assert set(rep["workspace"]) == self.WS and all(set(c) == self.CHECK for c in rep["checks"])
         assert [c["name"] for c in rep["checks"]] == ["workspace-sensitive-files", "python-syntax", "python-static-analysis",
-                                                       "dependency-vulnerabilities", "javascript-syntax"]
+                                                       "dependency-vulnerabilities", "javascript-syntax", "hardcoded-secrets"]
         tools = {c["name"]: c["tool"] for c in rep["checks"]}
         assert tools["python-syntax"] == "compile() (python:3.12-slim, sandboxed)" and tools["python-static-analysis"] == "semgrep"
 

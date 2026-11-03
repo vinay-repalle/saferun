@@ -45,6 +45,8 @@ def routed(semgrep_out=None, osv_out=None, osv_code=0):
     def run(argv, **kw):
         if argv[0].endswith("semgrep"):
             return semgrep_out or tool_run(sg_json(scanned=PY_SCANNED))
+        if argv[0].endswith("gitleaks"):
+            return tool_run("[]")
         return osv_out or tool_run(json.dumps({"results": []}), exit_code=osv_code)
     return run
 
@@ -126,7 +128,8 @@ def test_skipped_symlink_makes_scan_partial(tmp_path, ws_root, tools_present):
 
 def test_disabled_checks_are_skipped_not_clean(tmp_path, ws_root, tools_present):
     p = project(tmp_path, {"app.py": "x=1\n"})
-    rep = validate_project(p, ValidationOptions(python_analysis=False, python_syntax=False, dependency_scan=False, javascript_check=False))
+    rep = validate_project(p, ValidationOptions(python_analysis=False, python_syntax=False, dependency_scan=False, javascript_check=False,
+                                                   secrets_check=False))
     assert {c.status for c in rep.checks if c.analysis} == {CheckStatus.SKIPPED} and rep.verdict is Verdict.WARNING
 
 

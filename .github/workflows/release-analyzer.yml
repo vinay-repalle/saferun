@@ -57,10 +57,11 @@ jobs:
           set -eu
           ctx="$RUNNER_TEMP/analyzer-ctx"
           mkdir "$ctx"
-          cp docker/analyzer/Dockerfile docker/analyzer/fetch_verified.py docker/analyzer/semgrep-requirements.txt docker/analyzer/THIRD_PARTY_NOTICES.md LICENSE saferun/engine/rules/python.yml "$ctx/"
+          cp docker/analyzer/Dockerfile docker/analyzer/fetch_verified.py docker/analyzer/semgrep-requirements.txt docker/analyzer/THIRD_PARTY_NOTICES.md LICENSE saferun/engine/rules/python.yml saferun/engine/rules/gitleaks.toml "$ctx/"
           cp -r docker/analyzer/licenses "$ctx/licenses"
           echo "path=$ctx" >> "$GITHUB_OUTPUT"
           echo "rules_sha=$(sha256sum "$ctx/python.yml" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "secrets_rules_sha=$(sha256sum "$ctx/gitleaks.toml" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2  # v3.10.0
 
@@ -74,7 +75,9 @@ jobs:
           push: false
           provenance: false
           sbom: false
-          build-args: RULES_SHA256=${{ steps.ctx.outputs.rules_sha }}
+          build-args: |
+            RULES_SHA256=${{ steps.ctx.outputs.rules_sha }}
+            SECRETS_RULES_SHA256=${{ steps.ctx.outputs.secrets_rules_sha }}
           tags: ${{ env.IMAGE }}:${{ github.ref_name }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
@@ -84,16 +87,18 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
           RULES_SHA: ${{ steps.ctx.outputs.rules_sha }}
+          SECRETS_RULES_SHA: ${{ steps.ctx.outputs.secrets_rules_sha }}
         run: |
           set -eu
           img="$IMAGE:$TAG"
-          pins=$(python3 -c 'import sys; sys.path.insert(0,"."); from saferun.sandbox import images as i; print(i.SEMGREP_VERSION, i.OSV_SCANNER_VERSION)')
-          semgrep_v=${pins%% *}
-          osv_v=${pins##* }
+          pins=$(python3 -c 'import sys; sys.path.insert(0,"."); from saferun.sandbox import images as i; print(i.SEMGREP_VERSION, i.OSV_SCANNER_VERSION, i.GITLEAKS_VERSION)')
+          semgrep_v=$(echo "$pins" | cut -d' ' -f1)
+          osv_v=$(echo "$pins" | cut -d' ' -f2)
+          gitleaks_v=$(echo "$pins" | cut -d' ' -f3)
           # Same restrictions SafeRun applies when it runs the analyzer: no network, read-only root, no capabilities, non-root.
           run() { docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --user 65534:65534 \
                     --memory 1g --pids-limit 256 --tmpfs /tmp:rw,noexec,nosuid,size=64m -e HOME=/tmp "$@"; }
-          for pair in "saferun.analyzer=1" "saferun.semgrep.version=$semgrep_v" "saferun.osv-scanner.version=$osv_v" "saferun.rules.sha256=$RULES_SHA"; do
+          for pair in "saferun.analyzer=1" "saferun.semgrep.version=$semgrep_v" "saferun.osv-scanner.version=$osv_v" "saferun.rules.sha256=$RULES_SHA" "saferun.gitleaks.version=$gitleaks_v" "saferun.secrets-rules.sha256=$SECRETS_RULES_SHA"; do
             key=${pair%%=*}; want=${pair#*=}
             got=$(docker image inspect --format "{{index .Config.Labels \"$key\"}}" "$img")
             [ "$got" = "$want" ] || { echo "label $key is '$got', expected '$want'" >&2; exit 1; }
@@ -101,9 +106,11 @@ jobs:
           [ "$(docker image inspect --format '{{.Config.User}}' "$img")" = "65534:65534" ] || { echo "the image does not default to the unprivileged user" >&2; exit 1; }
           [ "$(run "$img" semgrep --version)" = "$semgrep_v" ] || { echo "semgrep version mismatch" >&2; exit 1; }
           run "$img" osv-scanner --version | grep -q "osv-scanner version: $osv_v" || { echo "osv-scanner version mismatch" >&2; exit 1; }
+          [ "$(run "$img" gitleaks version)" = "$gitleaks_v" ] || { echo "gitleaks version mismatch" >&2; exit 1; }
           [ "$(run "$img" sha256sum /opt/saferun/rules/python.yml | cut -d' ' -f1)" = "$RULES_SHA" ] || { echo "baked rules differ from the repository rules" >&2; exit 1; }
+          [ "$(run "$img" sha256sum /opt/saferun/rules/gitleaks.toml | cut -d' ' -f1)" = "$SECRETS_RULES_SHA" ] || { echo "baked gitleaks config differs from the repository" >&2; exit 1; }
           # The third-party notices and license texts must be in the image.
-          for f in LICENSE THIRD_PARTY_NOTICES.md licenses/semgrep-LICENSE licenses/osv-scanner-v2.7.0-LICENSE licenses/osv-scanner-v2.7.0-go-modules.md licenses/osv-scanner-v2.7.0-go-module-licenses.txt; do
+          for f in LICENSE THIRD_PARTY_NOTICES.md licenses/semgrep-LICENSE licenses/osv-scanner-v2.7.0-LICENSE licenses/osv-scanner-v2.7.0-go-modules.md licenses/osv-scanner-v2.7.0-go-module-licenses.txt licenses/gitleaks-v8.30.1-LICENSE licenses/gitleaks-v8.30.1-go-modules.md licenses/gitleaks-v8.30.1-go-module-licenses.txt; do
             run "$img" test -s "/usr/share/doc/saferun-analyzer/$f" || { echo "missing in image: $f" >&2; exit 1; }
           done
           # The container must have no network.
@@ -116,6 +123,10 @@ jobs:
           run -v "$proj:/work:ro" "$img" semgrep scan --json --quiet --metrics=off --disable-version-check --no-git-ignore \
               --config /opt/saferun/rules/python.yml /work > "$RUNNER_TEMP/semgrep.json"
           python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert "/work/sample.py" in d["paths"]["scanned"], d["paths"]' "$RUNNER_TEMP/semgrep.json"
+          # gitleaks with the baked config on a clean project: valid JSON, an empty list, exit 0 (a real detection is covered by the repository's Docker tests).
+          run -v "$proj:/work:ro" "$img" gitleaks dir /work --config /opt/saferun/rules/gitleaks.toml --ignore-gitleaks-allow --redact \
+              --report-format json --report-path - --exit-code 0 --log-level error --no-banner --no-color > "$RUNNER_TEMP/gitleaks.json"
+          python3 -c 'import json,sys; assert json.load(open(sys.argv[1])) == []' "$RUNNER_TEMP/gitleaks.json"
           echo "smoke test passed for $img"
 
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772  # v3.4.0

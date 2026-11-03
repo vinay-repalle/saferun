@@ -28,14 +28,14 @@ untrusted). A future backend interface is **not** introduced in Phase 1 (see *Op
 
 ## Validation engine (Phase 2, `saferun/engine/`)
 `model.py` (Finding, CheckResult, CheckStatus, Severity, ValidationReport) · `verdict.py` (rules) · `tools.py` (controlled subprocess runner) ·
-`semgrep.py`, `osv.py`, `pysyntax.py`, `node.py` (one module per check, each `run_check(ctx) -> CheckResult`) · `engine.py` (`validate_project`) ·
-`context.py` (injectable runners for tests) · `paths.py` (untrusted-path normalisation) · `rules/python.yml` (bundled Semgrep rules).
+`semgrep.py`, `osv.py`, `secretscan.py`, `pysyntax.py`, `node.py` (one module per check, each `run_check(ctx) -> CheckResult`) · `engine.py` (`validate_project`) ·
+`context.py` (injectable runners for tests) · `paths.py` (untrusted-path normalisation) · `rules/python.yml` (bundled Semgrep rules) · `rules/gitleaks.toml` (bundled gitleaks configuration).
 
 Flow: `create_workspace` (Phase 1 sanitized copy) → list files → run enabled checks (each guarded: an exception becomes an `error` result) →
 `compute_verdict` → delete the copy. The sandbox API is unchanged; the engine only *uses* `create_workspace`, `run_sandboxed` and the docker helpers.
 
 **Where each tool runs, and why (since Phase 5B).** Everything that parses untrusted files runs **inside a container**: the two syntax checks (`node --check`, Python `compile()`) in the
-`python`/`node` images, and Semgrep and OSV-Scanner in the **analyzer image** (`saferun-analyzer:local`, built by `docker/analyzer/build.sh`). All of them go through the same
+`python`/`node` images, and Semgrep, OSV-Scanner and gitleaks (secrets) in the **analyzer image** (`saferun-analyzer:local`, built by `docker/analyzer/build.sh`). All of them go through the same
 `run_sandboxed` path with the same verified restrictions (no network, read-only root and project, non-root, all capabilities dropped, seccomp/no-new-privileges, memory/swap/CPU/pids/fd/file-size
 limits, container-side kill deadline). Only OSV-Scanner gets one extra mount: the offline OSV data directory, read-only (the applied mount set is verified exactly, so an unexpected or writable
 mount stops the run). Semgrep runs with the rule file baked into the image (a scanned project cannot supply rules) and `--disable-nosem`. The host never executes Semgrep or OSV-Scanner and the
@@ -48,7 +48,7 @@ status `incomplete`/`skipped`, never clean. `requirements.txt` entries not pinne
 **Findings vs operational errors.** A finding is a signal in the project. `error`/`timeout`/`unavailable`/`skipped`/`incomplete` describe the analysis, carry no
 findings (except `incomplete`, which keeps partial results) and force at least `WARNING`. Severity mapping: Semgrep → rule's `saferun_severity` else
 ERROR/WARNING/INFO → high/medium/low; OSV → CVSS score of the vulnerability group (≥9 critical, ≥7 high, ≥4 medium, >0 low) else the database's label,
-else `unknown` (treated as medium); a JavaScript syntax error → medium (a broken file is a validation problem, not a demonstrated vulnerability); a withheld
+else `unknown` (treated as medium); a JavaScript syntax error → medium (a broken file is a validation problem, not a demonstrated vulnerability); a gitleaks secret finding → high (always; the value is never kept); a withheld
 private key/token → high, a withheld private-mode file → low. Verdict rules: [docs/engine.md](docs/engine.md) / `verdict.py`. All tool-derived strings are stripped of control and
 bidi characters and length-bounded; tool-reported paths are accepted only if they are relative paths inside the copy.
 
@@ -261,6 +261,13 @@ kernels/Docker versions/rootless Docker/user-namespace remapping, other CPU arch
 - Fixed in 5C: text output could be given extra, forged finding lines by a file name containing a newline / U+2028 (every printed field is now one line; JSON output was never affected).
 - (Dashboard, removed later: it had no authentication.) One scan at a time; resource limits for the analyzer (1.5 GiB, 2 CPUs, 256 pids) are fixed defaults. A second sandbox backend is deferred (the container boundary is Docker-only).
 - Phase 5D (implemented; see IMPLEMENTATION.md *Phase 5D*): cancel on server stop, instance lock + orphan-worker kill + full sweep after a SIGKILLed server, `507` for disk-full uploads, bounded health probe, reaper/sandbox client behaviour with a hung daemon. Still untested for real: a truly hung `dockerd`, a real full filesystem, a real second OS user (simulated by changing the uid SafeRun sees).
+
+## Secrets scan (`hardcoded-secrets`, Stage 11)
+**What it is.** A separate check, `saferun/engine/secretscan.py`, running **gitleaks 8.30.1** (`gitleaks dir`, MIT; chosen over detect-secrets, trufflehog and custom Semgrep rules: single checksummed binary like OSV-Scanner, vendor-specific rules, no online verification, built-in redaction; trufflehog was rejected because it verifies secrets online by default and is AGPL-3.0) in the verified analyzer container (no network, read-only project, same limits as the other analyzer checks, no host fallback). The binary is pinned by the SHA-256 of its release archive; the baked configuration `saferun/engine/rules/gitleaks.toml` and the tool version are image labels compared with this checkout before every use, so an analyzer image built before this change fails verification (one `saferun init` brings the user to a current image).
+**Handling untrusted input.** The project cannot influence the tool: `--config` points only at the baked file, `--ignore-gitleaks-allow` is set, `.gitleaksignore` files are deleted from the private copy, the environment is not forwarded. Output is parsed strictly (a JSON list of objects with a rule id; anything else is `error`), capped (100 000 entries read, 1 000 findings kept), de-duplicated, and every string passes `clean_text`; paths must be relative paths inside the copy.
+**Secrets never leave the container as values.** gitleaks runs with `--redact`, and the parser takes only `RuleID`, `File`, `StartLine`, `EndLine`; `Secret`, `Match`, `Fingerprint` and all other fields are discarded, the message is a fixed text, and stderr of a failed run is not echoed. Tests feed a tool output that contains a sentinel value in `Secret`/`Match`/stderr and assert it appears nowhere (finding, JSON report, text report, CLI output).
+**Verdict.** Every finding is HIGH (so FAIL); no verdict-rule change was needed. `--no-secrets-check` gives `skipped` (at best WARNING); a missing image is `unavailable`; mismatching labels are `error`; files over 1 MB are `incomplete`.
+**Honest limits.** Known vendor token formats only; the generic entropy rule is disabled (high false-positive rate), so plain passwords and unrecognised tokens are missed; example keys in docs or tests can be flagged; nothing is verified as live; binary files and git history are not scanned; vendored folders are skipped like in the Semgrep check. Files matching SafeRun's own credential signatures are withheld at copy time (`workspace-sensitive-files`) and never reach gitleaks. For existing users the check reports `error` until they install an analyzer image that contains gitleaks, which keeps their scans at WARNING; `saferun run` is affected the same way.
 
 ## Package-name check (`saferun check-names`)
 A separate command (`saferun/pkgnames.py`); `scan` and `run` do not call it. It reads declared Python dependency names (`requirements*.txt`, `pyproject.toml` directly in the given directory, plus names on the command line), normalises them (PEP 503) and compares them with `saferun/data/top_pypi.txt`, a snapshot of the 10 000 most downloaded PyPI names (source: hugovk's top-pypi-packages dataset, date in the file header; regenerated with `tools/update_top_pypi.py`). A name outside the snapshot but within 1 edit (2 when both have 8+ characters) of a snapshot name is "similar". Offline by default. `--online` (explicit opt-in) asks `https://pypi.org/simple/<name>/` whether a name outside the snapshot exists and when it was first uploaded; only the name is sent. Failures are "could not check", exit 2, never a pass.

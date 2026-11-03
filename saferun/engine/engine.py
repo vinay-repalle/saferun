@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ..sandbox import SensitivePolicy, WorkspaceLimits
 from ..sandbox.workspace import create_workspace
-from . import accept as accept_mod, node, osv, pysyntax, semgrep
+from . import accept as accept_mod, node, osv, pysyntax, secretscan, semgrep
 from .context import CheckContext
 from .model import CheckResult, CheckStatus, Finding, Severity, ValidationReport, clean_text
 from .verdict import compute_verdict
@@ -23,6 +23,7 @@ class ValidationOptions:
     python_syntax: bool = True         # compile() in the sandbox
     dependency_scan: bool = True
     javascript_check: bool = True
+    secrets_check: bool = True         # gitleaks in the analyzer container: hardcoded secrets (values are never reported)
     tool_timeout_s: float = 120.0      # per external tool / sandbox run
     osv_offline: bool = True           # kept for compatibility: OSV-Scanner always runs offline (no network) since Phase 5B
     osv_db_dir: Path | None = None     # offline OSV database directory (default: saferun.engine.osvdb.default_dir())
@@ -82,7 +83,8 @@ def validate_project(project_dir, options: ValidationOptions | None = None, *, c
         for enabled, name, mod in ((opts.python_syntax, pysyntax.NAME, pysyntax),
                                    (opts.python_analysis, semgrep.NAME, semgrep),
                                    (opts.dependency_scan, osv.NAME, osv),
-                                   (opts.javascript_check, node.NAME, node)):
+                                   (opts.javascript_check, node.NAME, node),
+                                   (opts.secrets_check, secretscan.NAME, secretscan)):
             if enabled:
                 checks.append(_guarded(name, mod.run_check, ctx))
             else:

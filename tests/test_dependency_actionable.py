@@ -162,7 +162,8 @@ def lodash_project(tmp_path, ws_root, monkeypatch, low_osv_floor):
 
 
 def scan(p, ents):
-    return validate_project(p, ValidationOptions(accept=ents), ctx_overrides=overrides(lambda argv, **kw: tool_run(OSV_JSON, exit_code=1)))
+    return validate_project(p, ValidationOptions(accept=ents), ctx_overrides=overrides(
+        lambda argv, **kw: tool_run("[]") if argv[0].endswith("gitleaks") else tool_run(OSV_JSON, exit_code=1)))
 
 
 LODASH = '[[accept]]\nid = "CVE-2021-23337"\npackage = "lodash"\nreason = "dev tooling only"\nexpires = 2999-01-01\n'

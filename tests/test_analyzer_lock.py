@@ -16,7 +16,8 @@ ID = "sha256:" + "c" * 64
 
 def good_inspect():
     labels = {"saferun.analyzer": "1", "saferun.semgrep.version": images.SEMGREP_VERSION,
-              "saferun.osv-scanner.version": images.OSV_SCANNER_VERSION, "saferun.rules.sha256": sa.rules_sha256()}
+              "saferun.osv-scanner.version": images.OSV_SCANNER_VERSION, "saferun.rules.sha256": sa.rules_sha256(),
+              "saferun.gitleaks.version": images.GITLEAKS_VERSION, "saferun.secrets-rules.sha256": sa.secrets_rules_sha256()}
     return json.dumps({"Id": ID, "Config": {"Labels": labels}})
 
 

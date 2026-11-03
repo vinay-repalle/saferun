@@ -101,8 +101,8 @@ def world(monkeypatch):
 # ============================================================ the component list is derived from the code
 def test_components_cover_every_pinned_image_the_analyzer_the_database_and_every_check():
     assert {i.name for i in im.PINNED_IMAGES} <= set(su.KEYS) and {"analyzer", "osv-db"} <= set(su.KEYS)
-    from saferun.engine import node, osv, pysyntax, semgrep
-    assert set(su.CHECK_NEEDS) == {pysyntax.NAME, semgrep.NAME, osv.NAME, node.NAME}
+    from saferun.engine import node, osv, pysyntax, secretscan, semgrep
+    assert set(su.CHECK_NEEDS) == {pysyntax.NAME, semgrep.NAME, osv.NAME, node.NAME, secretscan.NAME}
     for needs in su.CHECK_NEEDS.values():
         assert set(needs) <= set(su.KEYS)
     assert all(c.purpose and c.size and c.checks for c in su.COMPONENTS)
@@ -453,7 +453,8 @@ def release(monkeypatch, tmp_path):
 def fake_docker_for_release(monkeypatch, rel, *, repo_digest=None, labels=None, tag_rc=0):
     seen = []
     good = {"saferun.analyzer": "1", "saferun.semgrep.version": im.SEMGREP_VERSION, "saferun.osv-scanner.version": im.OSV_SCANNER_VERSION,
-            "saferun.rules.sha256": sa.rules_sha256()}
+            "saferun.rules.sha256": sa.rules_sha256(),
+            "saferun.gitleaks.version": im.GITLEAKS_VERSION, "saferun.secrets-rules.sha256": sa.secrets_rules_sha256()}
 
     def fake(*a, timeout=None):
         seen.append(a)

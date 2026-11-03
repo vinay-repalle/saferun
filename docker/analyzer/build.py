@@ -6,7 +6,7 @@ The lock file lives in the per-user data directory (Linux: ${XDG_DATA_HOME:-~/.l
 saferun.sandbox.analyzer.write_lock: owner-only (file 0600 / dir 0700 on POSIX, a protected ACL on Windows); an EXISTING directory is
 never chmod'ed, it must already be owner-only or the write is refused. SafeRun refuses to use an analyzer image whose ID differs from the
 lock, or whose labels differ from the pins in saferun/sandbox/images.py.
-Needs network for the build only (pip wheels, OSV-Scanner release). Refuses to build unless the pinned base images are present locally
+Needs network for the build only (pip wheels, OSV-Scanner and gitleaks releases). Refuses to build unless the pinned base images are present locally
 with the pinned digests. This is the cross-platform port of the former build.sh (which now just runs this file).
 """
 import hashlib
@@ -40,9 +40,12 @@ def main() -> int:
             shutil.copy(HERE / name, ctx / name)
         shutil.copy(ROOT / "LICENSE", ctx / "LICENSE")
         shutil.copy(ROOT / "saferun" / "engine" / "rules" / "python.yml", ctx / "python.yml")
+        shutil.copy(ROOT / "saferun" / "engine" / "rules" / "gitleaks.toml", ctx / "gitleaks.toml")
         shutil.copytree(HERE / "licenses", ctx / "licenses")
         rules_sha = hashlib.sha256((ctx / "python.yml").read_bytes()).hexdigest()
+        secrets_rules_sha = hashlib.sha256((ctx / "gitleaks.toml").read_bytes()).hexdigest()
         if subprocess.run([docker, "build", "--pull=false", "--build-arg", f"RULES_SHA256={rules_sha}",
+                           "--build-arg", f"SECRETS_RULES_SHA256={secrets_rules_sha}",
                            "-t", "saferun-analyzer:local", str(ctx)]).returncode != 0:
             die("docker build failed")
     r = subprocess.run([docker, "image", "inspect", "--format", "{{.Id}}", "saferun-analyzer:local"], capture_output=True, text=True)

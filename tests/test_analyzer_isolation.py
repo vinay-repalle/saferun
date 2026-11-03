@@ -32,7 +32,8 @@ def proc(rc=0, out="", err=""):
 
 def good_labels():
     return {"saferun.analyzer": "1", "saferun.semgrep.version": images.SEMGREP_VERSION,
-            "saferun.osv-scanner.version": images.OSV_SCANNER_VERSION, "saferun.rules.sha256": sa.rules_sha256()}
+            "saferun.osv-scanner.version": images.OSV_SCANNER_VERSION, "saferun.rules.sha256": sa.rules_sha256(),
+              "saferun.gitleaks.version": images.GITLEAKS_VERSION, "saferun.secrets-rules.sha256": sa.secrets_rules_sha256()}
 
 
 def inspect_json(image_id=GOOD_ID, labels=None):
@@ -102,7 +103,8 @@ def test_image_id_mismatch_is_refused(lock, monkeypatch):
         sa.verify_analyzer_image()
 
 
-@pytest.mark.parametrize("label", ["saferun.analyzer", "saferun.semgrep.version", "saferun.osv-scanner.version", "saferun.rules.sha256"])
+@pytest.mark.parametrize("label", ["saferun.analyzer", "saferun.semgrep.version", "saferun.osv-scanner.version", "saferun.rules.sha256",
+                                   "saferun.gitleaks.version", "saferun.secrets-rules.sha256"])
 def test_wrong_or_missing_label_is_refused(lock, monkeypatch, label):
     wrong = {**good_labels(), label: "tampered"}
     fake_inspect(monkeypatch, inspect_json(labels=wrong))

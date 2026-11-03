@@ -158,11 +158,11 @@ def test_help_exits_zero_with_examples_and_exit_codes(capsys):
 
 def test_real_engine_all_checks_disabled_is_warning_not_pass(proj, capsys):
     argv = ["scan", str(proj), "--no-python-syntax", "--no-python-analysis", "--no-dependency-scan",
-            "--no-javascript-check", "--format", "json"]
+            "--no-javascript-check", "--no-secrets-check", "--format", "json"]
     assert cli.main(argv) == 2
     data = json.loads(capsys.readouterr().out)
     assert data["verdict"] == "WARNING" and data["complete"] is False and data["schema_version"] == 1
-    assert [c["status"] for c in data["checks"][1:]] == ["skipped"] * 4
+    assert [c["status"] for c in data["checks"][1:]] == ["skipped"] * 5
 
 
 def test_real_engine_missing_tools_do_not_crash_or_pass(proj, monkeypatch, capsys):

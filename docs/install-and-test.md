@@ -53,7 +53,7 @@ SAFERUN_REQUIRE_DOCKER=1 .venv/bin/python -m pytest -q -ra
 
 # 4. packaging: build, check metadata, inspect, install into a clean environment
 .venv/bin/python -m build && .venv/bin/python -m twine check dist/*
-python3 -m zipfile -l dist/*.whl | grep -E 'rules/python.yml|saferun/cli.py'
+python3 -m zipfile -l dist/*.whl | grep -E 'rules/python.yml|rules/gitleaks.toml|saferun/cli.py'
 tar tzf dist/*.tar.gz | grep docker/analyzer/Dockerfile
 python3 -m venv /tmp/clean-wheel && /tmp/clean-wheel/bin/pip install dist/*.whl && (cd /tmp && /tmp/clean-wheel/bin/saferun --version && /tmp/clean-wheel/bin/saferun doctor)
 ```

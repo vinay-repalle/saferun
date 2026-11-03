@@ -9,7 +9,7 @@ saferun doctor                       # read-only diagnosis
 ```
 Requirements: Python 3.12+ and Docker (Linux, Windows or macOS; see [platforms.md](platforms.md)). Upgrade: `pip install --upgrade saferun-cli`, then `saferun init`. SafeRun is alpha software; see [SECURITY.md](../SECURITY.md) for its limits and how to report vulnerabilities.
 From a source checkout: `pip install -e '.[dev]'`.
-Semgrep and OSV-Scanner are **not** installed on the host and a host copy is never used. Without the analyzer image those checks are `unavailable`; without valid OSV data the dependency check is `error`
+Semgrep, OSV-Scanner and gitleaks are **not** installed on the host and a host copy is never used. Without the analyzer image those checks are `unavailable`; without valid OSV data the dependency check is `error`
 (verdict at best WARNING). Docker is required for every sandboxed check.
 
 ### `saferun init`
@@ -19,7 +19,7 @@ Prints a two-line introduction, shows the components with their state, size and 
 |---|---|---|---|
 | 1 `python` | Python sandbox image | `python-syntax` | `docker pull python@sha256:…` (pinned digest) |
 | 2 `node` | Node.js sandbox image | `javascript-syntax` | `docker pull node@sha256:…` (pinned digest) |
-| 3 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, rules | `python-static-analysis`, `dependency-vulnerabilities` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest. cosign is obtained automatically (see below); with `--build-local` a local build instead (`docker/analyzer/build.py`, source checkout only), see [release-images.md](release-images.md) |
+| 3 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, gitleaks, rules | `python-static-analysis`, `dependency-vulnerabilities`, `hardcoded-secrets` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest. cosign is obtained automatically (see below); with `--build-local` a local build instead (`docker/analyzer/build.py`, source checkout only), see [release-images.md](release-images.md) |
 | 4 `osv-db` | Local OSV vulnerability data | `dependency-vulnerabilities` | the `saferun osv-db update` download (~260 MB); only missing, invalid or stale ecosystems are fetched |
 
 **Docker first.** Before pulling anything `init` diagnoses Docker: not installed, daemon not running, permission denied, or a remote endpoint. It prints platform-specific guidance (Linux: Docker Engine and the `docker` group; macOS and Windows: Docker Desktop) and installs nothing while Docker is unusable.
@@ -59,7 +59,15 @@ saferun --help
 `saferun scan PATH` is a thin front end over `validate_project`: same sanitized copy, same sandbox, same checks and verdict
 rules; the CLI adds no validation logic, runs no project code and installs no dependencies. Options: `--format text|json`,
 `--timeout SECONDS` (per tool/sandbox run, default 120, max 3600), `--osv-offline` (no-op: always offline), `--no-python-syntax`, `--no-python-analysis`,
-`--no-dependency-scan`, `--no-javascript-check`, `--accept-file FILE`. A disabled check is reported as `skipped`, which makes the verdict at best WARNING.
+`--no-dependency-scan`, `--no-javascript-check`, `--no-secrets-check`, `--accept-file FILE`. A disabled check is reported as `skipped`, which makes the verdict at best WARNING.
+
+### Secrets scan (`hardcoded-secrets`)
+Searches the project's files for hardcoded credentials with gitleaks 8.30.1, **inside the analyzer container** (no network, project mounted read-only, same limits and image verification as Semgrep and OSV-Scanner; no host fallback). `scan` still executes nothing.
+- **Output.** Each hit is a finding `secrets.<gitleaks rule id>` (for example `secrets.npm-access-token`) with severity **high** (so the verdict is FAIL), category `secret`, CWE-798, the file and the line. **The secret value is never shown, logged or put in the JSON:** gitleaks is run with `--redact` and SafeRun reads only the rule id, file and line numbers from its output; its error text is not echoed either. No new JSON keys: the check is one more entry in `checks` (schema_version stays 1). Text output adds a next step (remove, rotate, read from the environment).
+- **Rules.** The default vendor-specific rules compiled into gitleaks, from the configuration `saferun/engine/rules/gitleaks.toml` baked into the image (its hash is a label verified before every use). The generic entropy rule `generic-api-key` is **disabled** because it is the main source of false alarms and every finding here is HIGH. A project cannot change any of this: its own `.gitleaks.toml` is not read, `gitleaks:allow` comments are ignored, and `.gitleaksignore` files are deleted from SafeRun's private copy before the scan.
+- **Coverage.** Not scanned: `node_modules`, `.venv`, `venv`, `site-packages`; binary files (skipped by the tool, not listed); files over 1 MB (listed, and the check ends `incomplete`, verdict at best WARNING). Files that match SafeRun's own credential signatures (PEM private keys, AWS, GitHub, Slack, Google, Stripe-live, PyPI, Anthropic tokens) never reach this check: they are withheld at copy time and appear under `workspace-sensitive-files` (HIGH).
+- **Limits.** It finds known token formats, not every secret: plain passwords, custom internal tokens, and encoded or split values are missed; documentation examples and test keys can be false positives; it does not check whether a secret is valid or still active (that would need the network, which scans never use); it does not read git history. A clean result means "none of these patterns found", not "no secrets".
+- **Status.** `--no-secrets-check` → `skipped` (verdict at best WARNING). Analyzer image missing → `unavailable`; image or labels not matching this SafeRun (for example an image built before gitleaks was added) → `error` for **all** analyzer checks until `saferun init` installs a current image. `saferun run` also performs this check on the script it is about to run.
 
 ### Dependency findings: what to upgrade to, and accepting a risk
 Each dependency finding shows the fixed version(s) from the OSV data, its severity and a one-line description. New: next to the fix, a label says how big the jump is *by the version numbers only*: **patch** (`4.17.15` to `4.17.21`), **minor** (`1.2.3` to `1.3.0`) or **major** (`1.2.3` to `2.0.0`). It is computed for the nearest fixed release above the installed version, the **Upgrade plan** table shows it for the release that fixes every finding of a package, and `--format json` adds `fix_kind` to the finding (absent when unknown: no fixed version, or a version that is not a plain release number such as a commit hash). The label is a hint, not a promise: a patch can still break things and a `0.x` minor bump is often breaking, so read the changelog. Only data OSV already provides is used; nothing is looked up online.
@@ -84,7 +92,7 @@ saferun scan ./my-project --accept-file ~/saferun-accepts.toml
 
 `python-syntax` and `javascript-syntax` answer one question: *can the scanner read this file?* They parse each file (`compile()` / `node --check`) and run none of it; a file that fails to parse is reported because the other checks cannot analyse it. JavaScript support is **experimental**: besides this syntax step there is only the npm lockfile scan, and no JavaScript code rules.
 
-**Network.** Scans never use the network. Semgrep and OSV-Scanner run in the analyzer container (no network, read-only project, see PROJECT.md *Phase 5 security status*);
+**Network.** Scans never use the network. Semgrep, OSV-Scanner and gitleaks run in the analyzer container (no network, read-only project, see PROJECT.md *Phase 5 security status*);
 OSV-Scanner reads local OSV data. Build the image once with `docker/analyzer/build.sh` and fetch the data with `saferun osv-db update` (the only command that downloads anything, apart from the opt-in `saferun check-names --online`, which sends package names only:
 public data from osv-vulnerabilities.storage.googleapis.com, nothing about any project; `--dir` or `SAFERUN_OSV_DB` choose the directory). Without the image the Semgrep/OSV checks are `unavailable`
 (or `error` if the image fails verification, including an unsafe lock file: the lock and its directory must be owner-only, 0600 / 0700); without valid data the dependency check is `error`; data older than 30 days makes it `incomplete`; either way the verdict is at best WARNING. There is no fallback to host-installed Semgrep/OSV-Scanner.

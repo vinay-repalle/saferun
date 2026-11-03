@@ -1,6 +1,6 @@
 """The analyzer image (Phase 5B): where Semgrep and OSV-Scanner run, instead of on the host.
 
-The image is built locally by docker/analyzer/build.sh, which records its image ID in a lock file. Before every use
+The image (Semgrep, OSV-Scanner, gitleaks) is built locally by docker/analyzer/build.sh, which records its image ID in a lock file. Before every use
 `verify_analyzer_image` checks that
   * the lock file exists and the local image `saferun-analyzer:local` has exactly that ID (a retagged or rebuilt image is refused),
   * the labels baked in at build time equal the pins in images.py (tool versions) and the SHA-256 of the rules file in this checkout.
@@ -24,12 +24,14 @@ from pathlib import Path
 from .. import hostos
 from . import docker as dk
 from .config import SandboxError
-from .images import OSV_SCANNER_VERSION, SEMGREP_VERSION
+from .images import GITLEAKS_VERSION, OSV_SCANNER_VERSION, SEMGREP_VERSION
 
 ANALYZER_REPO_TAG = "saferun-analyzer:local"
 SEMGREP_EXE = "/usr/local/bin/semgrep"
 OSV_EXE = "/usr/local/bin/osv-scanner"
 RULES_PATH = "/opt/saferun/rules/python.yml"
+GITLEAKS_EXE = "/usr/local/bin/gitleaks"
+SECRETS_RULES_PATH = "/opt/saferun/rules/gitleaks.toml"
 _ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
@@ -50,6 +52,11 @@ def lock_path() -> Path:
 
 def rules_sha256() -> str:
     from ..engine.semgrep import RULES_FILE   # local import: the engine imports this module
+    return hashlib.sha256(RULES_FILE.read_bytes()).hexdigest()
+
+
+def secrets_rules_sha256() -> str:
+    from ..engine.secretscan import RULES_FILE   # local import: the engine imports this module
     return hashlib.sha256(RULES_FILE.read_bytes()).hexdigest()
 
 
@@ -175,7 +182,8 @@ def inspect_analyzer_tag() -> tuple[str, dict]:
 def check_labels(labels: dict) -> None:
     """The labels baked in at build time must equal this checkout's pins (tool versions) and rules hash."""
     expected = {"saferun.analyzer": "1", "saferun.semgrep.version": SEMGREP_VERSION,
-                "saferun.osv-scanner.version": OSV_SCANNER_VERSION, "saferun.rules.sha256": rules_sha256()}
+                "saferun.osv-scanner.version": OSV_SCANNER_VERSION, "saferun.rules.sha256": rules_sha256(),
+                "saferun.gitleaks.version": GITLEAKS_VERSION, "saferun.secrets-rules.sha256": secrets_rules_sha256()}
     wrong = [k for k, v in expected.items() if labels.get(k) != v]
     if wrong:
         raise AnalyzerIntegrityError(f"analyzer image labels do not match the pinned tools/rules: {', '.join(wrong)}; rebuild it")

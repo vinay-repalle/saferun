@@ -8,6 +8,8 @@ A small, honest comparison of SafeRun's **scan** with two established tools:
 | Dependency check (OSV-Scanner, local OSV data) | [pip-audit](https://pypi.org/project/pip-audit/), default PyPI service and `-s osv` | known-vulnerability check (SCA) |
 | `saferun check-names` (look-alike package names) | nothing comparable | reported separately as SafeRun-only |
 
+**Secrets scan.** The numbers below were taken on 2026-11-03 before `scan` gained its gitleaks secrets check (`hardcoded-secrets`); that check is not part of this comparison (Bandit's hardcoded-password rule is the only related one) and the results have not been re-run since.
+
 The sandbox (`saferun run`) is **not** measured. The benchmark is a development tool: it is not part of the installed package, it runs only in the dev environment, and in CI it is advisory (it never blocks a merge).
 
 ## How it works

@@ -48,22 +48,22 @@ class Component:
 COMPONENTS: tuple[Component, ...] = (
     Component("python", "Python sandbox image", "Runs the Python syntax check in a locked-down container.", ("python-syntax",), "about 190 MB"),
     Component("node", "Node.js sandbox image", "Runs the JavaScript syntax check in a locked-down container.", ("javascript-syntax",), "about 330 MB"),
-    Component("analyzer", "Analyzer image (Semgrep, OSV-Scanner, rules)", "Runs the static code analysis, and holds the dependency scanner.",
-              ("python-static-analysis", "dependency-vulnerabilities"), "about 740 MB, a signed image download (a local build takes a few minutes)"),
+    Component("analyzer", "Analyzer image (Semgrep, OSV-Scanner, gitleaks, rules)", "Runs the static code analysis, the secrets scan, and holds the dependency scanner.",
+              ("python-static-analysis", "dependency-vulnerabilities", "hardcoded-secrets"), "about 770 MB, a signed image download (a local build takes a few minutes)"),
     Component("osv-db", "OSV vulnerability database", "Local vulnerability data so dependency scans run offline.", ("dependency-vulnerabilities",),
               "about 260 MB download"),
 )
 KEYS = tuple(c.key for c in COMPONENTS)
 BY_KEY = {c.key: c for c in COMPONENTS}
 CHECK_NEEDS = {"python-syntax": ("python",), "javascript-syntax": ("node",), "python-static-analysis": ("analyzer",),
-               "dependency-vulnerabilities": ("analyzer", "osv-db")}
+               "dependency-vulnerabilities": ("analyzer", "osv-db"), "hardcoded-secrets": ("analyzer",)}
 IMAGE_FOR = {"python": im.PYTHON_IMAGE, "node": im.NODE_IMAGE}
 HOSTS = {"image": ("registry-1.docker.io",), "build": ("pypi.org", "github.com"), "osv": ("osv-vulnerabilities.storage.googleapis.com",),
          # a published analyzer: the registry, plus the Sigstore trust root and transparency log that `cosign verify` contacts
          "release": ("ghcr.io", "tuf-repo-cdn.sigstore.dev", "rekor.sigstore.dev")}
 HOSTS_COSIGN = ("github.com",)   # the pinned cosign download (only when no cosign is installed yet)
 
-INTRO = ("SafeRun checks a project WITHOUT running it: Python/JavaScript syntax, static analysis (Semgrep) and known-vulnerable dependencies (OSV).\n"
+INTRO = ("SafeRun checks a project WITHOUT running it: Python/JavaScript syntax, static analysis (Semgrep), hardcoded secrets (gitleaks) and known-vulnerable dependencies (OSV).\n"
          "Every check runs in a locked-down container and scans work offline; setup fetches what each check needs, once.")
 
 def banner_lines(th: "ui.Theme") -> list[str]:

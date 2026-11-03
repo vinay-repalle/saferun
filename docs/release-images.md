@@ -5,7 +5,7 @@
 | Component | How `saferun init` gets it | Trust anchor |
 |---|---|---|
 | Python / Node.js sandbox images | `docker pull python@sha256:… / node@sha256:…` (digest from `saferun/sandbox/images.py`) | The pinned manifest digest, verified again afterwards against the image's `RepoDigests` (`saferun verify-images`). Docker rejects content that does not hash to the digest. |
-| Analyzer image (Semgrep, OSV-Scanner, rules) | The cosign-signed release recorded in `ANALYZER_RELEASE` (`analyzer-v1.0.1`), installed by `saferun init`; `--build-local` builds it locally with `docker/analyzer/build.sh` instead | Local build: hash-locked wheels, checksum-verified OSV-Scanner, digest-pinned base, owner-only lock file. Published release: the cosign signature (GitHub Actions identity of this repository's release workflow) **and** the pinned digest, then labels/tool versions/rules hash, then an owner-only lock file. |
+| Analyzer image (Semgrep, OSV-Scanner, gitleaks, rules) | The cosign-signed release recorded in `ANALYZER_RELEASE` (`analyzer-v1.0.1`), installed by `saferun init`; `--build-local` builds it locally with `docker/analyzer/build.sh` instead | Local build: hash-locked wheels, checksum-verified OSV-Scanner and gitleaks, digest-pinned base, owner-only lock file. Published release: the cosign signature (GitHub Actions identity of this repository's release workflow) **and** the pinned digest, then labels/tool versions/rules hash, then an owner-only lock file. |
 | OSV vulnerability data | `saferun osv-db update` (HTTPS, public data) | Server MD5 + a locally recorded SHA-256 manifest. Detects corruption and later changes, **not** a malicious server (see `docs/cli.md`). |
 
 **Status (checked 2026-10-30):**
@@ -39,6 +39,14 @@ Only an intentional tag push publishes anything. Ordinary CI (`ci.yml`) never lo
 4. **Protect `main` and tags** (recommended): a branch rule that requires the `python`, `web` and `package` CI jobs; a tag ruleset for `analyzer-v*` so only you can create or move such tags. A moved tag changes the signed identity's meaning, never re-use or move a release tag.
 5. **Account hygiene:** 2FA on the GitHub account. A takeover of the account or repository would let an attacker sign with the expected identity (see below).
 6. **After the first release:** the package `saferun-analyzer` appears under your profile → Packages. ghcr.io creates it **private**; make it public (as of 2026-10-30 `saferun-analyzer` is already readable anonymously, so this is done) (Package settings → Change visibility → Public) because `saferun init` pulls anonymously. Check that the package is linked to this repository (the image's `org.opencontainers.image.source` label does that) and that the repository has write access to the package (Package settings → Manage Actions access).
+
+### Pending: the next analyzer release adds gitleaks (secrets scan)
+The repository now expects an analyzer image that contains gitleaks 8.30.1 and `gitleaks.toml` (labels `saferun.gitleaks.version`, `saferun.secrets-rules.sha256`). The recorded `analyzer-v1.0.1` predates it: with this code, `saferun init` installing v1.0.1 fails label verification, and an existing v1.0.1 install makes every analyzer check `error` until a current image is installed. Owner steps, in order (one release; nothing here has been run):
+1. Commit the change and push `main`; wait for CI.
+2. `git tag analyzer-v1.1.0 && git push origin analyzer-v1.1.0` (new tag; never move an old one). The workflow builds, smoke-tests (labels, gitleaks version, baked configuration hash, licence files, no network, a Semgrep scan and a gitleaks scan), pushes, signs and verifies.
+3. Record the printed digest in `ANALYZER_RELEASE` (`saferun/sandbox/images.py`: digest, date) in a reviewed commit and update the "current release" comment and the tag names in `docs/release-images.md`, `docs/cli.md`, `README.md`, `PROJECT.md`, `STAGES.md`.
+4. Verify: `saferun verify-images --signature`, then `saferun init --only analyzer` on a clean machine (a local alternative that works today: `saferun init --only analyzer --build-local`).
+5. Until step 3 is done, users can only get a working secrets scan with `--build-local`.
 
 ### Cutting a release
 1. Commit and push the repository to `main` and wait for CI to pass.
@@ -76,7 +84,7 @@ Build reproducibility: the inputs are pinned (base image digest, hash-locked Sem
 ### Third-party software in the analyzer image
 Publishing the image **redistributes** other people's software. The inventory, the license texts that must travel with it, and the verification behind them are in
 `docker/analyzer/THIRD_PARTY_NOTICES.md` and `docker/analyzer/licenses/`; the Dockerfile copies them into the image under `/usr/share/doc/saferun-analyzer/`, and the release workflow's smoke test fails if they are missing.
-* Semgrep (LGPL-2.1-or-later) and OSV-Scanner (Apache-2.0) license texts are included. Their upstream sources are the corresponding-source references. See the notices file for exactly which upstream files were used and how they were checked.
+* Semgrep (LGPL-2.1-or-later), OSV-Scanner (Apache-2.0) and gitleaks (MIT) license texts are included; the 65 Go modules linked into the gitleaks binary are inventoried in `licenses/gitleaks-v8.30.1-go-modules.md` (texts in `licenses/gitleaks-v8.30.1-go-module-licenses.txt`; classified by an automated text match, not file by file). Their upstream sources are the corresponding-source references. See the notices file for exactly which upstream files were used and how they were checked.
 * The Python packages installed with Semgrep keep their own license files in their `dist-info` directories.
 * The Go modules statically linked into the OSV-Scanner binary **are now enumerated**: 191 modules read from the binary's embedded build information, each license read from the module at the exact version (`licenses/osv-scanner-v2.7.0-go-modules.md`, full texts in `licenses/osv-scanner-v2.7.0-go-module-licenses.txt`). One module is `BSD-3-Clause AND MPL-2.0` (file-level), one is dual `Apache-2.0 OR GPL-2.0-or-later` (Apache-2.0 relied on).
 * **Open items:** (1) the Semgrep LICENSE text came from upstream's default branch because the 1.182.1 tag could not be located; (2) the Go module licensing was determined by matching license texts and reviewing multi-license modules by hand, not file by file; (3) the Python-package table was compared with a freshly built local image on 2026-10-30 (67 packages, no differences) but not regenerated. This is not legal advice.

@@ -1,0 +1,17 @@
+# SafeRun's gitleaks configuration. Baked into the analyzer image (sha256 recorded as a label and compared with this file before every use);
+# a scanned project can never supply or replace it.
+#
+# Base: the default rule set that ships inside the pinned gitleaks binary (vendor-specific token formats), with two changes:
+#  * the generic entropy rule `generic-api-key` is disabled: it flags any high-entropy value next to a key-like name and is the main source of
+#    false positives, and every finding here counts as HIGH. Cost: secrets without a recognised vendor format (for example a plain password
+#    in a .env file) are not found by this check.
+#  * vendored dependency folders are skipped, as the Python static-analysis check also does.
+title = "SafeRun gitleaks configuration"
+
+[extend]
+useDefault = true
+disabledRules = ["generic-api-key"]
+
+[[allowlists]]
+description = "vendored dependency folders"
+paths = ['''(^|/)(node_modules|\.venv|venv|site-packages)/''']
