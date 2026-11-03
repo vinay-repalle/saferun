@@ -190,16 +190,16 @@ def test_gitleaks_rules_are_packaged_and_disable_the_generic_rule():
 
 def test_gitleaks_licence_inventory_matches_its_texts():
     lic = ROOT / "docker" / "analyzer" / "licenses"
-    assert "MIT License" in (lic / "gitleaks-v8.30.1-LICENSE").read_text()
-    inv = (lic / "gitleaks-v8.30.1-go-modules.md").read_text()
-    texts = (lic / "gitleaks-v8.30.1-go-module-licenses.txt").read_text()
+    assert "MIT License" in (lic / "gitleaks-v8.30.1-LICENSE").read_text(encoding="utf-8")
+    inv = (lic / "gitleaks-v8.30.1-go-modules.md").read_text(encoding="utf-8")
+    texts = (lic / "gitleaks-v8.30.1-go-module-licenses.txt").read_text(encoding="utf-8")
     rows = [l for l in inv.splitlines() if l.startswith("| ") and not l.startswith(("| Module", "|---"))]
     assert len(rows) == 65 and all(len(r.split("|")) == 6 and "UNDETERMINED" not in r and "NO LICENSE" not in r for r in rows)
     for r in rows:
         module, version = (c.strip() for c in r.split("|")[1:3])
         assert f"\n{module} {version} -- " in texts, module
     assert "Go standard library and runtime" in texts and "MPL-2.0" in inv
-    notices = (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").read_text()
+    notices = (ROOT / "docker" / "analyzer" / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
     assert "gitleaks" in notices and "gitleaks-v8.30.1-go-modules.md" in notices
 
 
