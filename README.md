@@ -63,6 +63,7 @@ What `saferun init` does, in order, and what it never does:
 saferun scan ./my-project                 # human-readable report; nothing is executed
 saferun scan ./my-project --format json   # machine-readable report (schema_version 1)
 saferun run my_script.py -- arg1 arg2     # scan first, then run inside the sandbox only if allowed
+saferun check-names --project ./my-project   # separate, offline: dependency names that look like typos of popular PyPI packages
 ```
 Exit codes of `scan`: **0** PASS · **1** FAIL · **2** WARNING (including any incomplete scan) · **64** invalid usage/path · **70** fatal · **130** interrupted.
 
@@ -74,7 +75,7 @@ Exit codes of `scan`: **0** PASS · **1** FAIL · **2** WARNING (including any i
 - A PASS means the checks found nothing they know about; it is **not** proof that the script is safe. The sandbox limits the impact of the code, it does not make it harmless. Scripts that need the network or third-party packages will fail inside it.
 - Exit codes: **0** the script ran and exited 0 · **1** refused: FAIL · **2** refused: WARNING · **3** the script ran but exited non-zero, timed out or was killed · **64** usage · **70** could not scan or sandbox · **130** interrupted.
 
-> **Privacy / network:** scans never use the network. Semgrep and OSV-Scanner run in a container without network access, and OSV-Scanner reads a local copy of the OSV data (`saferun osv-db update`, an explicit download of public data that contains nothing about your project). Without that data the dependency check reports `error` (verdict at best WARNING). Per-scan *online* OSV queries were removed in Phase 5B, see [PROJECT.md](https://github.com/vinay-repalle/saferun/blob/main/PROJECT.md).
+> **Privacy / network:** scans never use the network. Semgrep and OSV-Scanner run in a container without network access, and OSV-Scanner reads a local copy of the OSV data (`saferun osv-db update`, an explicit download of public data that contains nothing about your project). Without that data the dependency check reports `error` (verdict at best WARNING). Per-scan *online* OSV queries were removed in Phase 5B, see [PROJECT.md](https://github.com/vinay-repalle/saferun/blob/main/PROJECT.md). The separate `saferun check-names` command is offline too (bundled list of popular package names); only with its opt-in `--online` flag does it send package names (never code) to pypi.org, and a failed lookup is reported as "could not check", never as a pass. See [docs/cli.md](https://github.com/vinay-repalle/saferun/blob/main/docs/cli.md).
 >
 > **Limits of the OSV data checks:** the download is checked against the server's MD5 header (refused if absent) and a SHA-256 is recorded locally and re-checked before every scan. That detects corruption and later modification of the files. It does **not** authenticate the download (the hash comes from the same server, or from your own disk), and someone who can write the data directory can rewrite the manifest too. Data older than 30 days makes the dependency check `incomplete`.
 

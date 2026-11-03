@@ -49,7 +49,7 @@ version = { attr = "saferun.__version__" }
 include = ["saferun*"]
 
 [tool.setuptools.package-data]
-saferun = ["engine/rules/*.yml"]
+saferun = ["engine/rules/*.yml", "data/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

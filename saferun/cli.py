@@ -10,6 +10,8 @@ Exit codes (deterministic, documented in docs/cli.md):
 
 `saferun verify-images` uses 0 (all pinned images verified), 1 (a pinned image is missing or its digest does not match),
 64 (usage) and 70 (Docker unusable).
+`saferun check-names` uses 0 (nothing flagged and everything checked), 2 (a name was flagged, or something could not be read or
+looked up: never 0), 64 (usage) and 70 (internal error).
 """
 from __future__ import annotations
 
@@ -43,6 +45,7 @@ examples:
   saferun doctor                            diagnose the installation (PASS / WARNING / FAIL)
   saferun status                            show which components are installed and verified
   saferun osv-db update                     download the offline OSV vulnerability data used by the dependency scan
+  saferun check-names --project .           look for dependency names that resemble popular PyPI packages (offline)
   saferun scan . --no-javascript-check --timeout 60
 
 exit codes:
@@ -114,6 +117,17 @@ def build_parser() -> argparse.ArgumentParser:
     w.add_argument("--only", metavar="NAME[,NAME]", help="only these pinned images (python, node); implies --base-only")
     w.add_argument("--signature", action="store_true", help="ONLINE: also verify the cosign signature of the published analyzer release "
                    "(needs cosign and internet; fails if no release is configured)")
+    cn = sub.add_parser("check-names", help="check dependency names for look-alikes of popular PyPI packages", description=(
+        "Compares declared Python package names (requirements*.txt and pyproject.toml directly inside --project, and any NAME given) with a "
+        "bundled snapshot of popular PyPI package names and reports names that look like typos of them. Offline by default. With --online, "
+        "PyPI is asked whether each name outside the snapshot exists and how old it is; only the package names are sent, never code. "
+        "Nothing is installed or executed. A hint, not proof: exit 0 only when nothing was flagged and everything asked for was checked."),
+        parents=[common])
+    cn.add_argument("names", nargs="*", metavar="NAME", help="package names to check")
+    cn.add_argument("--project", metavar="DIR", help="read requirements*.txt and pyproject.toml directly inside this directory")
+    cn.add_argument("--online", action="store_true",
+                    help="ONLINE: also look up each name that is not in the snapshot on PyPI (exists? first upload?); sends package names only")
+    cn.add_argument("--format", choices=("text", "json"), default="text", help="output format (default: text)")
     ini = sub.add_parser("init", help="first-run setup: install and verify what the checks need", description=(
         "Interactive (or scripted) setup. Detects what is already installed and verified, skips it, and installs/repairs/updates the rest: "
         "the Python and Node.js sandbox images (pulled by pinned digest), the analyzer image (Semgrep, OSV-Scanner, rules) and the local OSV "
@@ -417,6 +431,70 @@ def _status(args) -> int:
     return EXIT_PASS if all(x.ready for x in statuses) else EXIT_FAIL
 
 
+def render_names(rep, th: "ui.Theme") -> str:
+    from .pkgnames import NEW_PACKAGE_DAYS
+    p = th.paint
+    results = rep.results
+    popular = [r for r in results if r.state == "popular"]
+    unknown = [r for r in results if r.state == "unknown"]
+    out = [f"{p('SafeRun', 'bold', 'cyan')} package-name check", "",
+           f"Snapshot: {len(rep.snapshot.names)} popular PyPI names (dataset of {_s(rep.snapshot.date)}).  "
+           f"Online lookup: {'yes (package names sent to pypi.org)' if rep.online else 'no (nothing was sent anywhere)'}",
+           f"Checked {len(results)} name(s): {len(popular)} in the snapshot, {len(results) - len(popular)} not in the snapshot; {len(rep.flagged)} flagged", ""]
+    if rep.flagged:
+        out.append(p("Flagged", "bold", "yellow"))
+        for r in rep.flagged:
+            out.append(f"  {p('[CHECK]', 'yellow', 'bold')} {_s(r.name)}  ({_s(', '.join(r.declared_in))})")
+            out += [f"      {_s(f)}" for f in r.findings]
+        out.append("")
+    quiet = [r for r in unknown if not r.findings]
+    if quiet:
+        shown = ", ".join(_s(r.name) for r in quiet[:40]) + (f", ... and {len(quiet) - 40} more" if len(quiet) > 40 else "")
+        how = (f"found on PyPI and older than {NEW_PACKAGE_DAYS} days" if rep.online else "not checked further (use --online to look them up)")
+        out += [p("Not in the snapshot", "bold", "cyan"), f"  {how}: {shown}", ""]
+    if rep.invalid:
+        out.append(p("Not usable as package names", "bold", "yellow"))
+        out += [f"  {_s(t)}  ({_s(w)})" for t, w in rep.invalid]
+        out.append("")
+    if rep.gaps:
+        out.append(p("Not checked", "bold", "yellow"))
+        out += [f"  {th.icons['warn']} {_s(g)}" for g in rep.gaps]
+        out.append("")
+    if rep.notes:
+        out.append(p("Notes", "dim"))
+        out += [f"  {_s(n)}" for n in rep.notes[:30]] + ([f"  ... and {len(rep.notes) - 30} more"] if len(rep.notes) > 30 else [])
+        out.append("")
+    out.append(p("Nothing flagged and everything checked." if rep.exit_code == 0 else
+                 "NOT a pass: a name was flagged, or something could not be read or looked up.", "green" if rep.exit_code == 0 else "yellow", "bold"))
+    out.append(p("A hint, not proof: it only knows the snapshot, so it misses look-alikes of packages outside it and can flag innocent names.", "dim"))
+    return "\n".join(out) + "\n"
+
+
+def _check_names(args) -> int:
+    from . import pkgnames
+    if not args.names and not args.project:
+        return _fail("give at least one package NAME or --project DIR", EXIT_USAGE)
+    declared = pkgnames.Declared()
+    if args.project:
+        project = Path(args.project)
+        if not project.is_dir():
+            return _fail(f"not a directory: {args.project}", EXIT_USAGE)
+        declared = pkgnames.read_project(project)
+    for raw in args.names:
+        declared.add(raw, "command line")
+    try:
+        rep = pkgnames.check_names(declared, online=args.online)
+    except KeyboardInterrupt:
+        return _fail("interrupted", EXIT_INTERRUPTED)
+    except Exception as e:  # noqa: BLE001 - never a traceback or a misleading success code
+        return _fail(f"internal error (no result): {type(e).__name__}: {e}", EXIT_FATAL)
+    if args.format == "json":
+        sys.stdout.write(json.dumps(rep.to_dict(), indent=2, sort_keys=True) + "\n")
+    else:
+        sys.stdout.write(render_names(rep, ui.theme_for(sys.stdout, args.color)))
+    return rep.exit_code
+
+
 def _check_signature() -> dict:
     """`verify-images --signature`: the cosign signature of the configured analyzer release (online). Fails closed."""
     from .sandbox import images as im
@@ -490,6 +568,8 @@ def main(argv: list[str] | None = None) -> int:
         return doctor.exit_code(checks)
     if args.command == "osv-db":
         return _osv_db(args)
+    if args.command == "check-names":
+        return _check_names(args)
     if args.command == "verify-images":
         return _verify_images(args.format, analyzer=not (args.base_only or args.only), only=args.only, signature=args.signature)
     if args.command != "scan":

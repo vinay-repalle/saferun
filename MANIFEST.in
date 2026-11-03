@@ -2,6 +2,7 @@
 # sources and the tests are shipped in the sdist so a source checkout can build the analyzer and the website.
 include LICENSE SECURITY.md README.md PROJECT.md IMPLEMENTATION.md
 graft docker
+graft tools
 graft docs
 graft tests
 graft web

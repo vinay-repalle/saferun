@@ -6,7 +6,7 @@ Status: planned / in progress / done (local) / pushed. Updated after every stage
 | Stage | Goal | Status | Tests | Docs updated |
 |---|---|---|---|---|
 | 7 | Docs clarity: `scan` vs `run`, syntax check as "can the scanner read this file", stale-doc cleanup (IMPLEMENTATION.md, PROJECT.md, docs; diff shown first), JavaScript labelled experimental (docs only; website excluded, see Deferred) | done (committed by owner) | docs only, no new tests; full suite incl. Docker: 925 passed, 50 skipped (Windows/macOS-only tests), 0 failed | README, PROJECT, IMPLEMENTATION, docs/cli.md, docs/engine.md |
-| 8 | Package-name check: new `saferun check-names`, bundled offline top-PyPI snapshot, opt-in online lookup; `scan` unchanged | planned | - | - |
+| 8 | Package-name check: new `saferun check-names`, bundled offline top-PyPI snapshot (10 000 names, dataset 2026-11-01), opt-in `--online` lookup (existence and first-upload age from pypi.org; names only; downloads not included); `scan` unchanged | done (local, awaiting owner commit) | 55 new (`tests/test_pkgnames.py`); full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 980 passed, 50 skipped (Windows/macOS-only tests), 0 failed; wheel build checked (snapshot included) | README, PROJECT, IMPLEMENTATION, docs/cli.md |
 | 9 | Benchmark vs Bandit and pip-audit (harmless samples generated at run time); dev environment only; advisory in CI | planned | - | - |
 | 10 | Dependency findings: patch/major label, `.saferun-accept.toml` accept-risk with reason and expiry | planned | - | - |
 | 11 | Secrets scanner: options proposed first; analyzer-image changes batched into one release | planned | - | - |
