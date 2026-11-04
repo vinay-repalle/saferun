@@ -84,7 +84,8 @@ def test_ordinary_code_is_not_flagged_by_the_behaviour_rules(hits, name):
 
 
 def test_the_three_rules_are_medium_severity():
-    import yaml
-    rules = {r["id"].rsplit(".", 1)[1]: r for r in yaml.safe_load(RULES_FILE.read_text())["rules"]}
+    import re
+    text = RULES_FILE.read_text(encoding="utf-8")
     for rid in (SENS, PERS, HIDE):
-        assert rules[rid]["metadata"]["saferun_severity"] == "medium"
+        block = text.split(f"id: saferun.python.{rid}\n", 1)[1].split("\n  - id: ", 1)[0]
+        assert re.search(r"saferun_severity: medium\b", block), rid
