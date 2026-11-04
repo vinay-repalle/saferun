@@ -37,7 +37,7 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/saferun doctor              # exit 0 if nothing FAILED
 .venv/bin/saferun scan ./some-project
 ```
-The analyzer release `analyzer-v1.0.1` is recorded in `ANALYZER_RELEASE`, so `init` installs it after verifying its cosign signature (see `docs/release-images.md`). Add `--build-local` to build the analyzer from `docker/` instead (no cosign needed).
+The analyzer release `analyzer-v1.1.0` is recorded in `ANALYZER_RELEASE`, so `init` installs it after verifying its cosign signature (see `docs/release-images.md`). Add `--build-local` to build the analyzer from `docker/` instead (no cosign needed).
 
 ## Validate (run these yourself; nothing here has been run for you)
 

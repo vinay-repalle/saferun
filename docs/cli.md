@@ -151,7 +151,7 @@ Checks that the container images SafeRun runs are present locally with the diges
 pinned_digest, status, detail}]}`; `status` is `verified`, `missing` (the detail gives the exact `docker pull`), `mismatch` or `error`.
 Exit codes: 0 all verified; 1 any image missing, mismatched or uninspectable; 64 usage; 70 Docker unusable (e.g. remote endpoint).
 `saferun scan` itself refuses to start a sandbox run when the image digest does not match (exit 70, no verdict).
-`--signature` (online; uses SafeRun's own verified cosign or one on PATH) additionally verifies the cosign signature of the published analyzer release (`ANALYZER_RELEASE`, currently `analyzer-v1.0.1`; with no release configured it reports that there is nothing to verify and exits 1): it must come from this repository's
+`--signature` (online; uses SafeRun's own verified cosign or one on PATH) additionally verifies the cosign signature of the published analyzer release (`ANALYZER_RELEASE`, currently `analyzer-v1.1.0`; with no release configured it reports that there is nothing to verify and exits 1): it must come from this repository's
 release workflow on an `analyzer-v*` tag and name exactly the pinned repository and digest. JSON gains a `signature` object `{ok, reference, detail}` only when the flag is given; any failure
 (including cosign missing) makes the exit code 1. See [release-images.md](release-images.md).
 

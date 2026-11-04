@@ -67,13 +67,13 @@ class AnalyzerRelease:
         return f"{self.repository}@{self.digest}"
 
 
-# The current release: tag analyzer-v1.0.1 (commit a275dce, rules unchanged since), signed by this repository's release workflow. The digest was read from
+# The current release: tag analyzer-v1.1.0 (commit f47d65f, rules unchanged since), signed by this repository's release workflow. The digest was read from
 # the registry and its cosign signature was verified with ANALYZER_SIGNER_IDENTITY_REGEXP before it was recorded (docs/release-images.md). A new analyzer
 # (new tool pins or rules) is a new tag, a new digest and a new commit here. Set to None to make `saferun init` build locally with docker/analyzer/build.sh.
 ANALYZER_RELEASE: AnalyzerRelease | None = AnalyzerRelease(
     ANALYZER_REGISTRY_REPOSITORY,
-    "sha256:6f26c3e3fed1a8b2a981bdcb920c4da3b2829bce2679709ba8880789ce6f6fa4",
-    "2026-10-30",
+    "sha256:5642a101fb716a58bce139bec78b04ecb5da2b091f4c863649734b65a7682d07",
+    "2026-11-04",
 )
 
 # Tools baked into the analyzer image build recipe (docker/analyzer/). Not used at run time yet (Phase 5B).

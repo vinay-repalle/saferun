@@ -52,6 +52,6 @@ python -m twine upload dist/*           # the same files that were tested; do no
 Then, on a clean machine, repeat step 3 against the real index (`pip install saferun-cli`). A PyPI release cannot be removed and re-used; a bad release can only be *yanked* (the file stays downloadable by exact pin) and replaced by a new version.
 
 ## What publishing does and does not change
-* Users run `pip install saferun-cli`; the analyzer image they get is still the signed `analyzer-v1.0.1` recorded in `ANALYZER_RELEASE` (a new analyzer is a separate tag, workflow run and reviewed commit).
+* Users run `pip install saferun-cli`; the analyzer image they get is still the signed `analyzer-v1.1.0` recorded in `ANALYZER_RELEASE` (a new analyzer is a separate tag, workflow run and reviewed commit).
 * The package contains no secrets and no analyzer recipe; `saferun init --build-local` needs a source checkout or the sdist.
 * The sdist includes `tests/`, `docs/`, `web/` sources and `.github/` on purpose; the wheel contains only the `saferun` package.
