@@ -58,7 +58,7 @@ else `unknown` (treated as medium); a Python syntax error → medium (a broken f
 private key/token → high, a withheld private-mode file → low. Verdict rules: [docs/engine.md](docs/engine.md) / `verdict.py`. All tool-derived strings are stripped of control and
 bidi characters and length-bounded; tool-reported paths are accepted only if they are relative paths inside the copy.
 
-**Limitations.** The bundled Semgrep rules are a small starting set (11 rules, Python only) and do no taint or cross-file analysis; no JavaScript support (npm files are not scanned and only get a plain note); Python syntax is checked with the sandbox image's Python 3.12 only (Semgrep itself tolerates and does not report syntax errors — observed with 1.182.1); OSV matches known vulnerabilities only (no malware detection, no reachability; look-alike package names are a separate, offline hint: `saferun check-names`, not part of `scan`);
+**Limitations.** The bundled Semgrep rules are a small starting set (14 rules, Python only) and do no taint or cross-file analysis; no JavaScript support (npm files are not scanned and only get a plain note); Python syntax is checked with the sandbox image's Python 3.12 only (Semgrep itself tolerates and does not report syntax errors — observed with 1.182.1); OSV matches known vulnerabilities only (no malware detection, no reachability; look-alike package names are a separate, offline hint: `saferun check-names`, not part of `scan`);
 `requirements.txt` is a manifest: unpinned entries are evaluated at their lower bound and transitive dependencies are not resolved; unsupported file formats are not scanned; Semgrep skips files > 1 MB and these are reported `incomplete`; at most 50 lockfiles, 1000 findings per check.
 
 ## Threat model

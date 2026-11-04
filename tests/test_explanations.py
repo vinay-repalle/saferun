@@ -42,8 +42,8 @@ KNOWN = ([finding(i) for i in semgrep_ids()]
 
 # ---- coverage -------------------------------------------------------------------------------------------------------------
 
-def test_the_rules_file_still_has_the_eleven_rules_this_table_covers():
-    assert len(semgrep_ids()) == 11 and len(set(semgrep_ids())) == 11
+def test_the_rules_file_still_has_the_fourteen_rules_this_table_covers():
+    assert len(semgrep_ids()) == 14 and len(set(semgrep_ids())) == 14
 
 
 @pytest.mark.parametrize("rule_id", semgrep_ids())

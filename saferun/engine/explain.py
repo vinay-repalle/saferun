@@ -45,6 +45,15 @@ _SEMGREP = {
     "hardcoded-secret":
         "A password-like variable is set to fixed text in the code, so anyone who can read the code can read it. "
         "Move it to an environment variable or secret manager, and change it if it was ever real.",
+    "sensitive-file-access":
+        "This code opens or looks for a file that normally holds private data, such as SSH or cloud keys, a kubeconfig, "
+        "shell history or browser cookies. Programs rarely need these; check why it wants them before you run it.",
+    "persistence-setup":
+        "This code looks like it installs itself to run again later (a shell start-up file, systemd unit, launch agent, "
+        "scheduled task or cron entry). Installers do this on purpose, so make sure you expect it before you run the code.",
+    "hidden-function-lookup":
+        "This code finds a powerful function (such as eval or os.system) by a name it builds or hides while running, "
+        "which makes it hard to see what it will call. Honest code rarely does this; read it closely before you run it.",
     "assert-for-validation":
         "assert lines are skipped when Python runs with -O, so the check could disappear. "
         "Use an if that raises an error for checks that must always run.",

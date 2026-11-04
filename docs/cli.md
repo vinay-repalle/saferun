@@ -182,7 +182,7 @@ Looks for dependency names that resemble popular PyPI packages (`reqeusts` for `
 ### Plain-English explanations (`In plain words:`)
 Under each finding the text and styled reports print one extra line, `In plain words: ...`: one or two short sentences on what it is, why it matters and how to fix it. It is shown by default (no flag). The finding's `message` is unchanged.
 - **JSON:** the finding gets an `explanation` string, only when one exists (reports and findings without one are unchanged; `schema_version` stays 1).
-- **Covered:** the 11 Semgrep rules, withheld-file findings, Python syntax errors, secrets (one generic text for every `secrets.*` rule, never containing the value), and dependency findings. Anything else has no explanation.
+- **Covered:** the 14 Semgrep rules, withheld-file findings, Python syntax errors, secrets (one generic text for every `secrets.*` rule, never containing the value), and dependency findings. Anything else has no explanation.
 - **Dependency findings** use a fixed template filled from the finding's own data (package, installed version, fixed versions, patch/minor/major label); advisory texts are not rewritten. With no fixed version it says so.
 - **Wording:** "can" / "could" only. It never says an attack will happen or that a fix makes the project safe.
 

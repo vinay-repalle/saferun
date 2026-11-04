@@ -101,3 +101,96 @@ rules:
     message: assert statements are removed under python -O; do not rely on them for security checks.
     pattern: assert $X
     metadata: {saferun_severity: low, cwe: ["CWE-617"]}
+
+  # --- Added after the second benchmark set: behaviour rules, all medium. They flag code that deserves a human look
+  # (reading credential files, installing itself to run later, hiding which function it calls); they do not prove harm.
+  - id: saferun.python.sensitive-file-access
+    languages: [python]
+    severity: WARNING
+    message: Code reads or locates a credential or personal-data file (SSH or cloud keys, kubeconfig, shell history, browser cookies).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: open($P, ...)
+                  - pattern: os.path.expanduser($P)
+                  - pattern: os.path.join(..., $P, ...)
+                  - pattern: glob.glob($P, ...)
+                  - pattern: pathlib.Path($P, ...)
+                  - pattern: Path($P, ...)
+                  - pattern: Path.home() / $P
+                  - pattern: pathlib.Path.home() / $P
+                  - pattern: Path.home().joinpath(..., $P, ...)
+                  - pattern: pathlib.Path.home().joinpath(..., $P, ...)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: (?s)^.*(\.ssh(/|\\\\)(id_|authorized_keys)|\.aws(/|\\\\)credentials|\.kube(/|\\\\)config|\.netrc|\.git-credentials|\.bash_history|\.zsh_history|\.gnupg|Default(/|\\\\)(Cookies|Login Data)|cookies\.sqlite|key4\.db|logins\.json|/etc/shadow|/etc/sudoers).*$
+          - patterns:
+              - pattern-either:
+                  - pattern: os.path.join(..., $P, ...)
+                  - pattern: Path.home() / $P
+                  - pattern: Path.home() / $P / $X
+                  - pattern: pathlib.Path.home() / $P / $X
+                  - pattern: pathlib.Path.home() / $P
+                  - pattern: Path.home().joinpath(..., $P, ...)
+                  - pattern: pathlib.Path.home().joinpath(..., $P, ...)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: ^["']?(\.ssh|\.aws|\.kube|\.gnupg|\.netrc|\.git-credentials|\.bash_history|\.zsh_history)["']?$
+    metadata: {saferun_severity: medium, cwe: ["CWE-200"]}
+
+  - id: saferun.python.persistence-setup
+    languages: [python]
+    severity: WARNING
+    message: Code sets itself up to run later (shell start-up file, systemd unit, launch agent, scheduled task or cron entry).
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: open($P, ...)
+                  - pattern: os.path.expanduser($P)
+                  - pattern: os.path.join(..., $P, ...)
+                  - pattern: pathlib.Path($P, ...)
+                  - pattern: Path($P, ...)
+                  - pattern: Path.home() / $P
+                  - pattern: pathlib.Path.home() / $P
+                  - pattern: Path.home().joinpath(..., $P, ...)
+                  - pattern: pathlib.Path.home().joinpath(..., $P, ...)
+              - metavariable-regex:
+                  metavariable: $P
+                  regex: (?is)^.*(\.bashrc|\.bash_profile|\.zshrc|\.zprofile|\.profile["']|bashrc["']|autostart|systemd(/|\\\\)(user|system)|launchagents|launchdaemons|/etc/cron|crontab|/etc/rc\.local|CurrentVersion\\\\+Run).*$
+          - patterns:
+              - pattern: $S = "..."
+              - pattern-regex: (?s)(ExecStart=|WantedBy=|<key>RunAtLoad</key>|<key>ProgramArguments</key>|@reboot\s)
+          - pattern: subprocess.$F([..., "schtasks", ..., "/create", ...], ...)
+          - pattern: subprocess.$F([..., "schtasks.exe", ..., "/create", ...], ...)
+          - patterns:
+              - pattern: subprocess.$F(["crontab", $ARG, ...], ...)
+              - pattern-not: subprocess.$F(["crontab", "-l", ...], ...)
+          - pattern: subprocess.$F(["systemctl", ..., "enable", ...], ...)
+    metadata: {saferun_severity: medium, cwe: ["CWE-506"]}
+
+  - id: saferun.python.hidden-function-lookup
+    languages: [python]
+    severity: WARNING
+    message: A built-in or system function is looked up by a name that is built or hidden at run time, which hides what the code calls.
+    options: {constant_propagation: false}   # a name built from pieces must stay "built", not be folded back into a plain literal
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: getattr($M, $N)
+              - pattern-not: getattr($M, "...")
+              - metavariable-regex:
+                  metavariable: $M
+                  regex: ^(builtins|__builtins__|os|sys|subprocess|importlib|[a-z_]*_mod)$
+          - pattern: getattr($M, "..." + "...")
+          - pattern: getattr($M, "".join(...))
+          - pattern: vars(builtins)[...]
+          - pattern: builtins.__dict__[...]
+          - pattern: __builtins__[...]
+          - pattern: __builtins__.__dict__[...]
+          - pattern: importlib.import_module("..." + "...")
+          - patterns:
+              - pattern: __import__($X)
+              - pattern-not: __import__("...")
+    metadata: {saferun_severity: medium, cwe: ["CWE-95"]}
