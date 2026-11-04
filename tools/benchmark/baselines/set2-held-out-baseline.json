@@ -1,0 +1,1877 @@
+{
+  "meta": {
+    "run_at": "2026-11-03 18:44 UTC",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "samples_file": "tools/benchmark/samples_v2.toml",
+    "samples_sha256": "10f734e21ed9f82e4319b715f7a1e05489fe45f0555f2ddcda34c7fb00a6f81a",
+    "labels_frozen": "2026-11-03",
+    "split": "held-out",
+    "saferun_osv_note": "",
+    "tool_versions": {
+      "saferun": "0.0.2",
+      "bandit": "1.9.4",
+      "pip-audit": "2.10.1"
+    }
+  },
+  "summary": {
+    "held-out": {
+      "code": {
+        "saferun": {
+          "catch": {
+            "strict": {
+              "k": 7,
+              "n": 32,
+              "errors": 0
+            },
+            "loose": {
+              "k": 9,
+              "n": 32,
+              "errors": 0
+            }
+          },
+          "false_alarm": {
+            "strict": {
+              "k": 0,
+              "n": 12,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 12,
+              "errors": 0
+            }
+          },
+          "categories": {
+            "dangerous_calls": {
+              "label": "bad",
+              "strict": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "destructive": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "evasion_variant": {
+              "label": "bad",
+              "strict": {
+                "k": 1,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 1,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "exfiltration": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "hard_negative": {
+              "label": "clean",
+              "strict": {
+                "k": 0,
+                "n": 7,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 7,
+                "errors": 0
+              }
+            },
+            "hardcoded_secret": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 1,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "normal_script": {
+              "label": "clean",
+              "strict": {
+                "k": 0,
+                "n": 5,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 5,
+                "errors": 0
+              }
+            },
+            "obfuscated_payload": {
+              "label": "bad",
+              "strict": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "persistence": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "sensitive_file_read": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "unsafe_deserialization": {
+              "label": "bad",
+              "strict": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "weak_practice": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 1,
+                "n": 4,
+                "errors": 0
+              }
+            }
+          }
+        },
+        "bandit": {
+          "catch": {
+            "strict": {
+              "k": 14,
+              "n": 32,
+              "errors": 0
+            },
+            "loose": {
+              "k": 17,
+              "n": 32,
+              "errors": 0
+            }
+          },
+          "false_alarm": {
+            "strict": {
+              "k": 1,
+              "n": 12,
+              "errors": 0
+            },
+            "loose": {
+              "k": 2,
+              "n": 12,
+              "errors": 0
+            }
+          },
+          "categories": {
+            "dangerous_calls": {
+              "label": "bad",
+              "strict": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "destructive": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 1,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "evasion_variant": {
+              "label": "bad",
+              "strict": {
+                "k": 1,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 1,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "exfiltration": {
+              "label": "bad",
+              "strict": {
+                "k": 2,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "hard_negative": {
+              "label": "clean",
+              "strict": {
+                "k": 1,
+                "n": 7,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 7,
+                "errors": 0
+              }
+            },
+            "hardcoded_secret": {
+              "label": "bad",
+              "strict": {
+                "k": 1,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "normal_script": {
+              "label": "clean",
+              "strict": {
+                "k": 0,
+                "n": 5,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 5,
+                "errors": 0
+              }
+            },
+            "obfuscated_payload": {
+              "label": "bad",
+              "strict": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "persistence": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 1,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "sensitive_file_read": {
+              "label": "bad",
+              "strict": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 0,
+                "n": 4,
+                "errors": 0
+              }
+            },
+            "unsafe_deserialization": {
+              "label": "bad",
+              "strict": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              },
+              "loose": {
+                "k": 2,
+                "n": 2,
+                "errors": 0
+              }
+            },
+            "weak_practice": {
+              "label": "bad",
+              "strict": {
+                "k": 4,
+                "n": 4,
+                "errors": 0
+              },
+              "loose": {
+                "k": 4,
+                "n": 4,
+                "errors": 0
+              }
+            }
+          }
+        }
+      },
+      "deps": {
+        "saferun": {
+          "catch": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "false_alarm": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "categories": {}
+        },
+        "pip-audit": {
+          "catch": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "false_alarm": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "categories": {}
+        },
+        "pip-audit -s osv": {
+          "catch": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "false_alarm": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "categories": {}
+        }
+      },
+      "names": {
+        "saferun": {
+          "catch": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "false_alarm": {
+            "strict": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            },
+            "loose": {
+              "k": 0,
+              "n": 0,
+              "errors": 0
+            }
+          },
+          "categories": {}
+        }
+      }
+    }
+  },
+  "notes": {
+    "saferun_wrong": [
+      {
+        "id": "x2-ex-02",
+        "category": "exfiltration",
+        "label": "bad",
+        "split": "held-out",
+        "note": "file contents sent with http.client",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-ex-03",
+        "category": "exfiltration",
+        "label": "bad",
+        "split": "held-out",
+        "note": "file uploaded over FTP",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      },
+      {
+        "id": "x2-ex-05",
+        "category": "exfiltration",
+        "label": "bad",
+        "split": "held-out",
+        "note": "all text files sent over UDP",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-ex-06",
+        "category": "exfiltration",
+        "label": "bad",
+        "split": "held-out",
+        "note": "environment encoded into a URL",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      },
+      {
+        "id": "x2-pe-02",
+        "category": "persistence",
+        "label": "bad",
+        "split": "held-out",
+        "note": "line appended to a shell profile (stand-in file in the temp folder)",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-pe-03",
+        "category": "persistence",
+        "label": "bad",
+        "split": "held-out",
+        "note": "cron.d style entry that runs every minute (stand-in folder)",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-pe-04",
+        "category": "persistence",
+        "label": "bad",
+        "split": "held-out",
+        "note": "Windows registry Run key (stand-in name)",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-pe-06",
+        "category": "persistence",
+        "label": "bad",
+        "split": "held-out",
+        "note": "systemd user unit written and enabled",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      },
+      {
+        "id": "x2-sr-02",
+        "category": "sensitive_file_read",
+        "label": "bad",
+        "split": "held-out",
+        "note": ".netrc read (stored passwords)",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-sr-03",
+        "category": "sensitive_file_read",
+        "label": "bad",
+        "split": "held-out",
+        "note": "browser login database copied",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-sr-04",
+        "category": "sensitive_file_read",
+        "label": "bad",
+        "split": "held-out",
+        "note": "Docker credentials file parsed",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-sr-06",
+        "category": "sensitive_file_read",
+        "label": "bad",
+        "split": "held-out",
+        "note": "GnuPG private key folder listed and read",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-ev-03",
+        "category": "evasion_variant",
+        "label": "bad",
+        "split": "held-out",
+        "note": "os.system called through operator.methodcaller with a split name",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-ev-04",
+        "category": "evasion_variant",
+        "label": "bad",
+        "split": "held-out",
+        "note": "eval looked up in the builtins dictionary with a split name",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-ev-06",
+        "category": "evasion_variant",
+        "label": "bad",
+        "split": "held-out",
+        "note": "module name decoded from hex, then check_output",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-de-02",
+        "category": "destructive",
+        "label": "bad",
+        "split": "held-out",
+        "note": "files overwritten with zeros, then removed (stand-in folder)",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-de-03",
+        "category": "destructive",
+        "label": "bad",
+        "split": "held-out",
+        "note": "rm -rf with an argument list (stand-in folder)",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      },
+      {
+        "id": "x2-de-04",
+        "category": "destructive",
+        "label": "bad",
+        "split": "held-out",
+        "note": "walk a tree and unlink every document (stand-in folder)",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-de-06",
+        "category": "destructive",
+        "label": "bad",
+        "split": "held-out",
+        "note": "every file truncated to zero length (stand-in folder)",
+        "saferun": "not flagged",
+        "others_right": []
+      },
+      {
+        "id": "x2-wp-03",
+        "category": "weak_practice",
+        "label": "bad",
+        "split": "held-out",
+        "note": "certificate checks switched off",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      },
+      {
+        "id": "x2-wp-04",
+        "category": "weak_practice",
+        "label": "bad",
+        "split": "held-out",
+        "note": "world-writable file permissions",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      },
+      {
+        "id": "x2-wp-06",
+        "category": "weak_practice",
+        "label": "bad",
+        "split": "held-out",
+        "note": "server bound to all interfaces",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      },
+      {
+        "id": "x2-hs-03",
+        "category": "hardcoded_secret",
+        "label": "bad",
+        "split": "held-out",
+        "note": "secret key in a settings dictionary (obviously fake)",
+        "saferun": "not flagged",
+        "others_right": [
+          "bandit"
+        ]
+      }
+    ],
+    "clean_dependency_exceptions": []
+  },
+  "samples": [
+    {
+      "id": "x2-ex-02",
+      "kind": "code",
+      "category": "exfiltration",
+      "label": "bad",
+      "split": "held-out",
+      "note": "file contents sent with http.client",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-ex-03",
+      "kind": "code",
+      "category": "exfiltration",
+      "label": "bad",
+      "split": "held-out",
+      "note": "file uploaded over FTP",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 2,
+          "loose": true,
+          "strict": true,
+          "detail": "severities HIGH,HIGH"
+        }
+      }
+    },
+    {
+      "id": "x2-ex-05",
+      "kind": "code",
+      "category": "exfiltration",
+      "label": "bad",
+      "split": "held-out",
+      "note": "all text files sent over UDP",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-ex-06",
+      "kind": "code",
+      "category": "exfiltration",
+      "label": "bad",
+      "split": "held-out",
+      "note": "environment encoded into a URL",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-pe-02",
+      "kind": "code",
+      "category": "persistence",
+      "label": "bad",
+      "split": "held-out",
+      "note": "line appended to a shell profile (stand-in file in the temp folder)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-pe-03",
+      "kind": "code",
+      "category": "persistence",
+      "label": "bad",
+      "split": "held-out",
+      "note": "cron.d style entry that runs every minute (stand-in folder)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-pe-04",
+      "kind": "code",
+      "category": "persistence",
+      "label": "bad",
+      "split": "held-out",
+      "note": "Windows registry Run key (stand-in name)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-pe-06",
+      "kind": "code",
+      "category": "persistence",
+      "label": "bad",
+      "split": "held-out",
+      "note": "systemd user unit written and enabled",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 3,
+          "loose": true,
+          "strict": false,
+          "detail": "severities LOW,LOW,LOW"
+        }
+      }
+    },
+    {
+      "id": "x2-sr-02",
+      "kind": "code",
+      "category": "sensitive_file_read",
+      "label": "bad",
+      "split": "held-out",
+      "note": ".netrc read (stored passwords)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-sr-03",
+      "kind": "code",
+      "category": "sensitive_file_read",
+      "label": "bad",
+      "split": "held-out",
+      "note": "browser login database copied",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-sr-04",
+      "kind": "code",
+      "category": "sensitive_file_read",
+      "label": "bad",
+      "split": "held-out",
+      "note": "Docker credentials file parsed",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-sr-06",
+      "kind": "code",
+      "category": "sensitive_file_read",
+      "label": "bad",
+      "split": "held-out",
+      "note": "GnuPG private key folder listed and read",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-ev-02",
+      "kind": "code",
+      "category": "evasion_variant",
+      "label": "bad",
+      "split": "held-out",
+      "note": "exec of a rot13-decoded string",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "verdict FAIL",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-ev-03",
+      "kind": "code",
+      "category": "evasion_variant",
+      "label": "bad",
+      "split": "held-out",
+      "note": "os.system called through operator.methodcaller with a split name",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-ev-04",
+      "kind": "code",
+      "category": "evasion_variant",
+      "label": "bad",
+      "split": "held-out",
+      "note": "eval looked up in the builtins dictionary with a split name",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-ev-06",
+      "kind": "code",
+      "category": "evasion_variant",
+      "label": "bad",
+      "split": "held-out",
+      "note": "module name decoded from hex, then check_output",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-de-02",
+      "kind": "code",
+      "category": "destructive",
+      "label": "bad",
+      "split": "held-out",
+      "note": "files overwritten with zeros, then removed (stand-in folder)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-de-03",
+      "kind": "code",
+      "category": "destructive",
+      "label": "bad",
+      "split": "held-out",
+      "note": "rm -rf with an argument list (stand-in folder)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 3,
+          "loose": true,
+          "strict": false,
+          "detail": "severities LOW,LOW,LOW"
+        }
+      }
+    },
+    {
+      "id": "x2-de-04",
+      "kind": "code",
+      "category": "destructive",
+      "label": "bad",
+      "split": "held-out",
+      "note": "walk a tree and unlink every document (stand-in folder)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-de-06",
+      "kind": "code",
+      "category": "destructive",
+      "label": "bad",
+      "split": "held-out",
+      "note": "every file truncated to zero length (stand-in folder)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-wp-02",
+      "kind": "code",
+      "category": "weak_practice",
+      "label": "bad",
+      "split": "held-out",
+      "note": "SHA-1 used for password storage",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": false,
+          "detail": "verdict WARNING",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities HIGH"
+        }
+      }
+    },
+    {
+      "id": "x2-wp-03",
+      "kind": "code",
+      "category": "weak_practice",
+      "label": "bad",
+      "split": "held-out",
+      "note": "certificate checks switched off",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 2,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM,MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-wp-04",
+      "kind": "code",
+      "category": "weak_practice",
+      "label": "bad",
+      "split": "held-out",
+      "note": "world-writable file permissions",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities HIGH"
+        }
+      }
+    },
+    {
+      "id": "x2-wp-06",
+      "kind": "code",
+      "category": "weak_practice",
+      "label": "bad",
+      "split": "held-out",
+      "note": "server bound to all interfaces",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-dc-02",
+      "kind": "code",
+      "category": "dangerous_calls",
+      "label": "bad",
+      "split": "held-out",
+      "note": "subprocess with shell=True and input",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "verdict FAIL",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 2,
+          "loose": true,
+          "strict": true,
+          "detail": "severities HIGH,LOW"
+        }
+      }
+    },
+    {
+      "id": "x2-dc-03",
+      "kind": "code",
+      "category": "dangerous_calls",
+      "label": "bad",
+      "split": "held-out",
+      "note": "eval of the contents of a file",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "verdict FAIL",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-ds-02",
+      "kind": "code",
+      "category": "unsafe_deserialization",
+      "label": "bad",
+      "split": "held-out",
+      "note": "yaml.load without a safe loader",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "verdict FAIL",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-ds-03",
+      "kind": "code",
+      "category": "unsafe_deserialization",
+      "label": "bad",
+      "split": "held-out",
+      "note": "marshal loaded from a file",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "verdict FAIL",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-ob-02",
+      "kind": "code",
+      "category": "obfuscated_payload",
+      "label": "bad",
+      "split": "held-out",
+      "note": "exec of zlib-compressed base64",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "verdict FAIL",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-ob-03",
+      "kind": "code",
+      "category": "obfuscated_payload",
+      "label": "bad",
+      "split": "held-out",
+      "note": "exec of a hex string",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "verdict FAIL",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-hs-02",
+      "kind": "code",
+      "category": "hardcoded_secret",
+      "label": "bad",
+      "split": "held-out",
+      "note": "API key constant (obviously fake)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": false,
+          "detail": "verdict WARNING",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-hs-03",
+      "kind": "code",
+      "category": "hardcoded_secret",
+      "label": "bad",
+      "split": "held-out",
+      "note": "secret key in a settings dictionary (obviously fake)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 2,
+          "loose": true,
+          "strict": false,
+          "detail": "severities LOW,LOW"
+        }
+      }
+    },
+    {
+      "id": "x2-cn-02",
+      "kind": "code",
+      "category": "normal_script",
+      "label": "clean",
+      "split": "held-out",
+      "note": "word frequency counter",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-cn-03",
+      "kind": "code",
+      "category": "normal_script",
+      "label": "clean",
+      "split": "held-out",
+      "note": "dataclass with a small calculation",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-cn-05",
+      "kind": "code",
+      "category": "normal_script",
+      "label": "clean",
+      "split": "held-out",
+      "note": "parameterised SQLite query",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-cn-06",
+      "kind": "code",
+      "category": "normal_script",
+      "label": "clean",
+      "split": "held-out",
+      "note": "unit conversion",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-cn-08",
+      "kind": "code",
+      "category": "normal_script",
+      "label": "clean",
+      "split": "held-out",
+      "note": "copy a file given on the command line",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-hn-02",
+      "kind": "code",
+      "category": "hard_negative",
+      "label": "clean",
+      "split": "held-out",
+      "note": "reads the app's own config file under the home folder",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-hn-03",
+      "kind": "code",
+      "category": "hard_negative",
+      "label": "clean",
+      "split": "held-out",
+      "note": "reads ~/.ssh/known_hosts (public host keys, not a secret)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-hn-05",
+      "kind": "code",
+      "category": "hard_negative",
+      "label": "clean",
+      "split": "held-out",
+      "note": "scratch folder removed automatically",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-hn-07",
+      "kind": "code",
+      "category": "hard_negative",
+      "label": "clean",
+      "split": "held-out",
+      "note": "subprocess with a fixed argument list",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 3,
+          "loose": true,
+          "strict": false,
+          "detail": "severities LOW,LOW,LOW"
+        }
+      }
+    },
+    {
+      "id": "x2-hn-08",
+      "kind": "code",
+      "category": "hard_negative",
+      "label": "clean",
+      "split": "held-out",
+      "note": "SHA-256 file checksum",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    },
+    {
+      "id": "x2-hn-10",
+      "kind": "code",
+      "category": "hard_negative",
+      "label": "clean",
+      "split": "held-out",
+      "note": "downloads a version string (GET, nothing sent out)",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 1,
+          "loose": true,
+          "strict": true,
+          "detail": "severities MEDIUM"
+        }
+      }
+    },
+    {
+      "id": "x2-hn-11",
+      "kind": "code",
+      "category": "hard_negative",
+      "label": "clean",
+      "split": "held-out",
+      "note": "rotates the app's own old backups",
+      "results": {
+        "saferun": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": "verdict PASS",
+          "incomplete": false,
+          "osv_note": ""
+        },
+        "bandit": {
+          "status": "ok",
+          "findings": 0,
+          "loose": false,
+          "strict": false,
+          "detail": ""
+        }
+      }
+    }
+  ]
+}

@@ -5,9 +5,10 @@ Every sample in samples.toml is written into a fresh temp folder, scanned, and t
 SafeRun is only called with "scan" (and "check-names"), never "run"; Bandit and pip-audit only read files; pip-audit runs with
 --no-deps --disable-pip, so nothing is installed.
 
-    python tools/benchmark/run.py [--split dev|held-out|all] [--out-dir DIR]
+    python tools/benchmark/run.py [--set 1|2] [--split dev|held-out|all] [--out-dir DIR]
 
-The default split is "dev". The held-out split is run once, after the labels are frozen, and SafeRun is never tuned to its results.
+The default set is 1 (samples.toml); set 2 is samples_v2.toml (code samples only). The default split is "dev". A held-out split is run
+once per rule version, after the labels are frozen, and SafeRun is never tuned to its results.
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SAMPLES = HERE / "samples.toml"
+SAMPLE_SETS = {"1": SAMPLES, "2": HERE / "samples_v2.toml"}
 
 SAFERUN, BANDIT, PIP_AUDIT, PIP_AUDIT_OSV = "saferun", "bandit", "pip-audit", "pip-audit -s osv"
 # Which tools take part in which kind of sample. "names" is SafeRun-only and is kept out of the head-to-head totals.
@@ -202,12 +204,14 @@ def render_markdown(rep: dict) -> str:
         L += [f"## Results: {name} split", ""]
         for kind, title in (("code", "Code checks (head-to-head: SafeRun vs Bandit)"), ("deps", "Dependency checks (head-to-head: SafeRun vs pip-audit)"),
                             ("names", "SafeRun-only: look-alike package names (not in any head-to-head total)")):
+            cats = next(iter(agg[kind].values()))["categories"]
+            if not cats:   # this sample set has no samples of this kind
+                continue
             L += [f"### {title}", "", "| Tool | Catch (strict) | Catch (loose) | False alarm (strict) | False alarm (loose) |", "|---|---|---|---|---|"]
             for tool, a in agg[kind].items():
                 L.append(f"| {tool} | {_kn(a['catch']['strict'])} | {_kn(a['catch']['loose'])} | {_kn(a['false_alarm']['strict'])} | {_kn(a['false_alarm']['loose'])} |")
             L += ["", "Per category (loose bar, k/n flagged; for clean categories k is false alarms):", "", "| Category | Label | " + " | ".join(agg[kind]) + " |",
                   "|---|---|" + "---|" * len(agg[kind])]
-            cats = next(iter(agg[kind].values()))["categories"]
             for cat, c in cats.items():
                 L.append(f"| {cat} | {c['label']} | " + " | ".join(_kn(agg[kind][t]["categories"][cat]["loose"]) for t in agg[kind]) + " |")
             L.append("")
@@ -226,7 +230,10 @@ def render_markdown(rep: dict) -> str:
           "- Bandit looks for insecure coding practice and SafeRun looks for behaviour that should not be run unreviewed; the goals overlap but differ.",
           "- Only the scan is measured. The sandbox (`saferun run`) is not part of this benchmark and samples are never executed.",
           "- Dependency results depend on the advisory data on the run date. A PASS is not proof of safety.",
-          "- SafeRun was not tuned to these results; fixes need a new sample set.", ""]
+          "- SafeRun was not tuned to these results; fixes need a new sample set.",
+          *(["- Set 2 was written by authors who already knew where set 1 was missed, so it can be unconsciously easier or harder than a "
+             "stranger's set; the samples are structurally different from set 1, which reduces but does not remove that bias."]
+            if "samples_v2" in m["samples_file"] else []), ""]
     return "\n".join(L)
 
 
@@ -237,14 +244,14 @@ def _version(pkg: str) -> str:
         return "not installed"
 
 
-def build_report(rows: list[dict], splits: tuple[str, ...], meta: dict, sha: str) -> dict:
+def build_report(rows: list[dict], splits: tuple[str, ...], meta: dict, sha: str, samples_file: str = "tools/benchmark/samples.toml") -> dict:
     summary = {s: aggregate(rows, (s,)) for s in splits}
     if len(splits) > 1:
         summary["all"] = aggregate(rows, splits)
     osv_note = next((o["osv_note"] for r in rows for t, o in r["results"].items() if t == SAFERUN and o.get("osv_note")), "")
     return {
         "meta": {"run_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), "platform": platform.platform(), "python": platform.python_version(),
-                 "samples_file": "tools/benchmark/samples.toml", "samples_sha256": sha, "labels_frozen": meta["frozen"],
+                 "samples_file": samples_file, "samples_sha256": sha, "labels_frozen": meta["frozen"],
                  "split": "+".join(splits), "saferun_osv_note": osv_note,
                  "tool_versions": {"saferun": _version("saferun-cli"), "bandit": _version("bandit"), "pip-audit": _version("pip-audit")}},
         "summary": summary, "notes": verdict_notes(rows), "samples": rows,
@@ -253,6 +260,7 @@ def build_report(rows: list[dict], splits: tuple[str, ...], meta: dict, sha: str
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--set", dest="sample_set", choices=tuple(SAMPLE_SETS), default="1", help="sample set: 1 = samples.toml (default), 2 = samples_v2.toml")
     ap.add_argument("--split", choices=("dev", "held-out", "all"), default="dev", help="which samples to run (default: dev; run held-out once)")
     ap.add_argument("--out-dir", default="artifacts/benchmark", help="where benchmark.json and benchmark.md are written")
     ap.add_argument("--timeout", type=float, default=180, help="per tool call, seconds")
@@ -260,14 +268,15 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     splits = SPLITS if args.split == "all" else (args.split,)
     enabled = {SAFERUN, BANDIT, PIP_AUDIT, PIP_AUDIT_OSV} - {t.strip() for t in args.skip.split(",")}
-    meta, samples = load_samples()
+    samples_path = SAMPLE_SETS[args.sample_set]
+    meta, samples = load_samples(samples_path)
     samples = [s for s in samples if s["split"] in splits]
     rows = []
     with tempfile.TemporaryDirectory(prefix="saferun-bench-") as tmp:   # every generated file lives here and is removed on exit
         for i, s in enumerate(samples, 1):
             print(f"[{i}/{len(samples)}] {s['id']}", file=sys.stderr, flush=True)
             rows.append({k: s[k] for k in ("id", "kind", "category", "label", "split", "note")} | {"results": run_sample(s, Path(tmp), args.timeout, enabled)})
-    rep = build_report(rows, splits, meta, hashlib.sha256(SAMPLES.read_bytes()).hexdigest())
+    rep = build_report(rows, splits, meta, hashlib.sha256(samples_path.read_bytes()).hexdigest(), f"tools/benchmark/{samples_path.name}")
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "benchmark.json").write_text(json.dumps(rep, indent=2) + "\n", encoding="utf-8")

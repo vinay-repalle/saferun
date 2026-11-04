@@ -173,3 +173,66 @@ def test_real_scan_of_one_dev_sample_with_saferun_and_bandit(tmp_path):
     assert sr["status"] == "ok" and sr["loose"], sr
     bd = bench.scan_bandit(folder, 120)
     assert bd["status"] == "ok" and bd["loose"], bd
+
+
+# ---------------------------------------------------------------- sample set 2 (samples_v2.toml)
+META2, SAMPLES2 = bench.load_samples(bench.SAMPLE_SETS["2"])
+
+
+def test_set_one_is_still_the_default_and_set_two_is_selectable():
+    assert bench.SAMPLE_SETS["1"] == bench.SAMPLES
+    assert bench.SAMPLE_SETS["2"].name == "samples_v2.toml"
+    assert len(SAMPLES) == 88 and len(SAMPLES2) == 68
+
+
+def test_set_two_labels_split_and_ids_are_sound_and_distinct_from_set_one():
+    ids1 = {s["id"] for s in SAMPLES}
+    assert len({s["id"] for s in SAMPLES2}) == len(SAMPLES2) and not ids1 & {s["id"] for s in SAMPLES2}
+    assert {s["kind"] for s in SAMPLES2} == {"code"}
+    for cat in {s["category"] for s in SAMPLES2}:
+        assert {s["split"] for s in SAMPLES2 if s["category"] == cat} == {"dev", "held-out"}, cat
+    counts = {(s["label"], s["split"]): 0 for s in SAMPLES2}
+    for s in SAMPLES2:
+        counts[(s["label"], s["split"])] += 1
+    assert counts == {("bad", "dev"): 16, ("bad", "held-out"): 32, ("clean", "dev"): 8, ("clean", "held-out"): 12}
+    assert META2["frozen"]
+
+
+def test_set_two_covers_the_missed_categories_with_clean_counterweights():
+    cats = {s["category"] for s in SAMPLES2}
+    assert {"exfiltration", "persistence", "sensitive_file_read", "evasion_variant", "destructive", "weak_practice",
+            "hard_negative", "normal_script"} <= cats
+
+
+def test_set_two_samples_are_valid_python_and_harmless_by_construction():
+    for s in SAMPLES2:
+        ast.parse(s["content"], s["id"])
+        text = s["content"]
+        for host in re.findall(r"(?:https?|smtp)://([^/\"' ?]+)|ftp\.connect\(\"([^\"]+)\"|create_connection\(\(\"([^\"]+)\"|HTTPConnection\(\"([^\"]+)\"|\(\"(127\.0\.0\.1)\", 9\)", text):
+            host = next(h for h in host if h)
+            assert host.startswith("127.0.0.1") or host.endswith(".invalid"), (s["id"], host)
+        if re.search(r"rmtree\(|\"rm\", \"-rf\"|os\.remove\(|os\.unlink\(|truncate|\.open\(\"w\"\)", text) and "backups" not in text:
+            assert "tempfile" in text, f"{s['id']}: destructive stand-ins must be confined to the temp folder"
+
+
+def test_set_two_has_no_string_that_looks_like_a_real_vendor_key():
+    # GitHub push protection (and SafeRun's own gitleaks scan) match these shapes; fake secrets must not look like real ones.
+    pattern = re.compile(r"sk_(?:live|test)_|AKIA[0-9A-Z]{12}|ghp_[A-Za-z0-9]{20}|xox[bp]-|-----BEGIN [A-Z ]*PRIVATE KEY")
+    for s in SAMPLES2:
+        assert not pattern.search(s["content"]), s["id"]
+
+
+def test_set_two_materializes_one_file_per_sample(tmp_path):
+    for s in SAMPLES2:
+        assert [p.name for p in bench.materialize(s, tmp_path).iterdir()] == ["sample.py"], s["id"]
+
+
+def test_report_for_set_two_names_the_file_adds_the_bias_caveat_and_skips_empty_kinds():
+    rows = [{"id": "a", "kind": "code", "category": "exfiltration", "label": "bad", "split": "held-out", "note": "n",
+             "results": {"saferun": bench._outcome("ok", 0), "bandit": bench._outcome("ok", 1, True)}}]
+    rep = bench.build_report(rows, ("held-out",), META2, "0" * 64, "tools/benchmark/samples_v2.toml")
+    text = bench.render_markdown(rep)
+    assert "samples_v2.toml" in text and "already knew where set 1 was missed" in text
+    assert "Dependency checks" not in text and "look-alike package names" not in text
+    rep1 = bench.build_report(rows, ("held-out",), META, "0" * 64)
+    assert "already knew where set 1 was missed" not in bench.render_markdown(rep1)
