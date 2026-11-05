@@ -661,12 +661,12 @@ def test_real_status_of_the_pinned_images_and_init_skips_them(monkeypatch):
     assert setup.out.getvalue().count("skipped (already installed and verified)") == 1
 
 
-def test_recorded_release_is_the_verified_analyzer_v1_1_0_pinned_by_digest():
+def test_recorded_release_is_the_verified_analyzer_v1_2_0_pinned_by_digest():
     rel = im.ANALYZER_RELEASE
     assert rel is not None
     assert rel.repository == "ghcr.io/vinay-repalle/saferun-analyzer" == im.ANALYZER_REGISTRY_REPOSITORY
-    assert rel.digest == "sha256:5642a101fb716a58bce139bec78b04ecb5da2b091f4c863649734b65a7682d07"
-    assert rel.reference == "ghcr.io/vinay-repalle/saferun-analyzer@sha256:5642a101fb716a58bce139bec78b04ecb5da2b091f4c863649734b65a7682d07" and ":" not in rel.reference.split("@")[0].rsplit("/", 1)[1]   # digest, never a tag
+    assert rel.digest == "sha256:33ed623ed2d09a0ec2092a765240499eeb7ebb0415e951aa3f92154ea66bf277"
+    assert rel.reference == "ghcr.io/vinay-repalle/saferun-analyzer@sha256:33ed623ed2d09a0ec2092a765240499eeb7ebb0415e951aa3f92154ea66bf277" and ":" not in rel.reference.split("@")[0].rsplit("/", 1)[1]   # digest, never a tag
     assert im.digest_of(rel.reference) == rel.digest
     assert rel.signer_identity_regexp == im.ANALYZER_SIGNER_IDENTITY_REGEXP and rel.oidc_issuer == im.GITHUB_OIDC_ISSUER
 

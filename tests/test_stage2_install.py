@@ -141,7 +141,7 @@ def test_init_never_pulls_when_the_signature_is_bad():
 
 
 def test_analyzer_release_is_untouched_by_stage2():
-    assert im.ANALYZER_RELEASE is not None and im.ANALYZER_RELEASE.digest.startswith("sha256:5642a101")
+    assert im.ANALYZER_RELEASE is not None and im.ANALYZER_RELEASE.digest.startswith("sha256:33ed623e")
 
 
 # ------------------------------------------------------------------------------------------------ docker diagnosis
