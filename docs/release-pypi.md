@@ -1,6 +1,6 @@
 # Releasing `saferun-cli` to PyPI (maintainer procedure)
 
-**Status:** `0.0.2` is published on production PyPI (<https://pypi.org/project/saferun-cli/0.0.2/>, wheel and sdist) with GitHub Release `v0.0.2`. It was first verified from TestPyPI in a fresh virtual environment. The TestPyPI `0.0.1` cannot be re-uploaded. Every upload below is a deliberate, manual step by the maintainer; the next release needs a new version number. CI never publishes (`tests/test_ci_workflow.py` enforces it), and the analyzer image has its own release path ([release-images.md](release-images.md)).
+**Status:** `0.0.3` is published on production PyPI (<https://pypi.org/project/saferun-cli/0.0.3/>, wheel and sdist) with GitHub Release `v0.0.3`. It was first verified from TestPyPI in a fresh virtual environment, and the PyPI wheel hash matches the tested file. Earlier versions (0.0.1, 0.0.2) cannot be re-uploaded. Every upload below is a deliberate, manual step by the maintainer; the next release needs a new version number. CI never publishes (`tests/test_ci_workflow.py` enforces it), and the analyzer image has its own release path ([release-images.md](release-images.md)).
 
 The name `saferun-cli` is ours on PyPI; `saferun` belongs to an unrelated project and must not be used.
 
