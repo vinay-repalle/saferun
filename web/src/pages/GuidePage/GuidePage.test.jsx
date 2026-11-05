@@ -143,7 +143,7 @@ describe('Guide page', () => {
   it('shows the installed version, the real PyPI and release links and the alpha status', () => {
     const { container } = render(<GuidePage />)
     const rel = container.querySelector('#release')
-    expect(rel.textContent).toContain('0.0.2')
+    expect(rel.textContent).toContain('0.0.3')
     expect(rel.textContent).toMatch(/alpha software/)
     expect(rel.textContent).toContain('pip install --upgrade saferun-cli')
     const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'))

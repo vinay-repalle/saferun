@@ -46,9 +46,9 @@ describe('Landing page', () => {
     expect(gh.className).not.toContain('btn')
   })
 
-  it('announces the public 0.0.2 release with the real pip command, version and alpha status', () => {
+  it('announces the public 0.0.3 release with the real pip command, version and alpha status', () => {
     const { container } = render(<LandingPage />)
-    expect(container.querySelector('.sh-release').textContent).toMatch(/v0\.0\.2 · alpha · available on PyPI/)
+    expect(container.querySelector('.sh-release').textContent).toMatch(/v0\.0\.3 · alpha · available on PyPI/)
     expect(container.querySelector('.sh-install').textContent).toContain('pip install saferun-cli')
     const qs = container.querySelector('#quick-start').textContent
     for (const k of ['pip install saferun-cli', 'Python 3.12+', 'Docker', 'Alpha release', 'not been independently certified', 'GitHub Releases', 'PyPI package']) expect(qs).toContain(k)

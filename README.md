@@ -2,7 +2,7 @@
 
 Checks AI-generated code before you run or trust it. Executing untrusted code in a sandbox **limits the impact** of that
 code; it does **not** prove the code is safe, and a passing scan does not guarantee security.
-**Current release: 0.0.2** · [PyPI](https://pypi.org/project/saferun-cli/) · [GitHub Releases](https://github.com/vinay-repalle/saferun/releases) · [Website](https://safe-run.netlify.app) · [Security policy](https://github.com/vinay-repalle/saferun/blob/main/SECURITY.md)
+**Current release: 0.0.3** · [PyPI](https://pypi.org/project/saferun-cli/) · [GitHub Releases](https://github.com/vinay-repalle/saferun/releases) · [Website](https://safe-run.netlify.app) · [Security policy](https://github.com/vinay-repalle/saferun/blob/main/SECURITY.md)
 
 Status: **alpha, not independently certified or security-audited.** The signed analyzer image `analyzer-v1.2.0` is published from this repository and recorded in `ANALYZER_RELEASE`, so `saferun init` installs it after verifying its cosign signature; see [docs/release-images.md](https://github.com/vinay-repalle/saferun/blob/main/docs/release-images.md). Only a small, advisory benchmark exists (SafeRun's own simulated samples against Bandit and pip-audit, see [docs/benchmark.md](https://github.com/vinay-repalle/saferun/blob/main/docs/benchmark.md)); not yet done: an independent detection-quality evaluation, and verification of the Docker sandbox through Docker Desktop on Windows and macOS (see [docs/platforms.md](https://github.com/vinay-repalle/saferun/blob/main/docs/platforms.md)). **The CLI is the product**; `web/` is a static informational website.
 

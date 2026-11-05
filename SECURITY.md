@@ -1,6 +1,6 @@
 # Security policy
 
-SafeRun is alpha software (current release: 0.0.2, published as `saferun-cli` on PyPI) and has not been independently audited or certified; see the README and [docs/sandbox.md](docs/sandbox.md) for its limits. Reports of security problems are welcome.
+SafeRun is alpha software (current release: 0.0.3, published as `saferun-cli` on PyPI) and has not been independently audited or certified; see the README and [docs/sandbox.md](docs/sandbox.md) for its limits. Reports of security problems are welcome.
 
 ## Reporting a vulnerability
 
@@ -18,7 +18,7 @@ Out of scope: findings the scanner misses (detection quality is a known gap, a n
 
 ## Supported versions
 
-Only the latest release receives fixes (currently 0.0.2). Upgrade with `pip install --upgrade saferun-cli`, then run `saferun init` and `saferun doctor`.
+Only the latest release receives fixes (currently 0.0.3). Upgrade with `pip install --upgrade saferun-cli`, then run `saferun init` and `saferun doctor`.
 
 ## Limitations you should know
 

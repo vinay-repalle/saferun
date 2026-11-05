@@ -2,7 +2,7 @@
 
 export const GITHUB = 'https://github.com/vinay-repalle/saferun'
 export const DOCS = GITHUB + '/blob/main/docs/'
-export const VERSION = '0.0.2'
+export const VERSION = '0.0.3'
 export const PYPI = 'https://pypi.org/project/saferun-cli/'
 export const PYPI_VERSION = PYPI + VERSION + '/'
 export const RELEASES = GITHUB + '/releases'
