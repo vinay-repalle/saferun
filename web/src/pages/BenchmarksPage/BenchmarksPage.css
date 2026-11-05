@@ -1,0 +1,9 @@
+.bench { padding-top: 40px; padding-bottom: 72px; display: grid; gap: 1rem; max-width: 860px; }
+.bench h1 { font-size: clamp(1.7rem, 3.2vw, 2.4rem); }
+.bench-bar { display: grid; grid-template-columns: 11rem minmax(0, 1fr) 3.2rem; gap: .75rem; align-items: center; margin: .45rem 0; }
+.bench-name { font-size: .88rem; }
+.bench-track { height: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.bench-track i { display: block; height: 100%; }
+.b-before { background: #6d8fc9; } .b-after { background: var(--accent); } .b-bandit { background: var(--muted); }
+.bench-val { font-family: var(--mono); font-size: .88rem; font-weight: 600; text-align: right; }
+@media (max-width: 560px) { .bench-bar { grid-template-columns: minmax(0, 1fr) 3.2rem; } .bench-name { grid-column: 1 / -1; } }

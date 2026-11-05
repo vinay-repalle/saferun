@@ -4,7 +4,7 @@ import { Mark } from '../Mark/Mark'
 import './SiteNav.css'
 
 // Every link is a real hash link, so the same navbar works on the website and the guide.
-const LINKS = [['#/product', 'Product'], ['#/security', 'Security'], ['#/how', 'How it works'], ['#/guide', 'Docs']]
+const LINKS = [['#/product', 'Product'], ['#/security', 'Security'], ['#/how', 'How it works'], ['#/guide', 'Docs'], ['#/benchmarks', 'Benchmark']]
 
 // The GitHub mark (Octicons "mark-github", MIT). Decorative: the link carries the accessible name.
 function GithubMark() {

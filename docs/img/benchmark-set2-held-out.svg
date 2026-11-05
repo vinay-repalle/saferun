@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 454" width="760" height="454" role="img" aria-labelledby="t d" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<title id="t">Held-out benchmark, set 2: SafeRun before and after the new rules, and Bandit</title>
+<desc id="d">Loose catches: SafeRun 9 of 32 before, 14 of 32 after, Bandit 17 of 32. Strict catches: SafeRun 7 of 32 before and after, Bandit 14 of 32. Loose false alarms: SafeRun 0 of 12 before and after, Bandit 2 of 12.</desc>
+<rect width="760" height="454" rx="8" fill="#ffffff" stroke="#d5dbe6"/>
+<text x="24" y="32" font-size="16" font-weight="700" fill="#1a2233">Benchmark, held-out split of sample set 2</text>
+<text x="24" y="50" font-size="12" fill="#5b6679">SafeRun scan vs Bandit 1.9.4. Small simulated set written by the SafeRun authors; advisory, not an independent evaluation.</text>
+<text x="24" y="70" font-weight="600" font-size="14" fill="#1a2233">Catches, loose (of 32 bad samples)</text>
+<text x="24" y="103" font-size="13" fill="#3a4559">SafeRun, unchanged rules</text>
+<rect x="210" y="88" width="440" height="20" rx="3" fill="#eef1f6"/>
+<rect x="210" y="88" width="123.8" height="20" rx="3" fill="#8fb4ff"/>
+<text x="662" y="103" font-size="13" font-weight="600" fill="#1a2233">9/32</text>
+<text x="24" y="133" font-size="13" fill="#3a4559">SafeRun, new rules</text>
+<rect x="210" y="118" width="440" height="20" rx="3" fill="#eef1f6"/>
+<rect x="210" y="118" width="192.5" height="20" rx="3" fill="#2f6fe4"/>
+<text x="662" y="133" font-size="13" font-weight="600" fill="#1a2233">14/32</text>
+<text x="24" y="163" font-size="13" fill="#3a4559">Bandit</text>
+<rect x="210" y="148" width="440" height="20" rx="3" fill="#eef1f6"/>
+<rect x="210" y="148" width="233.8" height="20" rx="3" fill="#9aa3b2"/>
+<text x="662" y="163" font-size="13" font-weight="600" fill="#1a2233">17/32</text>
+<text x="24" y="200" font-weight="600" font-size="14" fill="#1a2233">Catches, strict (of 32 bad samples)</text>
+<text x="24" y="233" font-size="13" fill="#3a4559">SafeRun, unchanged rules</text>
+<rect x="210" y="218" width="440" height="20" rx="3" fill="#eef1f6"/>
+<rect x="210" y="218" width="96.2" height="20" rx="3" fill="#8fb4ff"/>
+<text x="662" y="233" font-size="13" font-weight="600" fill="#1a2233">7/32</text>
+<text x="24" y="263" font-size="13" fill="#3a4559">SafeRun, new rules</text>
+<rect x="210" y="248" width="440" height="20" rx="3" fill="#eef1f6"/>
+<rect x="210" y="248" width="96.2" height="20" rx="3" fill="#2f6fe4"/>
+<text x="662" y="263" font-size="13" font-weight="600" fill="#1a2233">7/32</text>
+<text x="24" y="293" font-size="13" fill="#3a4559">Bandit</text>
+<rect x="210" y="278" width="440" height="20" rx="3" fill="#eef1f6"/>
+<rect x="210" y="278" width="192.5" height="20" rx="3" fill="#9aa3b2"/>
+<text x="662" y="293" font-size="13" font-weight="600" fill="#1a2233">14/32</text>
+<text x="24" y="330" font-weight="600" font-size="14" fill="#1a2233">False alarms, loose (of 12 clean samples; lower is better)</text>
+<text x="24" y="363" font-size="13" fill="#3a4559">SafeRun, unchanged rules</text>
+<rect x="210" y="348" width="440" height="20" rx="3" fill="#eef1f6"/>
+<text x="662" y="363" font-size="13" font-weight="600" fill="#1a2233">0/12</text>
+<text x="24" y="393" font-size="13" fill="#3a4559">SafeRun, new rules</text>
+<rect x="210" y="378" width="440" height="20" rx="3" fill="#eef1f6"/>
+<text x="662" y="393" font-size="13" font-weight="600" fill="#1a2233">0/12</text>
+<text x="24" y="423" font-size="13" fill="#3a4559">Bandit</text>
+<rect x="210" y="408" width="440" height="20" rx="3" fill="#eef1f6"/>
+<rect x="210" y="408" width="73.3" height="20" rx="3" fill="#9aa3b2"/>
+<text x="662" y="423" font-size="13" font-weight="600" fill="#1a2233">2/12</text>
+</svg>

@@ -10,7 +10,9 @@ const FAQ = [
   ['Why does it need Docker?', requirement('Docker')],
   ['Do I need Cosign?', requirement('Cosign')],
   ['Does it need internet access?', requirement('Internet')],
-  ['Which languages are supported?', 'Python (syntax, Semgrep) and JavaScript / Node.js (node --check and npm lockfile scan). JavaScript dependency installation, test runners and JavaScript Semgrep rules are not implemented.'],
+  ['Which languages are supported?', 'Python only: the syntax check, Semgrep rules, the secrets scan and the dependency scan for Python projects. JavaScript and npm files are not checked; a note in the report says so, and it does not change the verdict.'],
+  ['What is the difference between scan and run?', 'saferun scan only reads the files and reports; no project code is run. saferun run scans a Python script first and runs it, inside the sandbox only, when the verdict allows it.'],
+  ['Does it look for hardcoded secrets?', 'Yes. gitleaks runs inside the offline analyzer container. Secret values are never printed, logged or put in the JSON report: only the rule, file and line. You can turn it off with --no-secrets-check, which limits the verdict to WARNING at best.'],
   ['Does a PASS mean the code is safe?', HONEST_LIMITS],
 ]
 

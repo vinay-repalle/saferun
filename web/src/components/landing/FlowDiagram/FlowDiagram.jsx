@@ -11,7 +11,7 @@ export function FlowDiagram() {
       </defs>
       <g className="flow-box"><rect x="6" y="38" width="108" height="74" rx="3" /></g>
       <text x="60" y="30" className="flow-cap" textAnchor="middle">your project</text>
-      <text x="22" y="64" className="flow-mono">app.py</text><text x="22" y="82" className="flow-mono">index.js</text><text x="22" y="100" className="flow-mono">package-lock</text>
+      <text x="22" y="64" className="flow-mono">app.py</text><text x="22" y="82" className="flow-mono">setup.py</text><text x="22" y="100" className="flow-mono">requirements</text>
       <path d="M116 75h56" className="flow-line" markerEnd="url(#flow-arr)" />
       <rect className="flow-pk pk-1" x="116" y="72" width="6" height="6" /><rect className="flow-pk pk-2" x="116" y="72" width="6" height="6" /><rect className="flow-pk pk-3" x="116" y="72" width="6" height="6" />
       <rect x="178" y="12" width="210" height="126" rx="3" className="flow-iso" />

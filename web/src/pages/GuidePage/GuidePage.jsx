@@ -22,7 +22,7 @@ const WALK_LINUX = [
   ['Install SafeRun from PyPI', `SafeRun ${VERSION} is published on PyPI as saferun-cli; it installs the saferun command. Use a virtual environment (or pipx). Semgrep and OSV-Scanner are not installed on your computer: they live in the analyzer image.`,
     ['python3 -m venv ~/saferun-env', 'source ~/saferun-env/bin/activate', INSTALL, 'saferun --version'],
     'Activate the virtual environment in every new terminal. pipx install saferun-cli and uv tool install saferun-cli work too. On Debian and Ubuntu, pip refuses to install into the system Python (externally managed environment), so use the virtual environment or pipx.'],
-  ['Set SafeRun up', 'Installs only what is missing, and verifies each part before trusting it. It pulls the Python and Node.js images by pinned digest, fetches a hash-verified cosign for itself if you have none, checks the signed analyzer image (signature first, then the exact pinned digest from ghcr.io, about 740 MB), and downloads the OSV vulnerability data (about 260 MB).',
+  ['Set SafeRun up', 'Installs only what is missing, and verifies each part before trusting it. It pulls the Python image by pinned digest, fetches a hash-verified cosign for itself if you have none, checks the signed analyzer image (signature first, then the exact pinned digest from ghcr.io, about 740 MB), and downloads the OSV vulnerability data (about 260 MB).',
     ['saferun init'],
     'You do not install cosign yourself. Run saferun init --all for no questions (scripts, CI). To build the analyzer from the repository recipe instead (a few minutes, needs a source checkout), see the commands list: saferun init --only analyzer --build-local.'],
   ['Diagnose the installation', 'A read-only check: PASS, WARNING or FAIL for Python, Docker, the images, the analyzer, cosign and the OSV data, with the fix for each problem. Exit code 0 when nothing failed.',
@@ -44,7 +44,7 @@ const WALK_WINDOWS = [
   ['Install SafeRun from PyPI', `SafeRun ${VERSION} is published on PyPI as saferun-cli; it installs the saferun command.`,
     ['py -3.12 -m venv saferun-env', 'saferun-env\\Scripts\\Activate.ps1', INSTALL, 'saferun --version'],
     'In Command Prompt activate with saferun-env\\Scripts\\activate.bat instead. If PowerShell blocks the script, use Command Prompt or call saferun-env\\Scripts\\saferun.exe directly. pipx and uv tool work too.'],
-  ['Set SafeRun up', 'Pulls the pinned Python and Node.js images, fetches a hash-verified cosign for itself if you have none, installs the signed analyzer (about 740 MB) and downloads the OSV data (about 260 MB).',
+  ['Set SafeRun up', 'Pulls the pinned Python image, fetches a hash-verified cosign for itself if you have none, installs the signed analyzer (about 740 MB) and downloads the OSV data (about 260 MB).',
     ['saferun init'], 'You do not install cosign yourself. saferun init --all runs without questions.'],
   ['Diagnose, then scan', 'saferun doctor is read-only and reports PASS, WARNING or FAIL per part with the fix. Then scan a local folder, or scan and run a script in the sandbox. Nothing is executed outside it.',
     ['saferun doctor', 'saferun scan .\\my-project', 'saferun run my_script.py'], 'Keep the project on a local drive that Docker Desktop shares (C:\\Users by default). Network (UNC) paths are refused.'],
@@ -59,7 +59,7 @@ const WALK_MACOS = [
   ['Install SafeRun from PyPI', `SafeRun ${VERSION} is published on PyPI as saferun-cli; it installs the saferun command.`,
     ['python3 -m venv ~/saferun-env', 'source ~/saferun-env/bin/activate', INSTALL, 'saferun --version'],
     'Activate the virtual environment in every new terminal. pipx and uv tool work too.'],
-  ['Set SafeRun up', 'Pulls the pinned Python and Node.js images, fetches a hash-verified cosign for itself if you have none, installs the signed analyzer (about 740 MB) and downloads the OSV data (about 260 MB).',
+  ['Set SafeRun up', 'Pulls the pinned Python image, fetches a hash-verified cosign for itself if you have none, installs the signed analyzer (about 740 MB) and downloads the OSV data (about 260 MB).',
     ['saferun init'], 'You do not install cosign yourself. saferun init --all runs without questions.'],
   ['Diagnose, then scan', 'saferun doctor is read-only and reports PASS, WARNING or FAIL per part with the fix. Then scan a local folder, or scan and run a script in the sandbox. Nothing is executed outside it.',
     ['saferun doctor', 'saferun scan ./my-project', 'saferun run my_script.py'], 'Docker Desktop shares /Users, /private and /var/folders by default. With Colima or Lima, set TMPDIR to a shared folder.'],
@@ -91,7 +91,7 @@ const ARCH = [
 
 // Not part of the walkthrough: an optional check you can repeat at any time.
 const FUTURE = [
-  ['Verify the analyzer signature yourself', 'Repeats the signature check of the recorded analyzer release (analyzer-v1.0.1) on demand, online and with cosign (SafeRun uses its own verified copy or one on your PATH). The pinned Python and Node.js images are checked as well.',
+  ['Verify the analyzer signature yourself', 'Repeats the signature check of the recorded analyzer release (analyzer-v1.2.0) on demand, online and with cosign (SafeRun uses its own verified copy or one on your PATH). The pinned Python image is checked as well.',
     ['saferun verify-images --signature'],
     'Expect VERIFIED on the cosign line and "all pinned images verified" at the end. Anything else prints NOT VERIFIED: do not rely on the images.'],
 ]
@@ -99,15 +99,14 @@ const FUTURE = [
 const CONCEPTS = [
   ['Docker downloads and runs the images', 'Setup uses it to pull images. Every scan then runs inside containers without network access, with your project mounted read-only.'],
   ['Cosign verifies the signed analyzer', 'Setup gets a hash-verified cosign for itself if you have none. Cosign checks the analyzer\'s signature against this project\'s release workflow and a release tag before the image is pulled, and the image must match the digest recorded in SafeRun. There is no unsigned download. A signature does not prove the project itself was never compromised. Whichever way it is installed, the analyzer is then locked locally.'],
-  ['Python and Node.js images are pinned by digest', 'They are trusted only if Docker reports exactly the digest in SafeRun\'s source. A tag that merely exists is not enough. They are not cosign-checked; the digest is their anchor.'],
+  ['The Python image is pinned by digest', 'It is trusted only if Docker reports exactly the digest in SafeRun\'s source. A tag that merely exists is not enough. It is not cosign-checked; the digest is its anchor.'],
   ['Normal scans run without network', 'Setup is the only step that needs the internet (plus saferun osv-db update later). After it, scans work offline against the local OSV data.'],
 ]
 
 const COMPONENTS = [
-  { key: 'python', n: 1, title: 'Python sandbox image', does: 'Runs the Python syntax check in a locked-down container.', size: '~190 MB', enables: ['Python syntax'] },
-  { key: 'node', n: 2, title: 'Node.js sandbox image', does: 'Runs the JavaScript syntax check in a locked-down container.', size: '~330 MB', enables: ['JavaScript syntax'] },
-  { key: 'analyzer', n: 3, title: 'Analyzer image', does: 'Holds Semgrep, its rules and OSV-Scanner. Runs the static code analysis.', size: '~740 MB, signed download', enables: ['Static analysis', 'Dependency scan'] },
-  { key: 'osv-db', n: 4, title: 'OSV vulnerability database', does: 'Local vulnerability data, so dependency scans run offline.', size: '~260 MB download', enables: ['Dependency scan'] },
+  { key: 'python', n: 1, title: 'Python sandbox image', does: 'Runs the Python syntax check, and the scripts you start with saferun run, in a locked-down container.', size: '~190 MB', enables: ['Python syntax', 'Run in sandbox'] },
+  { key: 'analyzer', n: 2, title: 'Analyzer image', does: 'Holds Semgrep, its rules, OSV-Scanner and gitleaks. Runs the static code analysis, the secrets scan and the dependency scan.', size: '~740 MB, signed download', enables: ['Static analysis', 'Secrets scan', 'Dependency scan'] },
+  { key: 'osv-db', n: 3, title: 'OSV vulnerability database', does: 'Local vulnerability data, so dependency scans run offline.', size: '~260 MB download', enables: ['Dependency scan'] },
 ]
 
 const STATES = [
@@ -120,21 +119,24 @@ const STATES = [
 const COMMANDS = [
   ['Guided setup: pick components from a menu', 'saferun init', 'Shows what is installed and verified, asks what to install. Press Enter for everything.'],
   ['Everything, no questions (scripts, CI)', 'saferun init --all', 'Add --yes to confirm prompts automatically.'],
-  ['Only some components', 'saferun init --only python,node', 'Names: python, node, analyzer, osv-db.'],
+  ['Only some components', 'saferun init --only python,analyzer', 'Names: python, analyzer, osv-db.'],
   ['Everything except some', 'saferun init --skip osv-db', 'Use this if you do not need dependency scanning.'],
   ['Rebuild a failed analyzer', 'saferun init --only analyzer --repair', 'Replaces the analyzer image and its lock with a fresh install (the signature-checked release, or a local build with --build-local). Only when status says INVALID.'],
   ['Build the analyzer locally', 'saferun init --only analyzer --build-local', 'Builds it from the repository recipe instead of installing the signed download. Needs a SafeRun checkout and internet for PyPI and GitHub, not cosign. Never done automatically.'],
   ['Check the analyzer signature', 'saferun verify-images --signature', 'Online, needs cosign: confirms the recorded release is signed by this project\'s release workflow and names the pinned digest. Exit code 1 on any failure.'],
+  ['Accept a dependency risk you have judged', 'saferun scan ./my-project --accept-file ~/saferun-accepts.toml', 'Each [[accept]] entry needs an id, a reason and an expiry date. The file is never read from the scanned project. Accepted findings stay listed but leave the verdict; after the expiry date they count again.'],
+  ['Turn the secrets scan off', 'saferun scan ./my-project --no-secrets-check', 'The check is reported as skipped, which makes the verdict WARNING at best. Secret values are never printed: only rule, file and line.'],
+  ['Look for look-alike package names', 'saferun check-names --project ./my-project', 'A separate command: scan and run never do this check. Add --online to look names up on pypi.org (names only are sent).'],
   ['Plain output for logs and CI', 'saferun scan ./my-project --color never', 'Colours, icons and the spinner appear only on a terminal; --format json is always plain. NO_COLOR is honoured.'],
   ['Diagnose the installation (read-only)', 'saferun doctor', 'PASS, WARNING or FAIL per check, with the fix for each problem. Exit code 1 if anything failed. --online also re-verifies the release signature; --format json for tools.'],
-  ['Scan a script and run it only in the sandbox', 'saferun run my_script.py', 'Refused on FAIL (exit 1) or WARNING (exit 2); --allow-warnings accepts a WARNING only from a complete scan with no high or critical finding. Exit 3: the script ran but failed or timed out. Options go before the script name.'],
+  ['Scan a script and run it only in the sandbox', 'saferun run my_script.py', 'saferun scan only reads files; run scans first, then executes in the sandbox. Refused on FAIL (exit 1) or WARNING (exit 2); --allow-warnings accepts a WARNING only from a complete scan with no high or critical finding. Exit 3: the script ran but failed or timed out. Options go before the script name.'],
   ['See what is installed', 'saferun status', 'Exit code 0 only when everything is ready. Add --format json for scripts.'],
   ['Update the vulnerability data', 'saferun osv-db update', 'The only command that uses the network. Sends nothing about your project.'],
   ['Check the data age and integrity', 'saferun osv-db status', 'Older than 30 days makes the dependency check incomplete.'],
 ]
 
 const CHECKS = [
-  ['Python syntax', 'python'], ['JavaScript syntax', 'node'], ['Static analysis (Semgrep)', 'analyzer'], ['Dependency vulnerabilities', 'analyzer + osv-db'],
+  ['Python syntax (can the scanner read this file?)', 'python'], ['Static analysis (Semgrep)', 'analyzer'], ['Hardcoded secrets (gitleaks)', 'analyzer'], ['Dependency vulnerabilities', 'analyzer + osv-db'],
 ]
 
 const FIXES = [
@@ -143,7 +145,7 @@ const FIXES = [
   ['Windows or macOS: SafeRun says it needs Linux containers, or Docker is unusable', 'Start Docker Desktop and make sure it runs Linux containers (on Windows: tray icon, Switch to Linux containers). docker info --format "{{.OSType}}" must print linux. Docker Desktop integration has not yet been manually verified, so please report what you see.'],
   ['Windows or macOS: the project folder is refused or cannot be mounted', 'Keep the project on a local drive that Docker Desktop shares. Windows: network (UNC) and \\?\\ paths are refused. macOS: /Users is shared by default; with Colima or Lima set TMPDIR to a shared folder.'],
   ['Setup cannot fetch cosign (no pinned build for your CPU, or the download or its hash check failed)', 'Nothing was installed or pulled. Install cosign 2.2 or newer yourself (https://docs.sigstore.dev/cosign/system_config/installation/), put it on your PATH, and run saferun init --only analyzer again. Or build the analyzer yourself with saferun init --only analyzer --build-local.'],
-  ['saferun status shows an image as INVALID', 'Docker does not report the pinned digest for it (for example a tag that moved or an image loaded without its digest). Run saferun init --only python,node to pull the pinned one. Do not ignore an INVALID analyzer: see the --repair entry above.'],
+  ['saferun status shows an image as INVALID', 'Docker does not report the pinned digest for it (for example a tag that moved or an image loaded without its digest). Run saferun init --only python to pull the pinned one. Do not ignore an INVALID analyzer: see the --repair entry above.'],
   ['A check says "unavailable", "error" or "incomplete"', 'Run saferun status. It names the component and prints the exact fix, for example saferun init --only osv-db. A scan also prints that fix on stderr.'],
   ['A component says INVALID', 'Images are repaired by pulling the pinned digest. The analyzer is reinstalled only with --repair, because that replaces the image and its lock. Investigate first if you did not expect it.'],
   ['saferun doctor reports a FAIL or WARNING', 'Read the fix printed under that line and run it, then run saferun doctor again. It changes nothing itself. Add --online to also re-verify the signature of the published analyzer release.'],
@@ -346,7 +348,7 @@ export function GuidePage() {
             <thead><tr><th>Check</th><th>Needs</th></tr></thead>
             <tbody>{CHECKS.map(([a, b]) => <tr key={a}><td>{a}</td><td><code>{b}</code></td></tr>)}</tbody>
           </table>
-          <p className="fine">Not installed on purpose: Semgrep and OSV-Scanner never run on your computer, only inside the analyzer container. Running your tests and installing dependencies are planned, not available.</p>
+          <p className="fine">SafeRun is Python-only: JavaScript files are not checked and npm lockfiles are not scanned (the report says so, and it does not change the verdict). Not installed on purpose: Semgrep, OSV-Scanner and gitleaks never run on your computer, only inside the analyzer container. Running your tests and installing dependencies are planned, not available.</p>
         </section>
 
         <section id="verdicts" className="card g-section">

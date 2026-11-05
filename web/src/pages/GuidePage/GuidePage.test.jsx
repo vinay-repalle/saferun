@@ -11,12 +11,12 @@ describe('Guide page', () => {
     for (const c of ['saferun init', 'saferun init --all', '--only', '--skip', '--repair', 'saferun status', 'saferun osv-db update', 'saferun osv-db status']) {
       expect(text).toContain(c)
     }
-    for (const k of ['python', 'node', 'analyzer', 'osv-db']) expect(text).toContain(k)
+    for (const k of ['python', 'analyzer', 'osv-db']) expect(text).toContain(k)
   })
 
   it('documents the signed analyzer release as the default and the local build as the alternative: cosign, --build-local and --signature', () => {
     const text = render(<GuidePage />).container.textContent
-    for (const c of ['--build-local', 'saferun verify-images --signature', 'Setup cannot fetch cosign', 'The analyzer is a signed, digest-pinned image', 'analyzer-v1.0.1', 'signed download']) {
+    for (const c of ['--build-local', 'saferun verify-images --signature', 'Setup cannot fetch cosign', 'The analyzer is a signed, digest-pinned image', 'analyzer-v1.2.0', 'signed download']) {
       expect(text).toContain(c)
     }
     expect(text).not.toMatch(/No signed analyzer release has been published yet/)
@@ -59,7 +59,7 @@ describe('Guide page', () => {
     expect(container.querySelectorAll('.g-steps > li')).toHaveLength(3)
     for (const s of ['READY', 'MISSING', 'INVALID', 'OUTDATED']) expect(container.querySelector('.g-states').textContent).toContain(s)
     expect([...container.querySelectorAll('.g-verdict h3')].map((n) => n.textContent)).toEqual(['PASS', 'WARNING', 'FAIL'])
-    expect(container.querySelectorAll('#components .g-comp')).toHaveLength(4)
+    expect(container.querySelectorAll('#components .g-comp')).toHaveLength(3)
   })
 
   it('states the honest limits next to the safety claims', () => {

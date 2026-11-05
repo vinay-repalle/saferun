@@ -18,7 +18,7 @@ Prints a two-line introduction, shows the components with their state, size and 
 | # | Component | Enables | Obtained by |
 |---|---|---|---|
 | 1 `python` | Python sandbox image | `python-syntax` | `docker pull python@sha256:…` (pinned digest) |
-| 2 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, gitleaks, rules | `python-static-analysis`, `dependency-vulnerabilities`, `hardcoded-secrets` | a cosign-verified pull of the recorded release `analyzer-v1.0.1` by digest. cosign is obtained automatically (see below); with `--build-local` a local build instead (`docker/analyzer/build.py`, source checkout only), see [release-images.md](release-images.md) |
+| 2 `analyzer` | Analyzer image: Semgrep, OSV-Scanner, gitleaks, rules | `python-static-analysis`, `dependency-vulnerabilities`, `hardcoded-secrets` | a cosign-verified pull of the recorded release `analyzer-v1.2.0` by digest. cosign is obtained automatically (see below); with `--build-local` a local build instead (`docker/analyzer/build.py`, source checkout only), see [release-images.md](release-images.md) |
 | 3 `osv-db` | Local OSV vulnerability data | `dependency-vulnerabilities` | the `saferun osv-db update` download (PyPI advisories, about 40 MB); only missing, invalid or stale ecosystems are fetched |
 
 **Docker first.** Before pulling anything `init` diagnoses Docker: not installed, daemon not running, permission denied, or a remote endpoint. It prints platform-specific guidance (Linux: Docker Engine and the `docker` group; macOS and Windows: Docker Desktop) and installs nothing while Docker is unusable.

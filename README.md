@@ -116,6 +116,12 @@ Under each finding the text report adds one short line, **"In plain words:"**, s
 
 SafeRun is **Python-only**. JavaScript/Node.js projects are not analysed: JavaScript files get no syntax check or code rules, and npm lockfiles are not scanned (the dependency check says so in a plain note and never counts it as a clean pass). The secrets scan reads files of any type.
 
+## Benchmark (advisory)
+
+![Held-out benchmark, set 2: loose catches SafeRun 9/32 before and 14/32 after the new rules, Bandit 17/32; strict catches SafeRun 7/32 and Bandit 14/32; loose false alarms SafeRun 0/12 and Bandit 2/12](https://raw.githubusercontent.com/vinay-repalle/saferun/main/docs/img/benchmark-set2-held-out.svg)
+
+On the held-out part of a second sample set, three new Python rules raised SafeRun's loose catches from 9/32 to 14/32 with no new false alarms (0/12). SafeRun is still behind Bandit (17/32 loose, 14/32 strict), and its strict catches did not change because the new rules are medium severity. The dependency check ties with pip-audit (8/8 on the first set). The samples are small, simulated and written by the SafeRun authors, so this is not an independent evaluation. Details, limits and the per-sample misses: [docs/benchmark.md](https://github.com/vinay-repalle/saferun/blob/main/docs/benchmark.md).
+
 ## Documentation
 - [docs/cli.md](https://github.com/vinay-repalle/saferun/blob/main/docs/cli.md) — CLI options, exit codes, output examples
 - [docs/engine.md](https://github.com/vinay-repalle/saferun/blob/main/docs/engine.md) — validation engine: checks, dependency coverage, statuses, verdict rules

@@ -4,13 +4,13 @@ import { Section, SectionHead } from '../../Section/Section'
 import './ReportDemo.css'
 
 const note = (key) => VERDICTS.find(([k]) => k === key)[3]
-const OK = [['passed', 'python-syntax', 'No findings'], ['passed', 'javascript-syntax', 'No findings'], ['passed', 'python-static-analysis', 'No findings']]
+const OK = [['passed', 'python-syntax', 'No findings'], ['passed', 'hardcoded-secrets', 'No findings'], ['passed', 'python-static-analysis', 'No findings']]
 
 // Invented sample rows. Verdict wording comes from the shared VERDICTS so it matches the guide.
 const DEMO = [
   { id: 'pass', label: 'PASS', note: note('pass'), rows: [...OK, ['passed', 'dependency-vulnerabilities', 'No findings']] },
   { id: 'warn', label: 'WARNING', note: note('warn'), rows: [...OK, ['unavailable', 'dependency-vulnerabilities', 'OSV data is missing: run saferun osv-db update']] },
-  { id: 'fail', label: 'FAIL', note: note('fail'), rows: [['findings', 'python-syntax', '[HIGH] syntax-error  app.py:12'], OK[1], ['findings', 'dependency-vulnerabilities', '[HIGH] example-advisory  package-lock.json'], OK[2]] },
+  { id: 'fail', label: 'FAIL', note: note('fail'), rows: [['findings', 'python-syntax', '[HIGH] syntax-error  app.py:12'], OK[1], ['findings', 'dependency-vulnerabilities', '[HIGH] example-advisory  requirements.txt'], OK[2]] },
 ]
 
 export function ReportDemo() {

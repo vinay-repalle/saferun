@@ -8,7 +8,7 @@ A small, honest comparison of SafeRun's **scan** with two established tools:
 | Dependency check (OSV-Scanner, local OSV data) | [pip-audit](https://pypi.org/project/pip-audit/), default PyPI service and `-s osv` | known-vulnerability check (SCA) |
 | `saferun check-names` (look-alike package names) | nothing comparable | reported separately as SafeRun-only |
 
-**Secrets scan.** The numbers below were taken on 2026-11-03 before `scan` gained its gitleaks secrets check (`hardcoded-secrets`); that check is not part of this comparison (Bandit's hardcoded-password rule is the only related one) and the results have not been re-run since.
+**Secrets scan.** The first-run numbers below were taken on 2026-11-03 before `scan` gained its gitleaks secrets check (`hardcoded-secrets`); that check is not part of this comparison (Bandit's hardcoded-password rule is the only related one) and the set 1 results have not been re-run since. The second sample set (see below) was run on 2026-11-04 with the current analyzer.
 
 The sandbox (`saferun run`) is **not** measured. The benchmark is a development tool: it is not part of the installed package, it runs only in the dev environment, and in CI it is advisory (it never blocks a merge).
 
@@ -78,10 +78,34 @@ SafeRun 0.0.2, Bandit 1.9.4, pip-audit 2.10.1. SafeRun's OSV snapshot: updated 2
 - **False alarms**: SafeRun flagged `os.system("clear")` (`hn-01`, which Bandit also flagged) and MD5 used as a non-security cache key (`hn-06`, which Bandit did not flag). Bandit also flagged two others: `subprocess.run` with an argument list (`cn-07`) and `random.randint` in a dice game (`hn-09`).
 - **Where SafeRun does as well or better**: the dependency check matches pip-audit on both data sources; SafeRun flagged all 4 hardcoded-secret samples (Bandit 3/4); fewer loose false alarms (2/22 vs 3/22), though Bandit has fewer strict ones (0/22 vs 1/22).
 
+## Second sample set: held-out results after new rules (2026-11-04)
+
+The first run left SafeRun behind Bandit and with 0 catches in three behaviour families. A second, separate set was written to test whether new rules help on samples they were not written against.
+
+- **Set 2** is [tools/benchmark/samples_v2.toml](https://github.com/vinay-repalle/saferun/blob/main/tools/benchmark/samples_v2.toml): 68 code samples (48 bad, 20 clean), 24 `dev` and 44 `held-out`. Labels were frozen in git on 2026-11-03 before any tool ran on it. Set 1 is now **dev-only**.
+- **Order:** (1) freeze the labels, (2) run the unchanged rules on set 2 and commit that baseline, (3) show rule proposals to the owner, (4) re-run once and report. Three medium-severity Semgrep rules were added (`sensitive-file-access`, `persistence-setup`, `hidden-function-lookup`); they were written and checked against dev samples only (19 bad dev samples caught, 0 clean dev samples flagged). Released as analyzer `analyzer-v1.2.0`.
+- **The held-out re-run was done once.** The held-out set must not be used to change rules any more.
+
+**Held-out split, code checks (32 bad, 12 clean):**
+
+| Tool | Catch strict | Catch loose | False alarm strict | False alarm loose |
+|---|---|---|---|---|
+| SafeRun, unchanged rules (2026-11-03) | 7/32 | 9/32 | 0/12 | 0/12 |
+| SafeRun, with the three new rules (2026-11-04) | 7/32 | 14/32 | 0/12 | 0/12 |
+| Bandit 1.9.4 | 14/32 | 17/32 | 1/12 | 2/12 |
+
+- **Gained (5):** `x2-pe-06` (systemd unit), `x2-sr-02` (`.netrc` read), `x2-sr-06` (GnuPG folder read), `x2-ev-04` (`eval` looked up in the builtins dictionary), `x2-ev-06` (module name decoded from hex). **Lost: none.**
+- **Strict catches did not change** (7/32): the new rules are medium severity, so they add findings and a WARNING, not a FAIL verdict.
+- **Still behind Bandit:** 14/32 vs 17/32 loose and 7/32 vs 14/32 strict. SafeRun flagged 0/4 exfiltration and 0/4 destructive samples, and 1/4 weak-practice samples (Bandit 4/4). SafeRun is ahead only in sensitive-file reads (2/4 vs 0/4) and evasion variants (3/4 vs 1/4).
+- **False alarms:** 0/12 for SafeRun, 2/12 for Bandit. The known false alarms on set 1 (`os.system("clear")` and an MD5 cache key) were reported, not fixed.
+- Left out on purpose: plain file upload (`x2-ex-03`), the exfiltration and destructive families (not requested), and the weak-practice family.
+
+The full reports are saved in [tools/benchmark/baselines/](https://github.com/vinay-repalle/saferun/tree/main/tools/benchmark/baselines) (`set2-held-out-baseline.*` and `set2-held-out-final.*`). Set 2 was written by authors who already knew where set 1 was missed, so it may be easier or harder than a stranger's set.
+
 ## Limits
 
 - The samples were written by the SafeRun authors, are few (2-6 per category and split) and are simulations. A few categories moving by one sample changes the picture. This is not an independent evaluation and not a claim about real-world malware.
 - Bandit looks for insecure coding practice; SafeRun is aimed at code you are about to run but do not trust. The goals overlap but differ, so a lower score for one tool is not a verdict on the other.
 - Only the scan is measured. A PASS is not proof of safety.
 - Dependency results depend on the advisory data on the run date; re-running later can change them. A new finding on a "clean" dependency sample is reported as a flagged exception, never silently accepted.
-- **SafeRun's rules and settings were not tuned to these results.** Any rule change needs a new sample set and the owner's approval.
+- **First-run results (set 1) came from rules that were not tuned to them.** After that run, three rules were added using set 1 and the set 2 dev samples; they were then judged once on the set 2 held-out samples (above). Any further rule change needs a new sample set and the owner's approval.
