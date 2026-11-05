@@ -1,3 +1,14 @@
+# SafeRun — History (archive)
+
+Read this only when you need the story behind a decision. It is **not** the current state: the current state is in [PROJECT.md](../PROJECT.md) and the plan/status is in [STAGES.md](../STAGES.md).
+Many sections below describe the code *as it was at that time* (web dashboard and API, JavaScript/Node support, host-side analyzers, "uncommitted", "awaiting review", old test counts). Those parts are superseded; the latest current-state notes are in PROJECT.md.
+Nothing was removed from the former IMPLEMENTATION.md, the former STAGES.md table, or the parts cut from PROJECT.md: it is all kept below, word for word.
+
+Contents: Part A = former IMPLEMENTATION.md · Part B = former STAGES.md table (full per-stage detail and old test counts) · Part C = sections moved out of PROJECT.md (OpenSandbox review, old phases list, image pinning notes).
+
+---
+# PART A — former IMPLEMENTATION.md
+---
 
 ## Plain-English findings (Stage 12)
 **New/changed:** `saferun/engine/explain.py` (new: `explain`, `with_explanation`), `saferun/engine/model.py` (`Finding.explanation`, in `to_dict` only when non-empty), `saferun/engine/engine.py` (fills it in after the checks, before accepted findings are split out), `saferun/cli.py` (`render_text` and `render_styled` print `In plain words: ...` under the message through the existing one-line sanitiser; the styled one wraps it).
@@ -497,3 +508,97 @@ Earlier sections of this file describe the JavaScript work as it was built (Node
 **New behaviour, stated:** `package.json`, `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml` outside `node_modules` add the plain note "JavaScript/npm dependencies are not supported and were not scanned." to the dependency check. It is a note, not a coverage gap: it does not change the check's status or the verdict. A project with only such files shows the check as `not_applicable` (never `passed`) with the same sentence as its detail. A `package.json` without a lockfile is no longer a gap.
 **Analyzer image:** unchanged (no Node, no JavaScript rules were ever in it; OSV-Scanner is shared), so no analyzer rebuild is needed for this change.
 **Tests:** tests of removed features were deleted; tests that used npm lockfiles or the Node component only as a generic example now use Python equivalents (`uv.lock`, `Pipfile.lock`, the `analyzer` component), and `test_osv_db_integrity.py` adds a `two_ecosystems` fixture for the multi-ecosystem cases. New tests cover the note, `not_applicable` and the hidden flag. No assertion was loosened.
+
+
+---
+# PART B — former STAGES.md (verbatim)
+---
+# SafeRun stages (new work)
+
+Phases 1-5 are in PROJECT.md. Phase 6 = the unnumbered post-Phase-5 work (init/doctor/run, CI, packaging, 0.0.1/0.0.2 releases, website). New stages start at 7.
+Status: planned / in progress / done (local) / pushed. Updated after every stage.
+
+| Stage | Goal | Status | Tests | Docs updated |
+|---|---|---|---|---|
+| 7 | Docs clarity: `scan` vs `run`, syntax check as "can the scanner read this file", stale-doc cleanup (IMPLEMENTATION.md, PROJECT.md, docs; diff shown first), JavaScript labelled experimental (docs only; website excluded, see Deferred) | done (committed by owner) | docs only, no new tests; full suite incl. Docker: 925 passed, 50 skipped (Windows/macOS-only tests), 0 failed | README, PROJECT, IMPLEMENTATION, docs/cli.md, docs/engine.md |
+| 8 | Package-name check: new `saferun check-names`, bundled offline top-PyPI snapshot (10 000 names, dataset 2026-11-01), opt-in `--online` lookup (existence and first-upload age from pypi.org; names only; downloads not included); `scan` unchanged | done (local, awaiting owner commit) | 55 new (`tests/test_pkgnames.py`); full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 980 passed, 50 skipped (Windows/macOS-only tests), 0 failed; wheel build checked (snapshot included) | README, PROJECT, IMPLEMENTATION, docs/cli.md |
+| 9 | Benchmark vs Bandit and pip-audit: 88 harmless simulated samples (stored as text, files generated in a temp folder at run time, never executed; labels and dev/held-out split frozen in git before any tool ran), `bench` extra with pinned bandit 1.9.4 and pip-audit 2.10.1, runner `tools/benchmark/run.py` (`saferun scan` only), advisory CI job with report artifact. First run 2026-11-03: SafeRun 26/48 vs Bandit 28/48 loose code catches; dependency checks tie 8/8. SafeRun not tuned | done (local, awaiting owner commit) | 14 new in `tests/test_benchmark.py` (1 Docker); CI job-list test updated; full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 994 passed, 50 skipped (Windows/macOS-only tests), 0 failed; results in docs/benchmark.md | docs/benchmark.md, README, PROJECT, docs/install-and-test.md |
+| 10 | Dependency findings: patch/minor/major label on the nearest fix (by version numbers only), `--accept-file` accept-risk (`[[accept]]` with id, reason, expiry; read only from the flag, never from the scanned project; accepted findings stay listed but leave the verdict; expired entries count again). Fixed version, severity and description already existed | done (local, awaiting owner commit) | 44 new in `tests/test_dependency_actionable.py`; full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 1038 passed, 50 skipped (Windows/macOS-only tests), 0 failed | docs/cli.md, docs/engine.md, README, PROJECT, IMPLEMENTATION |
+| 11 | Secrets scanner: new check `hardcoded-secrets` with gitleaks 8.30.1 (owner-chosen over detect-secrets / trufflehog / custom Semgrep rules) inside the analyzer container: offline, read-only project, no online verification, secret values never printed/logged/in JSON (rule, file, line only), findings always HIGH, `--no-secrets-check`, generic entropy rule disabled, project config/ignore/allow comments neutralised. All analyzer-image changes batched into ONE release (owner steps in docs/release-images.md: tag `analyzer-v1.1.0`, record digest). Existing analyzer images fail label verification until `saferun init` | done (local, awaiting owner commit) | 33 new in `tests/test_secrets_check.py` (4 real-container); 7 existing test files adjusted for the new default-on check (label and check-list pins, fake analyzers, one skipped-count; no assertion loosened); full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 1073 passed, 50 skipped (Windows/macOS-only tests), 0 failed. Release `analyzer-v1.1.0` published and signed 2026-11-04 (tag commit `f47d65f`, digest `sha256:5642a101…7682d07`), recorded in `ANALYZER_RELEASE`; `saferun verify-images --signature` against it still to be run by owner | README, PROJECT, IMPLEMENTATION, docs/cli.md, docs/engine.md, docs/release-images.md, docs/benchmark.md (caveat), docs/install-and-test.md, docker/analyzer (README, notices, licences) |
+| 12 | Plain-English findings: new `explanation` field next to the unchanged `message`; one "In plain words:" line under each finding in the text and styled reports (default on), same text in the JSON finding only when one exists (schema_version stays 1). Texts in `saferun/engine/explain.py` (11 Semgrep rules, withheld files, syntax, one generic `secrets.*` text, dependency template from existing finding data); no analyzer image or rules-file change. Follow-ups not done: group dependency findings by package; drop git commit hashes from "fixed in" | done (local, awaiting owner commit) | 72 new in `tests/test_explanations.py`; 2 existing tests that pin the exact JSON key set of a Semgrep finding got `explanation` added to the expected set (`tests/test_engine_integration.py`, `tests/test_adversarial.py`), still exact comparisons; full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 1145 passed, 50 skipped (Windows/macOS-only tests), 0 failed | README, PROJECT, IMPLEMENTATION, docs/cli.md, docs/engine.md |
+| 13 | JavaScript rules: **cancelled** by owner decision (SafeRun is Python-only). Instead, all JavaScript/Node support was removed: `javascript-syntax` check, Node sandbox image and profile, npm OSV data and lockfile scan. npm files now get a plain note ("JavaScript/npm dependencies are not supported and were not scanned.") that does not change status or verdict; `--no-javascript-check` stays as a hidden no-op. Analyzer image unchanged (no separate release needed; `analyzer-v1.1.0` ships as is) | done (local, awaiting owner commit) | 2 test files deleted (`test_engine_node.py`, `test_node_profile.py`); about 20 test files edited, new tests for the note, `not_applicable`, the hidden flag; full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 1115 passed, 50 skipped (Windows/macOS-only tests), 0 failed | README, PROJECT, IMPLEMENTATION, docs/cli.md, docs/engine.md, docs/sandbox.md, docs/release-images.md, docs/install-and-test.md, docs/platform-test-checklist.md |
+| 14 | Benchmark misses (Python rules only): new held-out set 2 (`tools/benchmark/samples_v2.toml`, 68 code samples: 48 bad, 20 clean; 24 dev, 44 held-out), set 1 now dev-only. Order: (1) freeze labels, (2) baseline of unchanged rules on set 2, committed, (3) rule proposals shown first, (4) re-run, report k/n and losses. Known false alarms `os.system("clear")` and MD5 cache key are reported, not fixed. New rules default to medium; any HIGH proposed separately | in progress: Checkpoints 1-2 committed. Checkpoint 3 done locally (owner approved families 1, 3, 5, all medium): 3 new Semgrep rules in `saferun/engine/rules/python.yml` (`sensitive-file-access`, `persistence-setup`, `hidden-function-lookup`) with plain-English texts in `explain.py`; written and checked against dev samples only (set 1 + set 2 dev: 19 bad dev samples caught by them, 0 clean dev samples flagged; pe-04 still missed). Checkpoint 4 held-out re-run done ONCE: SafeRun loose 9/32 -> 14/32 catches, strict 7/32 unchanged (new rules are medium, so no new FAIL verdicts), false alarms 0/12 -> 0/12, no sample lost; gained x2-pe-06, x2-sr-02, x2-sr-06, x2-ev-04, x2-ev-06. Bandit unchanged (17/32 loose, 14/32 strict). Saved in `tools/benchmark/baselines/set2-held-out-final.*`; the held-out set must not be used to change rules any more. Left out on purpose: plain file upload (ex-03), exfiltration and destructive families (not requested), weak-practice family. Release `analyzer-v1.2.0` published and signed 2026-11-04 (tag commit `2570952`, digest `sha256:33ed623e…bf277`) and recorded in `ANALYZER_RELEASE`. The local image was rebuilt from these rules for the run | new parametrized tests in `tests/test_behaviour_rules.py` (real Semgrep, repo rules mounted into the analyzer image); `test_explanations.py` rule count 11 -> 14; full suite incl. Docker with `SAFERUN_REQUIRE_DOCKER=1`: 1158 passed, 50 skipped (Windows/macOS-only tests), 0 failed | docs/cli.md, docs/engine.md, PROJECT.md (rule count); docs/benchmark.md updated with set 2 results (local, awaiting owner commit) |
+
+## Deferred (ask the owner before doing; after the main stages are done)
+- Website text (`web/src/content/site.js`, `Faq.jsx`, `Features.jsx`): `scan` vs `run` wording, "can the scanner read this file" syntax wording, JavaScript wording (now: SafeRun is Python-only; FAQ, Features and the setup guide still mention the Node image and `node --check`). Left out by owner decision; must match the docs when added. Owner redeploys Netlify.
+
+
+---
+# PART C — moved out of PROJECT.md (verbatim)
+---
+
+## OpenSandbox reuse assessment
+Source of this assessment: official docs and selected raw files read read-only over the web (no clone, install or
+execution); the broader audit is in the project history. Files read: `SECURITY.md`, `ROADMAP.md`,
+`server/configuration.md`, `server/pyproject.toml`, `server/opensandbox_server/{config.py,startup_guard.py}`,
+`services/{validators.py,docker/docker_service.py,docker/container_ops.py}`, `specs/{sandbox-lifecycle.yml,execd-api.yaml}`
+(first 100 000 characters each), `docs/architecture/**`, `docs/guides/{network-isolation,secure-container,isolation-sessions}.md`,
+`sandbox-images` README. **Not read:** `services/docker/{volumes,networking,runtime}.py`, execd Go sources, any
+image/resource-quantity validation (not found in `validators.py`). Decisions are therefore limited to what was read.
+All reviewed code is **Apache-2.0** ("Copyright 2025/2026 The OpenSandbox Authors"); **no OpenSandbox source was copied**,
+so no Apache-2.0 §4 obligations are triggered. If code is ever copied: include the license text, mark changed files,
+keep copyright notices, and carry any NOTICE file (none was seen). SafeRun adds **no new runtime dependency**.
+
+| Component / source | Contributes | Dependencies · license | Security limitations | Decision |
+|---|---|---|---|---|
+| Server `server/opensandbox_server/` | HTTP lifecycle API over Docker/K8s | FastAPI, docker, kubernetes, grpcio, psycopg, redis… · Apache-2.0 | network-exposed control plane (`0.0.0.0`), API key unset by default | **Avoid** (extra infrastructure) |
+| execd `components/execd` | in-sandbox command/file daemon | Go · Apache-2.0 | runs *inside* the untrusted container; token default and user unknown | **Avoid** |
+| Egress sidecar `components/egress` | FQDN/DNS/nft egress policy | Go · Apache-2.0 | default `dns` mode does not enforce IP rules; needs `NET_ADMIN`; incompatible with gVisor | **Avoid for now**; candidate for Phase 2's dependency-acquisition step after verification |
+| Docker runtime `services/docker/*` | container creation | docker SDK · Apache-2.0 | defaults weaker than SafeRun's: host network, no read-only root/user/swap/ulimit/tmpfs settings found | **Avoid**; own implementation already stricter and verified |
+| `startup_guard.py` | fail fast unless insecure start is explicitly acknowledged | stdlib · Apache-2.0 | tied to API-key startup | **Adapt idea** → `preflight()` + explicit `allow_degraded` (own code) |
+| `services/validators.py` | input hygiene: non-empty entrypoint, option-like values (`-…`) rejected, normalised traversal-free paths | FastAPI `HTTPException` coupling · Apache-2.0 | no image/resource validation in the file | **Adapt ideas** → `validate_command`, `validate_image`, mount-path check (own code) |
+| Command semantics (`specs/execd-api.yaml`) | argv vs shell; argv[0] non-empty; NUL invalid | spec only · Apache-2.0 | shell mode exists | **Adapt idea**: SafeRun accepts argv only |
+| Container labels (`created-at`, `expires-at`) | orphan bookkeeping | — | — | **Build own** (done: `saferun.deadline`, reaper) |
+| `resourceLimits` (`cpu`, `memory`, `gpu` strings) | resource request | — | no disk/pids/swap/fd/fsize | **Avoid**; explicit integer limits kept |
+| Code interpreter image / kernels (`sandbox-images`) | Python/Node/Java/Go via Jupyter kernels | Ubuntu 24.04, many OSS · Apache-2.0 (+ bundled licenses) | persistent kernels, root kernels inside Jupyter owner's trust boundary; version via env vars | **Avoid** |
+| SDKs (`SupportedLanguages`, 5 languages) | host-side clients | Apache-2.0 | they control sandboxes; they do not run code themselves | **Avoid** |
+| Isolation sessions (bubblewrap) | per-run namespaces in one sandbox | bwrap · Apache-2.0 | needs `CAP_SYS_ADMIN` + unconfined AppArmor/seccomp; "hard trust boundaries out of scope" | **Avoid** |
+| gVisor / Kata / Firecracker runtime options | stronger isolation | runsc / kata · Apache-2.0 | gVisor ↔ egress sidecar conflict; Firecracker K8s-only | **Defer**: a future backend could pass `--runtime`; not implemented |
+| Release practice (cosign signing, digest pinning) | supply-chain hygiene | — | — | Digest pinning **done** (Phase 5A); cosign signing: workflow + client verification implemented (Phase 5E); `analyzer-v1.0.0` was published from this repository (commit `5e78fb0`) and a real `cosign verify` with this project's identity expression succeeded on 2026-10-30, but it lacks the license notices, so it is **not recorded**; `analyzer-v1.0.1` (commit `a275dce`) is published and recorded in `ANALYZER_RELEASE` as `sha256:6f26c3e3fed1a8b2a981bdcb920c4da3b2829bce2679709ba8880789ce6f6fa4`; its signature was verified with real cosign (`saferun verify-images --signature` passes). A clean-machine `saferun init` from it has not been recorded as passing. (An earlier `analyzer-v1.0.0` under the previous owner's registry is unrelated and untrusted) |
+
+A broad backend-interface refactor was **not** done in Phase 1: it is not needed to complete the phase, would touch
+verified code, and the only second backend considered (OpenSandbox) failed the risk review above. The seams exist
+(`build_create_args`, `controls.py`, `SandboxResult`); an interface can be extracted when a second backend is real.
+
+## Phases
+
+1. Environment + sandbox PoC — **approved as the Phase 2 baseline** (a milestone approval, not a security certification)
+2. Validation engine (syntax, Semgrep, dependency vulns, normalized report, tests) — **committed (`088b279`)**
+3. CLI — **committed (`a9ea5dc`)**; the primary product
+4. Web dashboard — committed (`e4bceef`), later **removed** (see *Removed: web dashboard and API*)
+5. Integration, security testing, release docs — 5A image pinning, 5B analyzer isolation, 5C adversarial tests, 5D cleanup/exhaustion hardening and 5E signed analyzer release (workflow + cosign verification) are **implemented and committed**; `analyzer-v1.0.0` is published and signed but not recorded (no license notices in the image); `analyzer-v1.0.1` is published, signed and recorded in `ANALYZER_RELEASE` (a release under a previous owner's identity is not trusted here)
+
+6. Post-Phase-5 product work (not numbered when done): `saferun init` / `status` / `doctor` / `run`, self-provisioned cosign, terminal presentation, CI, packaging, PyPI releases 0.0.1 and 0.0.2, static website — **done and committed**
+7. Onward: see [STAGES.md](STAGES.md) (planned work, one line per stage)
+
+A phase starts only after the previous one's acceptance criteria are met and approved.
+
+### Remaining work (audit 2026-10-30; status updated in Phase 7), in priority order
+*Items 2-5 were done after the audit; planned new work is tracked in [STAGES.md](STAGES.md).*
+1. **Clean-machine end-to-end test** (fresh clone, `pip install`, `saferun init --all`, `status`, `verify-images --signature`, `scan`) — no passing run is recorded.
+2. **CI** — done: `.github/workflows/ci.yml` runs the non-Docker tests on Linux, Windows and macOS, the website tests and build, and a wheel/sdist build with a clean-venv install; Docker tests and `npm audit` are advisory jobs. There is no lint job.
+3. **Packaging** — done: `[build-system]` exists, the version is 0.0.2 and it is published on PyPI as `saferun-cli`; CI installs the built wheel into a clean venv. The wheel still excludes `docker/` (so `init --build-local` needs a source checkout).
+4. **Project files**: LICENSE (MIT) and SECURITY.md exist; there is no CHANGELOG.
+5. **Docker-less tests** — done: the non-Docker subset (`-m "not docker"`) is a blocking CI job on all three platforms.
+6. **Detection quality**: rules are measured only by a small advisory benchmark of simulated samples (docs/benchmark.md; no independent evaluation); SafeRun is Python-only (JavaScript support was removed). Planned: STAGES.md.
+Future enhancements (not release blockers unless a later audit says so): gVisor/Kata backend, ARM64 analyzer.
+
+## Image pinning (Phase 5A)
+- Profiles and `DEFAULT_IMAGE` use `repo:tag@sha256:<index digest>` references from `saferun/sandbox/images.py`. Docker resolves by digest; the tag is only a label.
+- `dk.resolve_image` (called by every `preflight`) additionally checks that the local image's `RepoDigests` contain the pinned digest and raises
+  `SandboxError` otherwise, so a mismatch stops the run before any container exists. Tag-only references (used by some tests) behave as before.
+- Pins were taken from the local images the Phase 1-4 tests ran on and confirmed against Docker Hub on 2026-10-29 (`docker buildx imagetools inspect
+  python@sha256:78387bc3…` returned that digest). **The `python:3.12-slim` tag has since moved** to `sha256:aa943ce4…`; the pin intentionally stays on the
+  tested digest. Updating a pin is a deliberate, reviewed change (re-run the suite and `verify-images`).
+- Report compatibility: the `tool` string of `python-syntax` is unchanged (`compile() (python:3.12-slim, sandboxed)`), via `RuntimeProfile.label`; the pinned image is still what runs. Only error text that quotes the image reference (`image ... not present locally`, `digest mismatch`) now shows the full `repo:tag@sha256:` reference.
+- `docker/analyzer/` holds an unwired, unbuilt build recipe for the Phase 5B analyzer image (base by digest, Semgrep wheels hash-locked, OSV-Scanner SHA-256 verified).

@@ -1,6 +1,6 @@
 # Clean-environment install, validation and CI
 
-The **Install** section below is the supported way to get SafeRun (release **0.0.3**, alpha). The validation sections are *procedures* for you to run; their results are recorded in `IMPLEMENTATION.md`, not here.
+The **Install** section below is the supported way to get SafeRun (release **0.0.3**, alpha). The validation sections are *procedures* for you to run; their results are recorded in `STAGES.md` and `docs/history.md`, not here.
 
 ## Install
 
@@ -10,7 +10,7 @@ SafeRun is published as the PyPI package **`saferun-cli`** (the name `saferun` b
 pip install saferun-cli          # or: pipx install saferun-cli · uv tool install saferun-cli · poetry add saferun-cli
                                  # Poetry must be 2.0 or newer (see below)
 saferun --version                # 0.0.3
-saferun init                     # Docker check, verified cosign, signed analyzer image, OSV data (~260 MB)
+saferun init                     # Docker check, verified cosign, signed analyzer image, OSV data (~36 MB)
 saferun doctor                   # PASS / WARNING / FAIL
 saferun run my_script.py         # scan, then run only inside the sandbox
 ```

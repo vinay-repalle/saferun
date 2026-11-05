@@ -39,7 +39,7 @@ cd /tmp && /tmp/tp/bin/saferun --version
 /tmp/tp/bin/python -c "import saferun, sys; print(saferun.__file__)"          # must be in site-packages
 XDG_DATA_HOME=/tmp/tp-data /tmp/tp/bin/saferun doctor                          # empty data dir: expect FAIL lines with fixes
 XDG_DATA_HOME=/tmp/tp-data /tmp/tp/bin/saferun init --only analyzer --yes      # fetches a verified cosign, verifies the signature, pulls by digest
-XDG_DATA_HOME=/tmp/tp-data /tmp/tp/bin/saferun init --only osv-db --yes        # ~260 MB
+XDG_DATA_HOME=/tmp/tp-data /tmp/tp/bin/saferun init --only osv-db --yes        # ~36 MB
 XDG_DATA_HOME=/tmp/tp-data /tmp/tp/bin/saferun doctor                          # expect all PASS
 XDG_DATA_HOME=/tmp/tp-data /tmp/tp/bin/saferun run my_script.py
 ```

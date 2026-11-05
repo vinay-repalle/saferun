@@ -11,7 +11,7 @@ Owner: Vinay Repalle. Laptop: Linux, Docker working. This is a short brief, not 
 6. Only the owner approves scope changes. Work one stage at a time and stop for review after each.
 
 ## 1. First step: investigate, then report (no code yet)
-Read `PROJECT.md`, `IMPLEMENTATION.md`, `docs/`, `README.md`, tests and CI. Report to the owner:
+Read `PROJECT.md`, `STAGES.md`, `docs/`, `README.md`, tests and CI. Report to the owner:
 - Existing stages/phases and their real numbers, and what is done.
 - What each item below already has, partly has, or lacks.
 - Needed inputs, risks, and open questions.

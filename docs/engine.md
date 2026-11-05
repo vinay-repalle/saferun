@@ -1,6 +1,6 @@
 # Validation engine (Phase 2) — library reference
 
-Design and analyzer isolation: [PROJECT.md](../PROJECT.md#validation-engine-phase-2-saferunengine). Evidence: [IMPLEMENTATION.md](../IMPLEMENTATION.md). The command-line front end is documented in [cli.md](cli.md).
+Design and analyzer isolation: [PROJECT.md](../PROJECT.md#validation-engine-phase-2-saferunengine). Evidence and history: [history.md](history.md). The command-line front end is documented in [cli.md](cli.md).
 
 `saferun scan` runs these checks and **executes nothing**; `saferun run` scans a script with them and then executes it only inside the sandbox if the verdict allows it ([cli.md](cli.md)).
 
