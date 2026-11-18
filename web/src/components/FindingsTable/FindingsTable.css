@@ -1,7 +1,7 @@
 .badge.sev-critical, .badge.sev-high, .badge.sev-medium, .badge.sev-unknown, .badge.sev-low, .badge.sev-info { text-transform: uppercase; font-size: .68rem; letter-spacing: .04em; }
 .path { display: inline-block; min-width: 9rem; overflow-wrap: anywhere; }
 .filters { display: flex; gap: .75rem; flex-wrap: wrap; font-size: .85rem; color: var(--muted); } .filters label { display: flex; gap: .4rem; align-items: center; }
-select, input[type="search"] { font: inherit; padding: .3rem .5rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+select, input[type="search"] { font: inherit; padding: .3rem .5rem; border-radius: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
 .empty { color: var(--muted); padding: .75rem 0; }
 
 .rule-cell { white-space: nowrap; }

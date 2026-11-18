@@ -33,15 +33,23 @@ const seg = (p, a, b) => clamp((p - a) / (b - a)) // progress of p between a and
 
 const canAnimate = () => typeof window.matchMedia === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-function Card({ side, title, status }) {
+const COL_NUMS = ['01', '02', '03', '04', '05', '06']
+const SHEET_COLS = ['1', '2', '3', '4', '5', '6', '7', '8']
+const SHEET_ROWS = ['A', 'B', 'C', 'D', 'E']
+
+// Drawing furniture, decorative only: column numbers over each grid, and a leader line from a callout label to a cell (always the same flagged cell,
+// bottom row, 4th column). Nothing here is data.
+function Card({ side, title, status, callout, tag }) {
   return (
     <div className={'sh-card sh-' + side} aria-hidden="true">
       <div className="sh-tilt">
         <div className="sh-head"><span>{title}</span><b>{status}</b></div>
+        <div className="sh-cols">{COL_NUMS.map((n) => <span key={n}>{n}</span>)}</div>
         <div className="sh-gridwrap">
           <div className="sh-grid">{CELLS.map((c) => <i key={c.i} className={`c ${c.kind} row-${c.row}`} />)}</div>
           {side === 'r' && <div className="sh-beam" />}
         </div>
+        <p className="sh-call"><b>{tag}</b> {callout}</p>
       </div>
     </div>
   )
@@ -120,14 +128,16 @@ export function ScrollHero() {
         <svg className="sh-bugs" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
           {BUGS.map((b) => (
             <g key={b.key} className={'bug ' + b.kind} transform={`translate(${b.x.toFixed(1)} ${b.y.toFixed(1)})`}>
-              <rect x="0" y="-6" width={(b.label.length * 4.4 + 13).toFixed(1)} height="11" rx="2" />
+              <rect x="0" y="-6" width={(b.label.length * 4.4 + 13).toFixed(1)} height="11" />
               <text x="3" y="1.8">{(b.kind === 'fail' ? '✕ ' : '! ') + b.label}</text>
             </g>
           ))}
         </svg>
         <div className="sh-lens" aria-hidden="true" />
+        <div className="sh-ruler sh-ruler-x" aria-hidden="true">{SHEET_COLS.map((n) => <span key={n}>{n}</span>)}</div>
+        <div className="sh-ruler sh-ruler-y" aria-hidden="true">{SHEET_ROWS.map((n) => <span key={n}>{n}</span>)}</div>
         <div className="wrap sh-stage">
-          <Card side="l" title="Submitted project" status="not run" />
+          <Card side="l" title="Submitted project" status="not run" tag="A" callout="Flagged file" />
           <div className="sh-center">
             <div className="sh-intro" aria-hidden="true">
               <Emblem className="sh-logo" />
@@ -140,13 +150,13 @@ export function ScrollHero() {
               <h1>Check the code <em>before</em> you run it.</h1>
               <p className="lede">SafeRun inspects AI-generated and downloaded projects inside a locked-down, offline container, and gives you a PASS, WARNING or FAIL verdict, without executing the program you submitted.</p>
               <div className="sh-cta">
-                <a className="btn btn-primary" href="#/quick-start">Get Started</a>
-                <a className="btn btn-ghost" href={GITHUB} target="_blank" rel="noreferrer noopener">View on GitHub <span aria-hidden="true">↗</span></a>
+                <a className="btn btn-primary" data-key="G" href="#/quick-start">Get Started</a>
+                <a className="btn btn-ghost" data-key="V" href={GITHUB} target="_blank" rel="noreferrer noopener">View on GitHub <span aria-hidden="true">↗</span></a>
               </div>
               <div className="sh-install"><CommandBlock command={INSTALL} /></div>
             </div>
           </div>
-          <Card side="r" title="Verified report" status="sample" />
+          <Card side="r" title="Verified report" status="sample" tag="B" callout="Judged cell" />
         </div>
       </div>
     </section>

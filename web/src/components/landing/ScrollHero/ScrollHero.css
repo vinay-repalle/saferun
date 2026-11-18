@@ -1,56 +1,73 @@
-/* Scroll-driven opening. --p1 cards in, --p2 scan, --p3 headline (all 0..1, set from script); --mx/--my cursor for tilt.
+/* Scroll-driven opening, drawn as a blueprint sheet. --p1 cards in, --p2 scan, --p3 headline (all 0..1, set from script); --mx/--my cursor for tilt.
    The defaults below are the finished state, so without script or with reduced motion the hero is just shown. */
-.sh { --p1: 1; --p2: 1; --p3: 1; --mx: 0; --my: 0; position: relative; border-bottom: 1px solid var(--border);
-  background: radial-gradient(60% 50% at 50% 0%, var(--glow), transparent 70%), linear-gradient(rgb(28 40 64 / 30%) 1px, transparent 1px) 0 0 / 100% 56px, var(--bg); }
+.sh { --p1: 1; --p2: 1; --p3: 1; --mx: 0; --my: 0; position: relative; border-bottom: 1px solid var(--border); }
 .sh-live { --p1: 0; --p2: 0; --p3: 0; height: 270vh; }
 .sh-pin { position: relative; padding: 72px 0 56px; overflow: hidden; }
 .sh-live .sh-pin { position: sticky; top: 64px; height: calc(100vh - 64px); height: calc(100svh - 64px); padding: 0; display: grid; align-items: center; }
-.sh-pin::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(420px circle at calc(50% + var(--mx) * 50%) calc(50% + var(--my) * 50%), rgb(91 155 255 / 10%), transparent 70%); }
+
+/* drawing-sheet zone markers along the top and left edge: 1-8 and A-E */
+.sh-ruler { position: absolute; z-index: 1; display: flex; pointer-events: none; background: var(--bg); font: .58rem/1 var(--mono); letter-spacing: .1em; color: var(--muted); }
+.sh-ruler span { flex: 1; display: grid; place-items: center; }
+.sh-ruler-x { top: 0; left: 18px; right: 0; height: 18px; border-bottom: 1px solid var(--ink); } .sh-ruler-x span + span { border-left: 1px solid var(--rule); }
+.sh-ruler-y { top: 18px; bottom: 0; left: 0; width: 18px; flex-direction: column; border-right: 1px solid var(--ink); } .sh-ruler-y span + span { border-top: 1px solid var(--rule); }
+.sh-pin::before { content: ""; position: absolute; top: 0; left: 0; width: 18px; height: 18px; z-index: 1; background: var(--bg); border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink); pointer-events: none; }
 
 .sh-stage { position: relative; display: grid; grid-template-columns: minmax(0, 230px) minmax(0, 1fr) minmax(0, 230px); gap: clamp(20px, 4vw, 56px); align-items: center; }
 .sh-center { display: grid; justify-items: center; text-align: center; }
 .sh-center > * { grid-area: 1 / 1; }
 
-/* intro layer: the logo alone, until the cards arrive; gone once the headline is up */
+/* intro layer: the drawing alone, until the cards arrive; gone once the headline is up */
 .sh-intro { display: none; justify-items: center; align-content: center; gap: .8rem; }
 .sh-live .sh-intro { display: grid; opacity: calc(1 - var(--p3)); }
-.sh-logo { width: min(248px, 56vw); height: auto; transform: scale(calc(1 - var(--p1) * .3)); }
-.sh-word { margin: 0; font-size: 1.8rem; font-weight: 700; letter-spacing: -.02em; }
-.sh-cue { margin: .6rem 0 0; font: .78rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: .45rem .9rem; opacity: clamp(0, calc(1 - var(--p1) * 4), 1); }
+.sh-logo { width: min(468px, 92vw); height: auto; transform: scale(calc(1 - var(--p1) * .3)); }
+.sh-word { margin: 0; font: 600 1.45rem var(--display); letter-spacing: .5em; text-indent: .5em; text-transform: uppercase; }
+.sh-cue { margin: .6rem 0 0; font: .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--ink); border-radius: 0; padding: .45rem .9rem; opacity: clamp(0, calc(1 - var(--p1) * 4), 1); }
 
 /* headline layer */
 .sh-copy { display: grid; justify-items: center; }
 .sh-live .sh-copy { opacity: var(--p3); transform: translateY(calc((1 - var(--p3)) * 28px)); pointer-events: none; }
 .sh-live.sh-copy-on .sh-copy, .sh-live .sh-copy:focus-within { pointer-events: auto; }
 .sh-live .sh-copy:focus-within { opacity: 1; }
-.sh-copy h1 { font-size: clamp(2.2rem, 4.4vw, 3.6rem); font-weight: 700; line-height: 1.1; margin: 0; }
-.sh-copy .lede { margin-top: 1.3rem; max-width: 46ch; color: var(--muted); font-size: 1.08rem; }
+.sh-copy h1 { font-size: clamp(1.9rem, 3.8vw, 3.1rem); font-weight: 600; line-height: 1.12; margin: 0; letter-spacing: -.04em; }
+.sh-copy .lede { margin-top: 1.3rem; max-width: 50ch; color: var(--muted); font-size: .95rem; }
 .sh-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: .8rem; margin-top: 1.8rem; }
-.eyebrow { display: inline-flex; align-items: center; gap: .55rem; font: .78rem var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 1.2rem; }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--glow); }
+.eyebrow { display: inline-flex; align-items: center; gap: .55rem; font: .72rem var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin-bottom: 1.2rem; }
+.dot { width: 7px; height: 7px; border-radius: 0; background: var(--ink); }
 
-.sh-release { display: inline-block; margin: -.4rem 0 1rem; padding: .25rem .7rem; border: 1px solid var(--accent); border-radius: 999px; font: .74rem var(--mono); letter-spacing: .04em; color: var(--accent); }
-.sh-release:hover { text-decoration: none; background: var(--glow); }
+.sh-release { display: inline-block; margin: -.4rem 0 1rem; padding: .25rem .7rem; border: 1px solid var(--ink); border-radius: 0; background: var(--bg); font: .72rem var(--mono); letter-spacing: .04em; color: var(--ink); text-decoration: none; }
+.sh-release:hover { text-decoration: none; background: var(--ink); color: var(--bg); }
 .sh-install { margin-top: 1.1rem; width: min(100%, 340px); text-align: left; }
 
 /* the two cards: outer element is scroll-driven (slide, fade), inner one tilts with the cursor */
 .sh-card { opacity: var(--p1); }
 .sh-l { transform: translateX(calc((1 - var(--p1)) * -55vw)) scale(calc(1 - var(--p3) * .06)); justify-self: end; width: 100%; }
 .sh-r { transform: translateX(calc((1 - var(--p1)) * 55vw)) scale(calc(1 - var(--p3) * .06)); justify-self: start; width: 100%; }
-.sh-tilt { background: rgb(13 20 32 / 88%); border: 1px solid var(--border); border-radius: 6px; padding: 12px; box-shadow: 0 24px 60px -24px rgb(91 155 255 / 35%); transition: transform .25s ease-out; }
+.sh-tilt { background: var(--bg); border: 1px solid var(--border); border-radius: 0; padding: 12px; box-shadow: none; transition: transform .25s ease-out; }
 .sh-l .sh-tilt { transform: perspective(1000px) rotateY(calc(16deg + var(--mx) * 5deg)) rotateX(calc(var(--my) * -4deg)); transform-origin: right center; }
 .sh-r .sh-tilt { transform: perspective(1000px) rotateY(calc(-16deg + var(--mx) * 5deg)) rotateX(calc(var(--my) * -4deg)); transform-origin: left center; }
-.sh-head { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: 10px; font: .66rem var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-.sh-head b { font-weight: 600; color: var(--accent); }
+.sh-head { display: flex; justify-content: space-between; gap: .5rem; margin: -12px -12px 8px; padding: 6px 12px; border-bottom: 1px solid var(--ink); background: var(--surface); font: .62rem var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.sh-head b { font-weight: 600; color: var(--ink); }
+.sh-cols { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 3px; font: .5rem/1 var(--mono); letter-spacing: .06em; color: var(--muted); text-align: center; }
 .sh-gridwrap { position: relative; }
 .sh-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
-.c { display: block; aspect-ratio: 1; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); }
-.sh-l .c.warn { background: var(--warn-bg); border-color: var(--warn); } .sh-l .c.fail { background: var(--fail-bg); border-color: var(--fail); }
+
+/* grid cells: outlined squares; flagged cells are hatched (CAD section hatching), never filled with a gradient */
+.c { display: block; aspect-ratio: 1; border-radius: 0; background: var(--bg); border: 1px solid var(--rule); }
+.sh-l .c.warn { background: repeating-linear-gradient(135deg, var(--warn) 0 1px, transparent 1px 4px); border-color: var(--warn); }
+.sh-l .c.fail { background: repeating-linear-gradient(135deg, var(--fail) 0 1px, transparent 1px 4px); border-color: var(--fail); }
 /* right card: a cell is judged once the scan (--p2) has passed its row */
 .sh-r .c { --cc: var(--pass); --k: clamp(0, calc(var(--p2) * 12 - var(--row)), 1);
-  background: color-mix(in srgb, var(--cc) calc(var(--k) * 28%), var(--surface-2)); border-color: color-mix(in srgb, var(--cc) calc(var(--k) * 100%), var(--border)); }
+  background: color-mix(in srgb, var(--cc) calc(var(--k) * 16%), var(--bg)); border-color: color-mix(in srgb, var(--cc) calc(var(--k) * 100%), var(--rule)); }
 .sh-r .c.warn { --cc: var(--warn); } .sh-r .c.fail { --cc: var(--fail); }
-.sh-beam { position: absolute; left: -4px; right: -4px; top: min(100%, calc(var(--p2) * 120%)); height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); box-shadow: 0 0 16px 3px var(--glow); opacity: min(calc(var(--p2) * 10), calc((1 - var(--p2)) * 10), 1); }
+/* scan line: a hard 1px rule with end ticks, as on a measuring scale */
+.sh-beam { position: absolute; left: -4px; right: -4px; top: min(100%, calc(var(--p2) * 120%)); height: 1px; background: var(--ink); opacity: min(calc(var(--p2) * 10), calc((1 - var(--p2)) * 10), 1); }
+.sh-beam::before, .sh-beam::after { content: ""; position: absolute; top: -4px; width: 1px; height: 9px; background: var(--ink); } .sh-beam::before { left: 0; } .sh-beam::after { right: 0; }
+
+/* callout under a card: a leader line up to the flagged cell (bottom row, 4th column = 75% across), ending in a dot */
+.sh-call { position: relative; margin: 16px 0 0; padding-right: 25%; text-align: right; font: .56rem/1.2 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); white-space: nowrap; }
+.sh-call b { color: var(--ink); font-weight: 700; margin-right: .2em; }
+.sh-call::before { content: ""; position: absolute; left: 75%; top: -16px; width: 1px; height: 16px; background: var(--ink); }
+.sh-call::after { content: ""; position: absolute; left: calc(75% - 2px); top: -19px; width: 5px; height: 5px; border-radius: 50%; background: var(--ink); }
 .row-0 { --row: 0; }
 .row-1 { --row: 1; }
 .row-2 { --row: 2; }
@@ -65,44 +82,46 @@
 @media (prefers-reduced-motion: no-preference) {
   .sh-word { animation: sh-up .7s ease-out .9s both; }
   .sh-cue { animation: sh-bob 2.4s ease-in-out infinite; }
-  .dot { animation: sh-pulse 2.4s ease-in-out infinite; }
+  .dot { animation: sh-blink 1.6s steps(1) infinite; }
 }
 @keyframes sh-up { from { opacity: 0; transform: translateY(10px); } }
 @keyframes sh-bob { 50% { transform: translateY(4px); } }
-@keyframes sh-pulse { 50% { box-shadow: 0 0 0 7px transparent; } }
+@keyframes sh-blink { 50% { opacity: .2; } }
 
 @media (max-width: 1000px) { .sh-stage { grid-template-columns: minmax(0, 170px) minmax(0, 1fr) minmax(0, 170px); gap: 20px; } }
 @media (max-width: 780px) {
   .sh-live { height: 230vh; }
   .sh-stage { grid-template-columns: 1fr 1fr; grid-template-areas: "c c" "l r"; gap: 24px 12px; }
   .sh-center { grid-area: c; } .sh-l { grid-area: l; } .sh-r { grid-area: r; }
-  .sh-logo { width: min(190px, 52vw); }
-  .sh-tilt { padding: 8px; } .sh-head { font-size: .56rem; } .sh-grid { gap: 3px; }
-  .sh-copy h1 { font-size: 2rem; } .sh-copy .lede { font-size: .98rem; margin-top: .9rem; }
+  .sh-logo { width: min(360px, 96vw); }
+  .sh-tilt { padding: 8px; } .sh-head { font-size: .5rem; margin: -8px -8px 6px; padding: 5px 8px; } .sh-grid, .sh-cols { gap: 3px; } .sh-cols { font-size: .4rem; }
+  .sh-call { font-size: .46rem; letter-spacing: .04em; }
+  .sh-copy h1 { font-size: 1.7rem; } .sh-copy .lede { font-size: .9rem; margin-top: .9rem; }
   .sh-cta .btn { flex: 1 1 100%; justify-content: center; }
 }
 @media (max-width: 780px) and (max-height: 720px) { .sh-copy .lede { display: none; } .sh-install { display: none; } }
 
-/* magnifying lens: only in the hero, only with a mouse (the element is positioned by script and never receives the pointer) */
+/* magnifying lens: only in the hero, only with a mouse (the element is positioned by script and never receives the pointer).
+   Drawn as a loupe in section view: a double ring, a centre reticle and a flat handle. Clear glass: nothing is filled. */
 .sh-lens { position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%; pointer-events: none; z-index: 3; opacity: 0; transition: opacity .2s;
-  /* clear glass: no fill and no filter, so everything underneath stays visible; only a thin translucent blue rim and a faint edge light */
-  border: 2px solid rgb(120 175 255 / 70%); background: transparent;
-  box-shadow: none; }
-/* handle: translucent blue glass, at 45 degrees from the lens centre */
-.sh-lens::after { content: ""; position: absolute; left: 50%; top: 50%; width: 62px; height: 11px; margin-top: -5.5px; transform-origin: 0 50%; transform: rotate(45deg) translateX(60px);
-  border-radius: 2px 6px 6px 2px; border: 1px solid rgb(120 175 255 / 65%); background: linear-gradient(90deg, rgb(120 175 255 / 40%), rgb(91 155 255 / 16%)); }
-/* small glint on the upper right of the rim */
-.sh-lens::before { content: ""; position: absolute; top: 8px; right: 14px; width: 18px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / 35%); filter: blur(2px); transform: rotate(-40deg); }
+  border: 1px solid var(--ink); outline: 1px solid var(--ink); outline-offset: 4px; background: transparent; box-shadow: none; }
+/* reticle: centre lines with a gap in the middle */
+.sh-lens::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background:
+  linear-gradient(var(--ink), var(--ink)) 50% 6px / 1px 22px no-repeat, linear-gradient(var(--ink), var(--ink)) 50% calc(100% - 6px) / 1px 22px no-repeat,
+  linear-gradient(var(--ink), var(--ink)) 6px 50% / 22px 1px no-repeat, linear-gradient(var(--ink), var(--ink)) calc(100% - 6px) 50% / 22px 1px no-repeat; }
+/* handle: flat bar at 45 degrees from the lens centre */
+.sh-lens::after { content: ""; position: absolute; left: 50%; top: 50%; width: 62px; height: 9px; margin-top: -4.5px; transform-origin: 0 50%; transform: rotate(45deg) translateX(66px);
+  border-radius: 0; border: 1px solid var(--ink); background: var(--bg); }
 .sh-lens-on .sh-lens { opacity: 1; }
-.sh-grid .c { --m: 0; position: relative; z-index: 0; transform: scale(calc(1 + var(--m) * .7)); filter: brightness(calc(1 + var(--m) * .6)); transition: transform .12s ease-out, filter .12s ease-out; }
+.sh-grid .c { --m: 0; position: relative; z-index: 0; transform: scale(calc(1 + var(--m) * .7)); outline: 1px solid color-mix(in srgb, var(--ink) calc(var(--m) * 100%), transparent); outline-offset: 1px; transition: transform .12s ease-out; }
 .sh-grid .c:not(.ok) { z-index: 1; }
-@media (hover: none), (prefers-reduced-motion: reduce) { .sh-lens { display: none; } .sh-grid .c { transform: none; filter: none; } }
+@media (hover: none), (prefers-reduced-motion: reduce) { .sh-lens { display: none; } .sh-grid .c { transform: none; outline: 0; } }
 
 /* the hidden bugs: a full-size layer that a circular mask (the lens glass, 56px around the cursor) uncovers. Nothing shows without the lens. */
 .sh-bugs { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; opacity: 0; transition: opacity .2s;
   -webkit-mask-image: radial-gradient(circle 56px at var(--lx, -999px) var(--ly, -999px), #000 96%, transparent 100%); mask-image: radial-gradient(circle 56px at var(--lx, -999px) var(--ly, -999px), #000 96%, transparent 100%); }
 .sh-lens-on .sh-bugs { opacity: 1; }
 .bug { --bc: var(--fail); } .bug.warn { --bc: var(--warn); }
-.bug rect { fill: color-mix(in srgb, var(--bc) 18%, #070b12); stroke: var(--bc); stroke-width: .8; }
+.bug rect { fill: var(--bg); stroke: var(--bc); stroke-width: .8; }
 .bug text { fill: var(--bc); font: 600 6.4px var(--mono); }
 @media (hover: none), (prefers-reduced-motion: reduce) { .sh-bugs { display: none; } }

@@ -1,17 +1,26 @@
+/* Blueprint line art: 1px ink strokes on the paper, hatching instead of gradients, no glow. */
 .em { overflow: visible; }
-.em path, .em circle { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.em .dim { stroke-opacity: .5; }
-.em .glow { fill: url(#em-glow); stroke: none; }
-.em .node { fill: var(--accent); stroke: none; }
-.em .core { fill: var(--accent); stroke: var(--accent); stroke-width: 3; filter: drop-shadow(0 0 10px rgb(91 155 255 / 70%)); }
-.em .vd { stroke: none; } .em .pass { fill: var(--pass); } .em .warn { fill: var(--warn); } .em .fail { fill: var(--fail); }
-.em .d { stroke-dasharray: 1; stroke-dashoffset: 0; } .em circle.d[stroke-dasharray] { stroke-dasharray: 1.4 6; }
-.em-scan { opacity: 0; }
+.em path, .em circle { fill: none; stroke: var(--ink); stroke-width: 1.25; stroke-linecap: butt; stroke-linejoin: miter; }
+.em .dim { stroke: var(--muted); stroke-width: 1; }
+.em .hatch { stroke: var(--ink); stroke-width: .9; }
+.em .axis { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 8 2 1 2; }
+.em .lead { stroke: var(--ink); stroke-width: .8; }
+.em .lead-dot { fill: var(--ink); stroke: none; }
+.em .node { fill: var(--bg); stroke: var(--ink); stroke-width: 1.25; }
+.em .core { fill: url(#em-hatch); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: miter; }
+.em .vd { stroke: var(--ink); stroke-width: .8; } .em .pass { fill: var(--pass); } .em .warn { fill: var(--warn); } .em .fail { fill: var(--fail); }
+.em .d { stroke-dasharray: 1; stroke-dashoffset: 0; } .em circle.d[stroke-dasharray] { stroke-dasharray: 1.4 6; } .em .axis.d { stroke-dasharray: 8 2 1 2; }
+.em text { fill: var(--muted); font: 8.4px var(--mono); letter-spacing: .06em; }
+.em .no { fill: var(--ink); font-weight: 700; }
+.em .dimtxt { font-size: 8px; }
+.em-scan { opacity: 0; } .em-scan path { stroke: var(--ink); stroke-width: 1; }
 
 @media (prefers-reduced-motion: no-preference) {
   .em .d { stroke-dashoffset: 1; animation: em-draw 1.5s cubic-bezier(.6, 0, .2, 1) forwards; }
+  .em .axis.d { stroke-dashoffset: 0; opacity: 0; animation: em-fade 1.2s ease-out forwards; }
   .em circle.d[stroke-dasharray] { stroke-dasharray: 1.4 6; stroke-dashoffset: 0; animation: em-fade 1.2s ease-out forwards; opacity: 0; }
-  .em .t1 { animation-delay: .1s; } .em .t2 { animation-delay: .5s; } .em .t3 { animation-delay: .9s; } .em .t4 { animation-delay: 1.2s; } .em .t5 { animation-delay: 1.5s; }
+  .em .t1 { animation-delay: .1s; } .em .t2 { animation-delay: .5s; } .em .t3 { animation-delay: .9s; } .em .t4 { animation-delay: 1.2s; } .em .t5 { animation-delay: 1.5s; } .em .t6 { animation-delay: 2s; }
+  .em .lead-dot, .em .lbl { opacity: 0; animation: em-fade .6s ease-out 2.4s forwards; }
   .em .node, .em .vd { opacity: 0; animation: em-pop .5s ease-out forwards; }
   .em .n1 { animation-delay: 1.9s; } .em .n2 { animation-delay: 2.05s; } .em .n3 { animation-delay: 2.2s; } .em .vd { animation-delay: 2.4s; }
   .em .core { opacity: 0; animation: em-pop .8s ease-out 1.7s forwards; transform-origin: 124px 140px; }

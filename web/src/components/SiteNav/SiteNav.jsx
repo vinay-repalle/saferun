@@ -4,7 +4,8 @@ import { Mark } from '../Mark/Mark'
 import './SiteNav.css'
 
 // Every link is a real hash link, so the same navbar works on the website and the guide.
-const LINKS = [['#/product', 'Product'], ['#/security', 'Security'], ['#/how', 'How it works'], ['#/guide', 'Docs'], ['#/benchmarks', 'Benchmark']]
+// The third item is a decorative shortcut hint shown as "Product [P]" (CSS, from data-key). It adds no text, name or behaviour.
+const LINKS = [['#/product', 'Product', 'P'], ['#/security', 'Security', 'S'], ['#/how', 'How it works', 'H'], ['#/guide', 'Docs', 'D'], ['#/benchmarks', 'Benchmark', 'B']]
 
 // The GitHub mark (Octicons "mark-github", MIT). Decorative: the link carries the accessible name.
 function GithubMark() {
@@ -27,9 +28,9 @@ export function SiteNav({ current = '' }) {
           <span className="sr-only">{open ? 'Close menu' : 'Open menu'}</span><i aria-hidden="true" />
         </button>
         <nav id="site-menu" className={'nav-menu' + (open ? ' open' : '')} aria-label="Main">
-          {LINKS.map(([href, label]) => <a key={href} className="nav-link" href={href} aria-current={current === href ? 'page' : undefined} onClick={close}>{label}</a>)}
+          {LINKS.map(([href, label, key]) => <a key={href} className="nav-link" data-key={key} href={href} aria-current={current === href ? 'page' : undefined} onClick={close}>{label}</a>)}
           <a className="nav-link nav-gh" href={GITHUB} target="_blank" rel="noreferrer noopener" aria-label="SafeRun on GitHub (opens in a new tab)" title="GitHub"><GithubMark /><span className="nav-gh-text">GitHub</span></a>
-          <a className="btn btn-primary nav-cta" href="#/quick-start" onClick={close}>Get Started</a>
+          <a className="btn btn-primary nav-cta" data-key="G" href="#/quick-start" onClick={close}>Get Started</a>
         </nav>
       </div>
     </header>
