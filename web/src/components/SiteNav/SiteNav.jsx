@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { GITHUB } from '../../content/site'
 import { Mark } from '../Mark/Mark'
+import { onShortcutKey } from './shortcuts'
 import './SiteNav.css'
 
 // Every link is a real hash link, so the same navbar works on the website and the guide.
@@ -20,6 +21,7 @@ function GithubMark() {
 export function SiteNav({ current = '' }) {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+  useEffect(() => { window.addEventListener('keydown', onShortcutKey); return () => window.removeEventListener('keydown', onShortcutKey) }, [])
   return (
     <header className="nav">
       <div className="wrap nav-row">

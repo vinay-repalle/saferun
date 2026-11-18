@@ -1,0 +1,23 @@
+.totop { position: fixed; right: 20px; bottom: 20px; z-index: 30; display: grid; justify-items: center; gap: 1px; width: 46px; padding: 6px 0 4px; border-radius: 0; border: 1px solid var(--ink); background: var(--bg); color: var(--ink);
+  font: 500 .56rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; overflow: hidden;
+  visibility: hidden; opacity: 0; transform: translateY(12px); transition: opacity .2s, transform .2s, visibility 0s .2s, background .12s, color .12s; }
+.totop.on { visibility: visible; opacity: 1; transform: none; transition: opacity .2s, transform .2s, background .12s, color .12s; }
+.totop:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+.totop svg { display: block; overflow: visible; }
+/* under the arrow: the shortcut hint "[T]"; with shortcuts switched off it reads "top" instead */
+.totop::after { margin: 0; font-size: 1em; color: inherit; letter-spacing: .12em; }
+html:root[data-shortcuts="off"] .totop::after { content: "top"; content: "top" / ""; }
+.totop path { fill: none; stroke: currentColor; stroke-width: 1.25; stroke-linecap: butt; stroke-linejoin: miter; }
+.totop-trail { opacity: 0; stroke-dasharray: 2 2; }
+@media (prefers-reduced-motion: no-preference) {
+  .totop.on .totop-arrow { animation: totop-bob 1.8s ease-in-out infinite; }
+  .totop:hover .totop-arrow { animation: none; transform: translateY(-3px); }
+  .totop:hover .totop-trail { opacity: 1; }
+  /* click: the arrow shoots out of the top of the box and comes back up from underneath */
+  .totop.fly .totop-arrow { animation: totop-fly .7s cubic-bezier(.5, 0, .3, 1); }
+  .totop.fly .totop-trail { opacity: 1; animation: totop-trail .7s ease-out; }
+}
+@keyframes totop-bob { 50% { transform: translateY(-2px); } }
+@keyframes totop-fly { 0% { transform: none; opacity: 1; } 45% { transform: translateY(-34px); opacity: 0; } 46% { transform: translateY(26px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes totop-trail { 0% { opacity: 1; } 40% { opacity: 1; transform: translateY(-20px); } 45%, 100% { opacity: 0; } }
+@media (max-width: 640px) { .totop { right: 12px; bottom: 12px; } }

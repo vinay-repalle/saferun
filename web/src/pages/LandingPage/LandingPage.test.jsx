@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../App'
 import { GITHUB, PYPI, RELEASES } from '../../content/site'
+import { setShortcuts } from '../../components/SiteNav/shortcuts'
 import { LandingPage } from './LandingPage'
 
 afterEach(() => { vi.restoreAllMocks(); window.location.hash = '' })
@@ -192,5 +193,54 @@ describe('Routing', () => {
   it('tells visitors which platforms are supported, with the Docker Desktop caveat', () => {
     const text = render(<LandingPage />).container.textContent
     for (const k of ['Ubuntu / Linux', 'Windows 10/11', 'macOS', 'Which platforms are supported?', 'has not yet been manually verified']) expect(text).toContain(k)
+  })
+})
+
+describe('Keyboard shortcuts', () => {
+  afterEach(() => { setShortcuts(true); document.body.innerHTML = '' })
+  const press = (key, init = {}, target = document.body) => fireEvent.keyDown(target, { key, ...init })
+  // "Get Started" appears twice (navbar and hero, same key); the first one in the page, the navbar button, is the one a key press activates.
+  const spyOnLinks = (container) => {
+    const spies = {}
+    for (const a of container.querySelectorAll('a[data-key]')) {
+      const name = a.dataset.key + a.textContent
+      if (name in spies) continue
+      spies[name] = vi.fn((e) => e.preventDefault()); a.addEventListener('click', spies[name])
+    }
+    return spies
+  }
+
+  it('each hinted key activates the link that shows it', () => {
+    const { container } = render(<LandingPage />)
+    const spies = spyOnLinks(container)
+    for (const [k, label] of [['p', 'Product'], ['S', 'Security'], ['h', 'How it works'], ['d', 'Docs'], ['b', 'Benchmark']]) {
+      press(k)
+      expect(spies[k.toUpperCase() + label]).toHaveBeenCalledTimes(1)
+    }
+    press('g'); expect(spies['GGet Started']).toHaveBeenCalledTimes(1)
+    press('v'); expect(spies['VView on GitHub ↗']).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores typing in fields, Ctrl/Cmd/Alt combinations and held-down repeats', () => {
+    const { container } = render(<><LandingPage /><input aria-label="field" /></>)
+    const spies = spyOnLinks(container)
+    press('p', {}, screen.getByLabelText('field'))
+    press('p', { ctrlKey: true }); press('p', { metaKey: true }); press('p', { altKey: true }); press('p', { repeat: true })
+    expect(spies.PProduct).not.toHaveBeenCalled()
+  })
+
+  it('"?" and the footer switch turn them off and on, hide the hints, and remember the choice', () => {
+    const { container } = render(<LandingPage />)
+    const spies = spyOnLinks(container)
+    const sw = screen.getByRole('button', { name: /Keyboard shortcuts: on/ })
+    expect(sw.getAttribute('aria-pressed')).toBe('true')
+    press('?')
+    expect(screen.getByRole('button', { name: /Keyboard shortcuts: off/ }).getAttribute('aria-pressed')).toBe('false')
+    expect(document.documentElement.dataset.shortcuts).toBe('off')
+    expect(window.localStorage.getItem('saferun-shortcuts')).toBe('off')
+    press('p'); expect(spies.PProduct).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /Keyboard shortcuts: off/ }))
+    expect(document.documentElement.dataset.shortcuts).toBe('on')
+    press('p'); expect(spies.PProduct).toHaveBeenCalledTimes(1)
   })
 })

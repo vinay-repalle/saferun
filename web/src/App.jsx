@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ToTop } from './components/ToTop/ToTop'
 import { BenchmarksPage } from './pages/BenchmarksPage/BenchmarksPage'
 import { GuidePage } from './pages/GuidePage/GuidePage'
 import { LANDING_SECTIONS, LandingPage } from './pages/LandingPage/LandingPage'
@@ -12,7 +13,6 @@ export function App() {
     return () => window.removeEventListener('hashchange', on)
   }, [])
   const route = hash.replace(/^#\/?/, '')
-  if (route === 'guide') return <GuidePage />
-  if (route === 'benchmarks') return <BenchmarksPage />
-  return <LandingPage section={LANDING_SECTIONS.includes(route) ? route : ''} />
+  const page = route === 'guide' ? <GuidePage /> : route === 'benchmarks' ? <BenchmarksPage /> : <LandingPage section={LANDING_SECTIONS.includes(route) ? route : ''} />
+  return <>{page}<ToTop /></>
 }

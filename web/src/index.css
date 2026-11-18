@@ -64,6 +64,9 @@ details > summary { cursor: pointer; color: var(--ink); font-size: .85rem; }
 [data-key]::after { content: "[" attr(data-key) "]"; content: "[" attr(data-key) "]" / ""; margin-left: .55em; font-size: .78em; font-weight: 400; letter-spacing: 0; color: var(--muted); }
 .btn-primary[data-key]::after { color: inherit; opacity: .6; } .btn-primary[data-key]:hover::after, a:hover[data-key]::after { color: inherit; }
 
+/* shortcuts switched off: the hints go too (the footer switch keeps its own) */
+:root[data-shortcuts="off"] [data-key]:not(.foot-keys)::after { content: none; }
+
 /* Blueprint corner markers: a thin crosshair (+) centred on each corner of a framed container. One shared rule; the container only needs a position. */
 .card, .demo, .term, .split, .pipe, .feat, .limits, .gh-card, .qs-plat li, .g-comp, .g-verdict, .sh-tilt, .cmd, .tally li { position: relative; }
 .card::after, .demo::after, .term::after, .split::after, .pipe::after, .feat::after, .limits::after, .gh-card::after, .sh-tilt::after {
