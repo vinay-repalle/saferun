@@ -12,13 +12,13 @@ export function SiteFooter() {
     <footer className="foot">
       <div className="wrap foot-row">
         <div>
-          <a className="brand" href="#/"><Mark size={22} /> <span>SafeRun</span></a>
+          <a className="brand" href="/"><Mark size={22} /> <span>SafeRun</span></a>
           <p className="fine">SafeRun checks what it can check. It never claims the code is secure.</p>
           <p className="fine">v{VERSION} · alpha · MIT license · not independently certified</p>
           <button type="button" className="foot-keys" data-key="?" aria-pressed={keys} onClick={toggleShortcuts}>Keyboard shortcuts: {keys ? 'on' : 'off'}</button>
         </div>
         <nav aria-label="Footer">
-          <a href="#/guide">Setup guide</a>
+          <a href="/guide">Setup guide</a>
           <a href={DOCS + 'cli.md'} {...EXT}>CLI docs</a>
           <a href={DOCS + 'engine.md'} {...EXT}>Engine docs</a>
           <a href={DOCS + 'release-images.md'} {...EXT}>Release images</a>

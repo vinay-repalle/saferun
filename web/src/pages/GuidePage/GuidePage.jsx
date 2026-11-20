@@ -201,7 +201,7 @@ export function GuidePage() {
   }, [])
   return (
     <div className="shell">
-      <SiteNav current="#/guide" />
+      <SiteNav current="/guide" />
       <main>
         <section className="g-hero">
           <div className="wrap g-hero-in">

@@ -22,7 +22,7 @@ export function Faq() {
       <div className="faq-wrap">
         <SectionHead n="07" title="Questions," accent="answered." />
         <div className="faq stag">{FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div>
-        <p className="sec-link"><a href="#/guide">More help in the setup guide →</a></p>
+        <p className="sec-link"><a href="/guide">More help in the setup guide →</a></p>
       </div>
     </Section>
   )

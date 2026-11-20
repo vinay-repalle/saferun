@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { GITHUB, INSTALL, PYPI_VERSION, VERSION } from '../../../content/site'
+import { useIsClient } from '../../../router'
 import { CommandBlock } from '../../CommandBlock/CommandBlock'
 import { Emblem } from '../../Emblem/Emblem'
 import './ScrollHero.css'
@@ -31,7 +32,7 @@ const BUGS = (() => {
 const clamp = (n) => Math.min(1, Math.max(0, n))
 const seg = (p, a, b) => clamp((p - a) / (b - a)) // progress of p between a and b
 
-const canAnimate = () => typeof window.matchMedia === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const canAnimate = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const COL_NUMS = ['01', '02', '03', '04', '05', '06']
 const SHEET_COLS = ['1', '2', '3', '4', '5', '6', '7', '8']
@@ -59,14 +60,16 @@ function Card({ side, title, status, callout, tag }) {
  * The opening of the website. A tall "stage" keeps the hero pinned while you scroll through it: the logo is alone, two cards slide in from the
  * sides, a scan lights up the report, then the headline takes over. Scrolling back up plays it in reverse. Scroll position is written to CSS
  * variables (--p1 cards in, --p2 scan, --p3 headline) and the cursor to --mx/--my (tilt). Without animation (reduced motion, no matchMedia)
- * the stage is not tall or pinned and simply shows its finished state.
+ * the stage is not tall or pinned and simply shows its finished state. The pre-rendered HTML is the live stage most visitors get (index.html
+ * shows the finished state to visitors without JavaScript); the browser's real choice follows right after hydration.
  */
 export function ScrollHero() {
   const stage = useRef(null)
-  const [live] = useState(canAnimate)
+  const [canLive] = useState(canAnimate)
+  const live = useIsClient() ? canLive : true
 
   useLayoutEffect(() => {
-    if (!live) return undefined
+    if (!canLive) return undefined
     const el = stage.current
     const pin = el.firstElementChild
     let raf = 0
@@ -120,7 +123,7 @@ export function ScrollHero() {
       window.removeEventListener('scroll', schedule); window.removeEventListener('resize', schedule)
       pin.removeEventListener('pointermove', move); pin.removeEventListener('pointerleave', leave)
     }
-  }, [live])
+  }, [canLive])
 
   return (
     <section className={'sh' + (live ? ' sh-live' : '')} ref={stage}>
@@ -150,7 +153,7 @@ export function ScrollHero() {
               <h1>Check the code <em>before</em> you run it.</h1>
               <p className="lede">SafeRun inspects AI-generated and downloaded projects inside a locked-down, offline container, and gives you a PASS, WARNING or FAIL verdict, without executing the program you submitted.</p>
               <div className="sh-cta">
-                <a className="btn btn-primary" data-key="G" href="#/quick-start">Get Started</a>
+                <a className="btn btn-primary" data-key="G" href="/#quick-start">Get Started</a>
                 <a className="btn btn-ghost" data-key="V" href={GITHUB} target="_blank" rel="noreferrer noopener">View on GitHub <span aria-hidden="true">↗</span></a>
               </div>
               <div className="sh-install"><CommandBlock command={INSTALL} /></div>

@@ -7,7 +7,7 @@
   "description": "SafeRun website (static React + Vite, plain JavaScript; the CLI is the product)",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.js",
     "test": "vitest run"
   },
   "dependencies": {

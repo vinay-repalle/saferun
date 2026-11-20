@@ -17,7 +17,7 @@ export function Features() {
     <Section id="features" alt>
       <SectionHead n="04" title="What it" accent="checks." />
       <div className="feat stag">{FEATURES.map(([t, d]) => <div key={t}><h3>{t}</h3><p>{d}</p></div>)}</div>
-      <p className="sec-link"><a href="#/guide">Read the setup guide →</a> · <a href="#/benchmarks">See the benchmark →</a></p>
+      <p className="sec-link"><a href="/guide">Read the setup guide →</a> · <a href="/benchmarks">See the benchmark →</a></p>
     </Section>
   )
 }

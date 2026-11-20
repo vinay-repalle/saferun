@@ -6,9 +6,10 @@ import { useSyncExternalStore } from 'react'
 const STORE = 'saferun-shortcuts'
 const listeners = new Set()
 
-const read = () => { try { return window.localStorage.getItem(STORE) !== 'off' } catch { return true } }
+const browser = typeof window !== 'undefined' // false while pre-rendering at build time
+const read = () => { try { return !browser || window.localStorage.getItem(STORE) !== 'off' } catch { return true } }
 let enabled = read()
-const apply = () => { document.documentElement.dataset.shortcuts = enabled ? 'on' : 'off' }
+const apply = () => { if (browser) document.documentElement.dataset.shortcuts = enabled ? 'on' : 'off' }
 apply()
 
 export function setShortcuts(on) {

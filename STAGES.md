@@ -49,4 +49,5 @@ Full suite (latest): `SAFERUN_REQUIRE_DOCKER=1 .venv/bin/python -m pytest` → 1
 - Benchmark README graphs and a website benchmarks docs page are pending (owner follow-up).
 
 ## Done since the last list
+- Website search and AI visibility (done locally 2026-11-20, owner approved): real page addresses instead of `#/` routes (old links redirect), pre-rendered HTML per page, `robots.txt`, `sitemap.xml`, `llms.txt`, a `404.html`, per-page titles, descriptions, canonical links, share-card tags with `og.png`, and SoftwareApplication structured data (no ratings). The Google Search Console verification file is in `web/public/`. Owner: push, then submit `sitemap.xml` in Search Console. Details: README *Website (static)*.
 - Website text (`Faq.jsx`, `Features.jsx`, `GuidePage.jsx`, `site.js`) already says Python-only, explains `scan` vs `run` and "can the scanner read this file", and has no Node/`node --check` wording (checked 2026-11-05). The OSV download size was corrected from about 260 MB to about 36 MB (PyPI data only) in the Guide page, README, docs/install-and-test.md and docs/release-pypi.md. The owner redeploys Netlify.

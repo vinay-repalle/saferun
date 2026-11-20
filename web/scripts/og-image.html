@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- The link-preview image (public/og.png, 1200 x 630) shown when the site is shared. It has no version number, so it does not go stale.
+     Regenerate after changing this file, from web/:
+     google-chrome --headless --hide-scrollbars --force-device-scale-factor=1 --window-size=1200,630 --screenshot=public/og.png scripts/og-image.html -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { --bg: #f2f1ed; --ink: #18181b; --muted: #71717a; --rule: #d4d2cc; --mono: "JetBrains Mono", "IBM Plex Mono", "DejaVu Sans Mono", "Liberation Mono", monospace; }
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--mono); }
+  .sheet { position: absolute; inset: 0; background-image: linear-gradient(var(--rule) 1px, transparent 1px), linear-gradient(90deg, var(--rule) 1px, transparent 1px); background-size: 40px 40px; background-position: 22px 22px; opacity: .45; }
+  .rx, .ry, .corner { position: absolute; background: var(--bg); font-size: 12px; letter-spacing: .1em; color: var(--muted); display: flex; }
+  .corner { top: 0; left: 0; width: 22px; height: 22px; border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+  .rx { top: 0; left: 22px; right: 0; height: 22px; border-bottom: 1px solid var(--ink); }
+  .ry { top: 22px; left: 0; bottom: 0; width: 22px; flex-direction: column; border-right: 1px solid var(--ink); }
+  .rx span, .ry span { flex: 1; display: grid; place-items: center; }
+  .rx span + span { border-left: 1px solid var(--rule); } .ry span + span { border-top: 1px solid var(--rule); }
+  .card { position: absolute; left: 86px; right: 70px; top: 86px; bottom: 64px; display: grid; grid-template-columns: 250px 1fr; gap: 64px; align-items: center; }
+  .mark { width: 250px; height: auto; color: var(--ink); }
+  .eyebrow { display: flex; align-items: center; gap: 12px; font-size: 17px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 22px; }
+  .dot { width: 10px; height: 10px; background: var(--ink); }
+  h1 { margin: 0; font-size: 54px; line-height: 1.08; letter-spacing: -.04em; font-weight: 700; }
+  h1 em { font-weight: 500; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; }
+  .cmd { display: inline-block; margin-top: 36px; border: 1.5px solid var(--ink); padding: 14px 22px; font-size: 26px; background: var(--bg); }
+  .cmd::before { content: "$ "; color: var(--muted); }
+  .foot { position: absolute; left: 86px; right: 70px; bottom: 30px; display: flex; justify-content: space-between; font-size: 17px; letter-spacing: .08em; color: var(--muted); }
+  .foot b { color: var(--ink); letter-spacing: .4em; }
+</style>
+</head>
+<body>
+  <div class="sheet"></div>
+  <div class="corner"></div>
+  <div class="rx"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+  <div class="ry"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span></div>
+  <div class="card">
+    <svg class="mark" viewBox="0 0 56 64" aria-hidden="true">
+      <path fill-rule="evenodd" fill="currentColor" d="M28 3 6 11v21c0 14 10 24 22 29 12-5 22-15 22-29V11L28 3ZM21 21.500v21l19-10.500-19-10.500Z" />
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-opacity=".55" d="M0 14V2h12M44 2h12v12M56 50v12H44M12 62H0V50" />
+    </svg>
+    <div>
+      <p class="eyebrow"><span class="dot"></span> Pre-run verification for untrusted code</p>
+      <h1>Check the code <em>before</em><br />you run it.</h1>
+      <div class="cmd">pip install saferun-cli</div>
+    </div>
+  </div>
+  <div class="foot"><b>SAFERUN</b><span>Python · offline scans · PASS / WARNING / FAIL · alpha · MIT</span></div>
+</body>
+</html>

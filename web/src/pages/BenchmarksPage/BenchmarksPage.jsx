@@ -8,7 +8,7 @@ import './BenchmarksPage.css'
 export function BenchmarksPage() {
   return (
     <div className="shell">
-      <SiteNav current="#/benchmarks" />
+      <SiteNav current="/benchmarks" />
       <main className="wrap bench">
         <h1>Benchmark: SafeRun vs Bandit</h1>
         <p className="g-lead">A small, advisory comparison on harmless simulated samples that are never executed. Held-out split of the second sample set: 32 bad and 12 clean code samples.</p>

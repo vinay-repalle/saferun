@@ -6,7 +6,7 @@ import { GITHUB, PYPI, RELEASES } from '../../content/site'
 import { setShortcuts } from '../../components/SiteNav/shortcuts'
 import { LandingPage } from './LandingPage'
 
-afterEach(() => { vi.restoreAllMocks(); window.location.hash = '' })
+afterEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, '', '/') })
 
 describe('Landing page', () => {
   it('has the navbar, hero CTAs and trust indicators', () => {
@@ -21,7 +21,7 @@ describe('Landing page', () => {
   it('links to the guide and the real repository only', () => {
     const { container } = render(<LandingPage />)
     const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'))
-    expect(hrefs).toContain('#/guide')
+    expect(hrefs).toContain('/guide')
     for (const h of hrefs.filter((x) => x.startsWith('http'))) expect(h.startsWith('https://github.com/vinay-repalle/saferun') || h.startsWith('https://pypi.org/project/saferun-cli/')).toBe(true)
     expect(hrefs).toEqual(expect.arrayContaining([PYPI, RELEASES]))
     for (const a of container.querySelectorAll('a[target=_blank]')) expect(a.getAttribute('rel')).toMatch(/noopener/)
@@ -32,7 +32,7 @@ describe('Landing page', () => {
     for (const id of ['product', 'security', 'how', 'features', 'demo', 'quick-start', 'github', 'faq']) expect(container.querySelector('#' + id)).not.toBeNull()
     const nav = screen.getByRole('navigation', { name: 'Main' })
     const hrefs = Object.fromEntries([...nav.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href')]))
-    expect(hrefs).toMatchObject({ Product: '#/product', Security: '#/security', 'How it works': '#/how', Docs: '#/guide', 'Get Started': '#/quick-start', GitHub: GITHUB })
+    expect(hrefs).toMatchObject({ Product: '/#product', Security: '/#security', 'How it works': '/#how', Docs: '/guide', Benchmark: '/benchmarks', 'Get Started': '/#quick-start', GitHub: GITHUB })
   })
 
   it('navbar shows "Docs" and a GitHub logo link (not a button) that opens the repository', () => {
@@ -162,22 +162,21 @@ describe('Cursor tilt', () => {
 
 describe('Routing', () => {
   it('serves the website by default and keeps the guide reachable', () => {
-    window.location.hash = ''
     const a = render(<App />); expect(a.container.querySelector('#product')).not.toBeNull(); a.unmount()
     window.location.hash = '#/dashboard'          // the removed dashboard route falls back to the website
     const b = render(<App />); expect(b.container.querySelector('#product')).not.toBeNull(); b.unmount()
-    window.location.hash = '#/guide'
+    window.history.replaceState(null, '', '/guide')
     const c = render(<App />); expect(c.container.querySelector('.guide')).not.toBeNull(); c.unmount()
   })
 
   it('both pages share the same navbar and footer, with working links between them', () => {
-    for (const h of ['', '#/guide']) {
-      window.location.hash = h
+    for (const path of ['/', '/guide']) {
+      window.history.replaceState(null, '', path)
       const { container, unmount } = render(<App />)
       expect(container.querySelectorAll('header.nav')).toHaveLength(1)
       expect(container.querySelectorAll('footer.foot')).toHaveLength(1)
       const hrefs = [...container.querySelectorAll('nav[aria-label=Main] a')].map((a) => a.getAttribute('href'))
-      expect(hrefs).toEqual(expect.arrayContaining(['#/guide', '#/product', '#/quick-start']))
+      expect(hrefs).toEqual(expect.arrayContaining(['/guide', '/#product', '/#quick-start']))
       unmount()
     }
   })

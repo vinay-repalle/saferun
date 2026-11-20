@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { NAV_EVENT } from '../../router'
 import './ToTop.css'
 
 const SHOW_AFTER = 480 // px scrolled before the arrow appears on pages without the scroll-driven hero
@@ -19,12 +20,16 @@ export function ToTop() {
   const timer = useRef(0)
   useEffect(() => {
     const on = () => setShown(passedHero())
-    const route = () => setTimeout(on, 60) // the new page renders just after the hash changes
+    const route = () => setTimeout(on, 60) // the new page renders just after the address changes
     on()
     window.addEventListener('scroll', on, { passive: true })
     window.addEventListener('resize', on)
-    window.addEventListener('hashchange', route)
-    return () => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); window.removeEventListener('hashchange', route); clearTimeout(timer.current) }
+    window.addEventListener(NAV_EVENT, route)
+    window.addEventListener('popstate', route)
+    return () => {
+      window.removeEventListener('scroll', on); window.removeEventListener('resize', on)
+      window.removeEventListener(NAV_EVENT, route); window.removeEventListener('popstate', route); clearTimeout(timer.current)
+    }
   }, [])
   const go = () => {
     const calm = reduced()

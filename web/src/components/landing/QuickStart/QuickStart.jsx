@@ -25,7 +25,7 @@ export function QuickStart() {
         {STEPS.map(([title, text, cmd]) => <li key={title}><h3>{title}</h3><CommandBlock command={cmd} /><p>{text}</p></li>)}
       </ol>
       <p className="notice qs-alpha"><strong>Alpha release.</strong> {ALPHA_NOTICE}</p>
-      <p className="sec-link"><a href="#/guide">Platform-specific setup for Ubuntu/Linux, Windows and macOS →</a></p>
+      <p className="sec-link"><a href="/guide">Platform-specific setup for Ubuntu/Linux, Windows and macOS →</a></p>
     </Section>
   )
 }

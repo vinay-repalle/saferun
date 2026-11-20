@@ -12,7 +12,7 @@ export function SecuritySection() {
         <aside className="limits">
           <h3>Known limits</h3>
           <p>{HONEST_LIMITS}</p>
-          <a href="#/guide">How SafeRun stays safe, in the guide →</a>
+          <a href="/guide">How SafeRun stays safe, in the guide →</a>
         </aside>
       </div>
     </Section>

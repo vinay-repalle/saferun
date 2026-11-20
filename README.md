@@ -98,7 +98,7 @@ cd web && npm ci --ignore-scripts && npm test && npm run build   # output: web/d
 | Publish directory | `dist` |
 | Node.js | 22 |
 
-Pages are switched by the URL hash, so no redirect rules are needed.
+Pages have real addresses: `/`, `/guide` and `/benchmarks` (sections of the home page are `/#security` and so on; old `#/guide`-style links are redirected in the browser). `npm run build` pre-renders each page to static HTML (`web/scripts/prerender.js`), so search engines and AI tools that do not run JavaScript read the full text, and also writes `robots.txt`, `sitemap.xml` and `llms.txt`. `web/public/_redirects` maps the clean addresses to those files; any other address gets `404.html`. Titles, descriptions, canonical links, share-card tags and structured data come from `web/src/seo.js`. **If the site moves to its own domain, change `SITE_URL` there.** The share image `web/public/og.png` is made from `web/scripts/og-image.html` (command inside it).
 
 > **Scope:** the website is a static informational site only. SafeRun's CLI, sandbox and security analysis stay in this repository (`saferun/`, `docker/`) and run on your own machine; none of that is hosted by Netlify, and the site scans nothing.
 
