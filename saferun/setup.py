@@ -79,7 +79,7 @@ To set up without internet access, prepare the missing parts on a connected mach
                 verify it with:  saferun osv-db status
   * Docker images:  docker pull <image>@<digest>  (see: saferun verify-images), then docker save / docker load on the target machine. SafeRun only trusts an image
                 whose registry digest matches the pin (`saferun status` shows this); an image loaded without that digest is reported as invalid, never trusted.
-  * Analyzer:   build it where docker/analyzer/build.py can run (needs internet once), or, if you have built it elsewhere, docker save / docker load it (or, without --build-local, install the signed release analyzer-v1.0.1; see docs/release-images.md)."""
+  * Analyzer:   build it where docker/analyzer/build.py can run (needs internet once), or, if you have built it elsewhere, docker save / docker load it (or, without --build-local, install the signed release analyzer-v1.2.0; see docs/release-images.md)."""
 
 
 @dataclass(frozen=True)
