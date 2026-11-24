@@ -12,6 +12,8 @@ Exit codes (deterministic, documented in docs/cli.md):
 64 (usage) and 70 (Docker unusable).
 `saferun check-names` uses 0 (nothing flagged and everything checked), 2 (a name was flagged, or something could not be read or
 looked up: never 0), 64 (usage) and 70 (internal error).
+`saferun cleanup` uses 0 (nothing to do, listed only, or everything removed), 1 (something could not be checked or removed), 64 (usage)
+and 70 (internal error).
 """
 from __future__ import annotations
 
@@ -47,6 +49,7 @@ examples:
   saferun status                            show which components are installed and verified
   saferun osv-db update                     download the offline OSV vulnerability data used by the dependency scan
   saferun check-names --project .           look for dependency names that resemble popular PyPI packages (offline)
+  saferun cleanup                           list old analyzer images and other leftovers, then ask before removing them
   saferun scan . --no-secrets-check --timeout 60
 
 exit codes:
@@ -157,6 +160,13 @@ def build_parser() -> argparse.ArgumentParser:
         "Changes nothing. Exit 0 if nothing FAILED, 1 otherwise."), parents=[common])
     dc.add_argument("--online", action="store_true", help="also verify the cosign signature of the published analyzer release (uses the network)")
     dc.add_argument("--format", choices=("text", "json"), default="text", help="output format (default: text)")
+    cl = sub.add_parser("cleanup", help="list and remove what SafeRun left behind (old analyzer images, unsupported OSV data, leftovers)", description=(
+        "Lists old SafeRun analyzer images, OSV data for ecosystems SafeRun no longer supports (npm), containers and temporary workspaces "
+        "left behind by a crashed run, and a stale analyzer lock backup (analyzer-image-id.bak). On a terminal it then asks before removing "
+        "anything; otherwise it only lists, unless --yes is given. It never touches the current analyzer image, the python sandbox image or "
+        "any image without the saferun.analyzer label. Exit 0 when done (or nothing to do, or listed only), 1 when something could not be "
+        "checked or removed."), parents=[common])
+    cl.add_argument("--yes", "-y", action="store_true", help="remove everything listed without asking (needed when not on a terminal)")
     st = sub.add_parser("status", help="show which components are installed and verified", description=(
         "Verifies every component now (image digests, analyzer lock/labels/rules, OSV data integrity and age). Exit 0 if all selected are ready, 1 otherwise."), parents=[common])
     st.add_argument("--only", metavar="COMPONENT[,COMPONENT]", help=f"only these components ({', '.join(setup_mod.KEYS)})")
@@ -388,7 +398,7 @@ def _osv_db(args) -> int:
     if args.osv_db_command == "status":
         if not math.isfinite(args.max_age_days) or args.max_age_days <= 0:
             return _fail("--max-age-days must be a positive number", EXIT_USAGE)
-        rep = osvdb.validate(db_dir, max_age_days=args.max_age_days)
+        rep = osvdb.validate(db_dir, list(osvdb.ECOSYSTEMS), max_age_days=args.max_age_days)   # supported ecosystems only
         print(f"OSV database: {_s(db_dir)}")
         for line in rep.notes:
             print(f"  {_s(line)}")
@@ -396,10 +406,21 @@ def _osv_db(args) -> int:
             print(f"  PROBLEM: {_s(line)}")
         if rep.stale:
             print(f"  STALE: {_s(rep.stale)}")
+        if rep.expires_soon:
+            print(f"  WARNING: {_s(rep.expires_soon)}")
+        old = osvdb.unsupported_data(db_dir)
+        if old:
+            print(f"  note: data for an ecosystem SafeRun no longer supports: "
+                  + ", ".join(f"{_s(e)} ({ui.size_text(n) or 'size unknown'})" for e, n in old) + "; remove it with: saferun cleanup")
         print("  usable and fresh" if rep.ok and not rep.stale else "  NOT usable for a clean scan result")
         return EXIT_PASS if rep.ok and not rep.stale else EXIT_FAIL
     if args.osv_db_command != "update":
         return _fail("usage: saferun osv-db update|status [--dir DIR]", EXIT_USAGE)
+    removed, problems = osvdb.prune_unsupported(db_dir)     # local and offline: data of ecosystems SafeRun no longer supports
+    for eco, size in removed:
+        print(f"Removed OSV data SafeRun no longer supports: {_s(eco)}" + (f" ({ui.size_text(size)})" if size else ""))
+    for problem in problems:
+        print(f"note: unsupported OSV data was not fully removed: {_s(problem)}", file=sys.stderr)
     if args.if_stale:
         if not math.isfinite(args.max_age_days) or args.max_age_days <= 0:
             return _fail("--max-age-days must be a positive number", EXIT_USAGE)
@@ -456,6 +477,26 @@ def _status(args) -> int:
     sys.stdout.write((setup_mod.status_json(statuses) if args.format == "json"
                       else setup_mod.status_report(statuses, ui.theme_for(sys.stdout, args.color))) + "\n")
     return EXIT_PASS if all(x.ready for x in statuses) else EXIT_FAIL
+
+
+def _cleanup(args) -> int:
+    from . import cleanup
+    c = cleanup.Cleanup(interactive=sys.stdin.isatty() and sys.stdout.isatty(), theme=ui.theme_for(sys.stdout, args.color))
+    try:
+        return c.run(assume_yes=args.yes)
+    except KeyboardInterrupt:
+        return _fail("interrupted", EXIT_INTERRUPTED)
+    except Exception as e:  # noqa: BLE001 - report, never a traceback
+        return _fail(f"cleanup failed: {type(e).__name__}: {e}", EXIT_FATAL)
+
+
+def _osv_expiry_hint(report: ValidationReport) -> str:
+    """The early warning before the OSV data goes stale, when the dependency check used the data. Reads the manifest age only."""
+    dep = next((c for c in report.checks if c.name == "dependency-vulnerabilities"), None)
+    if dep is None or dep.status.value not in ("passed", "findings", "incomplete"):
+        return ""
+    soon = osvdb.expiry_warning(osvdb.manifest_age_days(osvdb.default_dir()))
+    return f"warning: {soon}" if soon else ""
 
 
 def render_names(rep, th: "ui.Theme") -> str:
@@ -597,6 +638,8 @@ def main(argv: list[str] | None = None) -> int:
         return _osv_db(args)
     if args.command == "check-names":
         return _check_names(args)
+    if args.command == "cleanup":
+        return _cleanup(args)
     if args.command == "verify-images":
         return _verify_images(args.format, analyzer=not (args.base_only or args.only), only=args.only, signature=args.signature)
     if args.command != "scan":
@@ -639,7 +682,7 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.flush()
     try:
         eth = ui.theme_for(sys.stderr, args.color)
-        for hint in setup_mod.scan_hints(report):       # stderr only, after the report: stdout and exit codes are unaffected
+        for hint in setup_mod.scan_hints(report) + [h for h in [_osv_expiry_hint(report)] if h]:   # stderr only, after the report: stdout and exit codes are unaffected
             print(eth.paint(hint, "yellow") if eth.on else hint, file=sys.stderr)
     except Exception:  # noqa: BLE001 - a hint must never change the outcome of a scan
         pass

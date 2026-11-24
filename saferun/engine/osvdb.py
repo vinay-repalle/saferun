@@ -41,6 +41,9 @@ from pathlib import Path
 from .. import hostos
 
 ECOSYSTEMS = ("PyPI",)
+# Ecosystems SafeRun downloaded in the past but no longer supports (npm until the JavaScript removal). Only these names, and only when
+# SafeRun's own manifest records them, are ever removed by `prune_unsupported`.
+RETIRED_ECOSYSTEMS = ("npm",)
 BASE_URL = "https://osv-vulnerabilities.storage.googleapis.com"
 MAX_BYTES = 2 * 1024 ** 3
 MANIFEST_NAME = "manifest.json"
@@ -49,6 +52,7 @@ MANIFEST_SCHEMA = 1
 # truncated archives; they are not proof that an archive is complete.
 MIN_ENTRIES = {"PyPI": 5_000}
 DEFAULT_MAX_AGE_DAYS = 30.0
+WARN_BEFORE_DAYS = 5.0   # early warning this many days before the age limit (day 25 by default); it never changes a verdict
 FUTURE_SKEW_S = 24 * 3600
 _HEX64 = frozenset("0123456789abcdef")
 
@@ -74,6 +78,7 @@ def available_ecosystems(db_dir: Path) -> list[str]:
 class DbReport:
     problems: list[str] = field(default_factory=list)   # any entry: the data cannot be trusted -> the check is an ERROR
     stale: str = ""                                      # non-empty: valid but older than the limit -> the check is INCOMPLETE
+    expires_soon: str = ""                               # non-empty: valid and fresh, but stale within WARN_BEFORE_DAYS (a warning only)
     notes: list[str] = field(default_factory=list)       # freshness and integrity facts, always reported
     ecosystems: dict = field(default_factory=dict)       # manifest entries of the validated ecosystems
     age_days: float | None = None                        # age of the OLDEST validated ecosystem
@@ -210,7 +215,30 @@ def validate(db_dir: Path, needed=None, *, max_age_days: float = DEFAULT_MAX_AGE
         if oldest is not None and oldest > max_age_days:
             rep.stale = (f"the OSV database is {oldest:.0f} days old (limit {max_age_days:g}); vulnerabilities published since are not covered. "
                          "Refresh with: saferun osv-db update")
+        else:
+            rep.expires_soon = expiry_warning(oldest, max_age_days)
     return rep
+
+
+def expiry_warning(age_days: float | None, max_age_days: float = DEFAULT_MAX_AGE_DAYS) -> str:
+    """A warning when data of this age is still within the limit but becomes stale within WARN_BEFORE_DAYS days; otherwise ''."""
+    if age_days is None or age_days > max_age_days or max_age_days - age_days > WARN_BEFORE_DAYS:
+        return ""
+    return (f"the OSV database is {age_days:.0f} days old and becomes stale in {max_age_days - age_days:.1f} day(s) (limit {max_age_days:g}); "
+            "refresh it with: saferun osv-db update")
+
+
+def manifest_age_days(db_dir: Path, *, now: float | None = None) -> float | None:
+    """Age in days of the OLDEST supported ecosystem as recorded in the manifest, or None. Reads the manifest only (no hashing): for the
+    early warning after a scan, which itself already validated the data. Never raises."""
+    now = time.time() if now is None else now
+    try:
+        entries = _load_manifest(Path(db_dir))["ecosystems"]
+    except (ValueError, OSError):
+        return None
+    ages = [max(0.0, (now - e["updated_epoch"]) / 86400) for eco in ECOSYSTEMS
+            if (e := entries.get(eco)) is not None and _entry_problem(eco, e) is None]
+    return max(ages) if ages else None
 
 
 def stale_ecosystems(db_dir: Path, *, max_age_days: float = DEFAULT_MAX_AGE_DAYS, now: float | None = None) -> list[str]:
@@ -249,6 +277,10 @@ def _write_manifest(db_dir: Path, base_url: str, eco: str, entry: dict) -> None:
         manifest = {"schema": MANIFEST_SCHEMA, "source": base_url, "ecosystems": {}}
     manifest["source"] = base_url
     manifest["ecosystems"][eco] = entry
+    _save_manifest(db_dir, manifest)
+
+
+def _save_manifest(db_dir: Path, manifest: dict) -> None:
     fd, tmp = tempfile.mkstemp(dir=db_dir, prefix=".manifest-")
     try:
         with os.fdopen(fd, "w") as f:
@@ -345,6 +377,82 @@ def update(db_dir: Path, ecosystems=ECOSYSTEMS, *, base_url: str = BASE_URL, ope
         _write_manifest(db_dir, base_url, eco, entry)
         result[eco] = entry
     return result
+
+
+# ---------------------------------------------------------------------------------------------------- unsupported data
+def unsupported_data(db_dir: Path) -> list[tuple[str, int]]:
+    """(ecosystem, bytes on disk) of data SafeRun downloaded earlier for an ecosystem it no longer supports (RETIRED_ECOSYSTEMS), as
+    recorded in its own manifest. Existence only; never raises."""
+    db_dir = Path(db_dir)
+    try:
+        recorded = _load_manifest(db_dir)["ecosystems"]
+    except (ValueError, OSError):
+        return []
+    out = []
+    for eco in RETIRED_ECOSYSTEMS:
+        if eco in recorded:
+            try:
+                st = os.lstat(db_dir / "osv-scalibr" / eco / "all.zip")
+                size = st.st_size if stat.S_ISREG(st.st_mode) else 0
+            except OSError:
+                size = 0
+            out.append((eco, size))
+    return out
+
+
+def prune_unsupported(db_dir: Path) -> tuple[list[tuple[str, int]], list[str]]:
+    """Remove the data `unsupported_data` lists: its `all.zip` and interrupted-download leftovers (`.dl-*`), the ecosystem folder only if
+    that leaves it empty (never a recursive delete), then its manifest entry. Symlinks are never followed or removed, and a folder that
+    is not a real directory is left alone. Returns ([(ecosystem, bytes removed)], [problems]). Never raises."""
+    db_dir = Path(db_dir)
+    removed, problems = [], []
+    found = unsupported_data(db_dir)
+    if not found:
+        return removed, problems
+    try:
+        for d in (db_dir, db_dir / "osv-scalibr"):
+            if not stat.S_ISDIR(os.lstat(d).st_mode):
+                return removed, [f"{d} is not a real directory (a symlink?); nothing was removed"]
+    except OSError as e:
+        return removed, [f"cannot examine {db_dir}: {e}"]
+    gone = []
+    for eco, _ in found:
+        folder = db_dir / "osv-scalibr" / eco
+        freed = 0
+        try:
+            try:
+                st = os.lstat(folder)
+            except FileNotFoundError:
+                st = None                                   # the data is already gone; only the manifest entry is left
+            if st is not None:
+                if not stat.S_ISDIR(st.st_mode):
+                    problems.append(f"{folder} is not a real directory (a symlink?); left alone")
+                    continue
+                for entry in os.scandir(folder):
+                    if (entry.name == "all.zip" or entry.name.startswith(".dl-")) and entry.is_file(follow_symlinks=False):
+                        freed += entry.stat(follow_symlinks=False).st_size
+                        os.unlink(entry.path)
+                if os.path.lexists(folder / "all.zip"):
+                    problems.append(f"{folder / 'all.zip'} is not a regular file (a symlink?); left alone")
+                    continue
+                try:
+                    os.rmdir(folder)
+                except OSError:
+                    problems.append(f"{folder} still holds other files; the folder was left in place")
+        except OSError as e:
+            problems.append(f"{eco}: {e}")
+            continue
+        gone.append(eco)
+        removed.append((eco, freed))
+    if gone:
+        try:
+            manifest = _load_manifest(db_dir)
+            for eco in gone:
+                manifest["ecosystems"].pop(eco, None)
+            _save_manifest(db_dir, manifest)
+        except (ValueError, OSError) as e:
+            problems.append(f"the data was removed but {MANIFEST_NAME} could not be updated: {e}")
+    return removed, problems
 
 
 def _header_values(headers, name: str) -> str:

@@ -22,9 +22,9 @@ Status words: planned / in progress / done (local) / committed. Update this file
 | 12 | Plain-English `explanation` on findings | committed |
 | 13 | JavaScript rules **cancelled**; all JavaScript/Node support removed (Python-only) | committed |
 | 14 | Benchmark misses (Python rules): held-out set 2, 3 new behaviour rules; `analyzer-v1.2.0` | committed, closed (Checkpoints 1-4 done; `analyzer-v1.2.0` released) |
-| 15 | Upgrade and cleanup: outdated analyzer state, old image removal, OSV early warning and unsupported-data removal, `saferun cleanup` | planned (plan approved 2026-11-24, see *Stage 15 plan*) |
+| 15 | Upgrade and cleanup: outdated analyzer state, old image removal, OSV early warning and unsupported-data removal, `saferun cleanup` | done (local) 2026-11-24, awaiting owner review and commit |
 
-All stages 7-14 are committed (owner confirmed, up to the 0.0.3 PyPI release). The git log is authoritative.
+All stages 7-14 are committed (owner confirmed, up to the 0.0.3 PyPI release); 15 is done locally. The git log is authoritative.
 
 ## Stage notes (facts that are not obvious from the code)
 - **7:** docs only; JavaScript was first labelled experimental, then removed in 13. Website text deliberately left out (see Deferred).
@@ -39,15 +39,17 @@ All stages 7-14 are committed (owner confirmed, up to the 0.0.3 PyPI release). T
   Checkpoint 4 (held-out re-run done ONCE): SafeRun loose 9/32 → 14/32, strict 7/32 unchanged (new rules are medium, so no new FAIL verdicts), false alarms 0/12 → 0/12, no sample lost; gained x2-pe-06, x2-sr-02, x2-sr-06, x2-ev-04, x2-ev-06. Bandit unchanged (17/32 loose, 14/32 strict). Saved in `tools/benchmark/baselines/set2-held-out-final.*`. **The held-out set must not be used to change rules any more.** Left out on purpose: plain file upload (ex-03), exfiltration and destructive families (not requested), weak-practice family.
   Release `analyzer-v1.2.0` published and signed 2026-11-04 (tag commit `2570952`, digest `sha256:33ed623e…bf277`), recorded in `ANALYZER_RELEASE`. Tests: parametrized `tests/test_behaviour_rules.py` (real Semgrep, repo rules mounted into the analyzer image); rule count in `test_explanations.py` 11 → 14. docs/benchmark.md has the set 2 results.
 
-Full suite (latest): `SAFERUN_REQUIRE_DOCKER=1 .venv/bin/python -m pytest` → 1158 passed, 50 skipped (Windows/macOS-only), 0 failed.
+- **15:** `AnalyzerOutdated` is a subclass of `AnalyzerIntegrityError` with the same message, so the engine, `verify-images` and scan reports are unchanged; only `status`/`init`/`doctor`/scan hints differ. `outdated` needs: trusted lock, image ID equal to the lock, label `saferun.analyzer=1`; anything else stays `invalid`. Old-image guards live in `saferun/sandbox/oldimages.py` (protected: trusted lock ID, the `saferun-analyzer:local` tag's ID, the pinned python image's ID, caller's keep list; an untrusted lock means nothing is deleted; label check; `docker ps -a --filter ancestor=`; `docker rmi` without `-f`). Only `RETIRED_ECOSYSTEMS = ("npm",)` recorded in SafeRun's manifest is pruned (archive + `.dl-*`, folder only if empty, symlinks refused). The scan warning reads the manifest age only (no second hashing) and only when the dependency check used the data. `reap_orphans` gained `dry_run` and `only`. `tests/conftest.py` replaces `setup.prune_osv_data` / `setup.remove_previous_analyzer` with no-ops for every test so no test can delete the real installation's data or images; the new module `tests/test_upgrade_cleanup.py` (58 tests, POSIX-only like the other lock/symlink modules) includes one real-Docker test on throwaway `FROM scratch` images. Windows-specific paths (`.bak` ownership via ACL, workspace dry run) are not tested. No existing test was changed. The scheduling examples (cron, launchd, `schtasks`) are documentation only, not tested.
+Full suite (latest, Stage 15, 2026-11-24): `SAFERUN_REQUIRE_DOCKER=1 .venv/bin/python -m pytest` → 1216 passed, 50 skipped (Windows/macOS-only), 0 failed. No analyzer release needed (image, rules and pins unchanged).
 
-## Stage 15 plan (approved by the owner 2026-11-24; not started)
+## Stage 15 plan (approved by the owner 2026-11-24; done locally 2026-11-24)
 **Goal:** after an upgrade the analyzer image is replaced without a false alarm and the old one removed; users are warned before OSV data goes stale; leftovers can be cleaned with one command.
 **Found before planning (2026-11-24):** no code removes any image (the owner's machine had 2 old analyzer images); after `pip install --upgrade` an old analyzer image is reported `invalid` like a tampered one, so `saferun init` asks a "FAILED verification … Rebuild?" question and `init --all` refuses without `--repair`/`--yes`; OSV data is refreshed only by hand (`init` or `osv-db update`) and goes `incomplete` after 30 days with no earlier warning; npm OSV data from before Stage 13 (210 MB) is never removed and `osv-db status` still hashes it; `reap_orphans()` is never called by any command; a stray `analyzer-image-id.bak` is not created by current code.
 **A. Analyzer upgrade.** (1) New state `outdated`: lock trusted and image ID equal to the lock, but labels from an older pin; `init` and `init --all` update it normally, no `--repair`. ID mismatch or untrusted lock stays `invalid`, unchanged. (2) Scans with an outdated image behave as today (check not run); only the hint becomes `saferun init --only analyzer`. (3) After the new image is verified and locked, delete the previous analyzer image: only the old lock's ID, only with label `saferun.analyzer`, never the current ID, never one in use by a container; a failed delete is a note, never an `init` failure. (4) The `python` image is never auto-deleted.
 **B. OSV data.** (5) Early warning 5 days before the age limit (day 25 by default) in `scan` (stderr), `status`, `doctor`, `osv-db status`; verdict unchanged. (6) `osv-db update` and `init` remove data and manifest entries of ecosystems SafeRun no longer supports (npm). (7) Docs: scheduled `saferun osv-db update --if-stale` examples for Linux, macOS, Windows; no new setting (refresh stays manual or user-scheduled).
 **C. `saferun cleanup`.** (8) Lists old SafeRun analyzer images, unsupported OSV data, orphan containers/workspaces (`reap_orphans`), the stale `.bak` lock. (9) On a terminal: list, then ask; without a terminal: list only unless `--yes`. Never touches the current image, the `python` image or non-SafeRun images.
 **Out of scope:** disk-space check before an image pull; "new version available" notice.
+**Owner decisions (2026-11-24, at implementation):** an outdated analyzer stays FAIL in `doctor` (fix without `--repair`); the previous image is also removed after `--repair` (same guards); `osv-db status` validates supported ecosystems (PyPI) only and points at `saferun cleanup` for npm data.
 **Tests:** outdated vs invalid states; delete guards (current / unlabelled / in-use never removed); OSV pruning and warning thresholds; `cleanup` with and without `--yes`; full suite with Docker. **Docs:** README (upgrading), docs/cli.md, docs/release-images.md, PROJECT.md setup section, this file.
 
 ## Next (optional, none urgent; each needs the owner's approval first)
@@ -56,6 +58,8 @@ Full suite (latest): `SAFERUN_REQUIRE_DOCKER=1 .venv/bin/python -m pytest` → 1
 - **Stage 12 follow-ups:** group dependency findings by package; drop git commit hashes from "fixed in".
 - **Release practice:** 0.0.3 was built from a tree with no outstanding changes. The docs/cli.md and website mentions are already updated.
 - **Clean-machine end-to-end test** (see PROJECT.md *Status and remaining work*).
+- **Stale text in `init`:** the offline preload help in `saferun/setup.py` (`PRELOAD_HELP`) still names `analyzer-v1.0.1`; the current release is `analyzer-v1.2.0`. Not changed without approval.
+- **Website text for Stage 15** (`saferun cleanup`, outdated analyzer, OSV warning and scheduled refresh) is not added yet (website text changes are deferred).
 - Benchmark README graphs and a website benchmarks docs page are pending (owner follow-up).
 
 ## Done since the last list

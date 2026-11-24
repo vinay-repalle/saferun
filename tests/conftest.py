@@ -12,7 +12,7 @@ from saferun.sandbox import docker as dk
 # On Windows they are skipped, visibly; the Windows equivalents are in test_windows_native.py and test_copy_windows_engine.py.
 POSIX_ONLY_MODULES = frozenset({
     "test_workspace", "test_races", "test_hardlinks", "test_analyzer_lock", "test_osv_db_integrity", "test_sensitive", "test_adversarial",
-    "test_cleanup", "test_cleanup_hardening", "test_node_profile", "test_analyzer_isolation", "test_sandbox",
+    "test_cleanup", "test_cleanup_hardening", "test_node_profile", "test_analyzer_isolation", "test_sandbox", "test_upgrade_cleanup",
 })
 
 REQUIRE_DOCKER = os.environ.get("SAFERUN_REQUIRE_DOCKER", "").lower() in ("1", "true", "yes")
@@ -51,6 +51,16 @@ def pytest_collection_modifyitems(config, items):
     skip = pytest.mark.skip(reason=f"Docker unavailable: {_STATUS}")
     for item in docker_items:
         item.add_marker(skip)
+
+
+@pytest.fixture(autouse=True)
+def _never_delete_the_real_installation(monkeypatch):
+    """`saferun init` deletes the previous analyzer image and OSV data of unsupported ecosystems (saferun/setup.py: remove_previous_analyzer,
+    prune_osv_data). Many setup tests run `init` with fake installers against the real data directory, so both steps are replaced here: no
+    test can delete the real installation's data or images. The real steps are tested directly on temporary data and throwaway images."""
+    from saferun import setup
+    monkeypatch.setattr(setup, "prune_osv_data", lambda d: ([], []))
+    monkeypatch.setattr(setup, "remove_previous_analyzer", lambda image_id, keep=(): (False, "not removed during tests"))
 
 
 @pytest.fixture

@@ -4,6 +4,8 @@ Safety rules: only objects SafeRun itself created are considered (label +
 name prefix for containers; name prefix, ownership, real directory for
 workspaces), and live runs are never touched: containers carry a deadline
 label (timeout + grace + margin) and workspaces are protected by a flock.
+Called by `saferun cleanup`: first with dry_run=True to list what would be
+removed, then (after confirmation) with only= the listed names.
 """
 from __future__ import annotations
 
@@ -33,7 +35,7 @@ class ReapReport:
     errors: list[str] = field(default_factory=list)
 
 
-def _reap_containers(now: float, report: ReapReport) -> None:
+def _reap_containers(now: float, report: ReapReport, dry_run: bool = False, only: frozenset[str] | None = None) -> None:
     try:
         r = dk.docker("ps", "-a", "--filter", f"label={CONTAINER_LABEL}",
                       "--format", '{{.Names}}\t{{.Label "' + DEADLINE_LABEL + '"}}')
@@ -51,7 +53,10 @@ def _reap_containers(now: float, report: ReapReport) -> None:
             expired = float(raw) < now
         except ValueError:
             expired = True  # our label but no usable deadline: treat as abandoned
-        if not expired:
+        if not expired or (only is not None and name not in only):
+            continue
+        if dry_run:
+            report.containers.append(name)
             continue
         try:
             if dk.force_remove(name):
@@ -62,11 +67,11 @@ def _reap_containers(now: float, report: ReapReport) -> None:
             report.errors.append(f"container {name}: {e}")
 
 
-def _reap_workspaces_windows(now: float, tmp_root: Path, report: ReapReport) -> None:
+def _reap_workspaces_windows(now: float, tmp_root: Path, report: ReapReport, dry_run: bool = False, only: frozenset[str] | None = None) -> None:
     """Same rules as the POSIX version: our name prefix, a real directory (no reparse point) owned by this user, and a lock file that
     nobody holds (the owner keeps it open with share mode 0, so it cannot be opened while the run is alive)."""
     for entry in os.scandir(tmp_root):
-        if not entry.name.startswith(WS_PREFIX):
+        if not entry.name.startswith(WS_PREFIX) or (only is not None and entry.name not in only):
             continue
         try:
             st = entry.stat(follow_symlinks=False)
@@ -77,17 +82,20 @@ def _reap_workspaces_windows(now: float, tmp_root: Path, report: ReapReport) -> 
             state = hostos.workspace_lock_state(os.path.join(entry.path, LOCK_NAME))
             if state == "busy" or (state == "absent" and now - st.st_mtime < NO_LOCK_MIN_AGE_S):
                 continue
-            shutil.rmtree(hostos.long_path(entry.path), onexc=hostos.rmtree_onexc)
+            if not dry_run:
+                shutil.rmtree(hostos.long_path(entry.path), onexc=hostos.rmtree_onexc)
             report.workspaces.append(entry.name)
         except OSError as e:
             report.errors.append(f"workspace {entry.name}: {e}")
 
 
-def _reap_workspaces(now: float, tmp_root: Path, report: ReapReport) -> None:
+def _reap_workspaces(now: float, tmp_root: Path, report: ReapReport, dry_run: bool = False, only: frozenset[str] | None = None) -> None:
     if hostos.IS_WINDOWS:
-        return _reap_workspaces_windows(now, tmp_root, report)
+        return _reap_workspaces_windows(now, tmp_root, report, dry_run, only)
     for entry in os.scandir(tmp_root):
         if not entry.name.startswith(WS_PREFIX) or entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+            continue
+        if only is not None and entry.name not in only:
             continue
         st = entry.stat(follow_symlinks=False)
         if st.st_uid != os.getuid():
@@ -109,7 +117,8 @@ def _reap_workspaces(now: float, tmp_root: Path, report: ReapReport) -> None:
                     if e.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
                         continue  # owner is alive
                     raise
-            shutil.rmtree(entry.path)
+            if not dry_run:
+                shutil.rmtree(entry.path)
             report.workspaces.append(entry.name)
         except OSError as e:
             report.errors.append(f"workspace {entry.name}: {e}")
@@ -118,10 +127,14 @@ def _reap_workspaces(now: float, tmp_root: Path, report: ReapReport) -> None:
                 os.close(fd)
 
 
-def reap_orphans(now: float | None = None, tmp_root: Path | None = None) -> ReapReport:
-    """Remove abandoned SafeRun containers and workspaces. `now`/`tmp_root` are for tests."""
+def reap_orphans(now: float | None = None, tmp_root: Path | None = None, *, dry_run: bool = False,
+                 only: set[str] | frozenset[str] | None = None) -> ReapReport:
+    """Remove abandoned SafeRun containers and workspaces. `now`/`tmp_root` are for tests.
+    dry_run: apply the same rules but remove nothing (the report lists what would be removed). only: consider just these container and
+    workspace names (every rule above still applies to them)."""
     now = time.time() if now is None else now
     report = ReapReport()
-    _reap_containers(now, report)
-    _reap_workspaces(now, Path(tmp_root or tempfile.gettempdir()), report)
+    names = frozenset(only) if only is not None else None
+    _reap_containers(now, report, dry_run, names)
+    _reap_workspaces(now, Path(tmp_root or tempfile.gettempdir()), report, dry_run, names)
     return report

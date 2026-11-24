@@ -123,6 +123,15 @@ class Spinner:
         return False
 
 
+def size_text(n: int | None) -> str:
+    """Bytes as '709 MB' / '1.2 GB' (decimal units, like the sizes quoted elsewhere); '' when unknown."""
+    if n is None or n < 0:
+        return ""
+    if n >= 1e9:
+        return f"{n / 1e9:.1f} GB"
+    return f"{n / 1e6:.0f} MB" if n >= 1e6 else f"{n / 1e3:.0f} kB" if n >= 1e3 else f"{n} bytes"
+
+
 def bar(done: float, total: float | None, theme: Theme, width: int = 24) -> str:
     """`[██████░░░░░░] 50%` (or `[####......] 50%`); an unknown total shows only the amount done by the caller."""
     if not total or total <= 0:

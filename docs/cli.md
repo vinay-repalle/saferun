@@ -35,16 +35,21 @@ Scripts and CI (no prompts): `saferun init --all`, `--only python,analyzer` (sev
 this replaces the image and its lock, so it is never done silently). Without a flag and without a terminal the command exits 64. Exit codes: 0 every selected component is ready · 1 at least one is not · 64 usage ·
 70 reserved for fatal errors · 130 interrupted. Offline: components that need a download are listed as "no internet access" with preload instructions; valid ones are still used, and nothing else is claimed ready.
 
+**After upgrading SafeRun.** A new SafeRun version can pin newer tools or rules. The installed analyzer image is then `outdated`: it is still exactly the image in the lock (same ID, `saferun.analyzer` label) but its labels name the older pins. `init` (and `init --all`) updates it like a missing component, without `--repair` and without a "FAILED verification" question. A different image ID, missing `saferun.analyzer` label or an untrusted lock file is still `invalid` and still needs `--repair`. Scans treat an outdated image exactly as before: the analyzer checks do not run (`error`); only the fix shown is `saferun init --only analyzer`.
+**The previous analyzer image is removed** after the new one is verified and locked (update or `--repair`): only the image the old lock named, only if it carries the `saferun.analyzer=1` label, is not the current image or the python image, and no container (running or stopped) uses it; the delete is `docker rmi` without `-f`. If any guard fails or Docker refuses, `init` prints a note and still succeeds; `saferun cleanup` lists what is left. The python sandbox image is never deleted automatically.
+**OSV data of ecosystems SafeRun no longer supports** (npm, downloaded by versions before the JavaScript removal; about 220 MB) is removed whenever `osv-db` is among the selected components, before any download: only what SafeRun's own `manifest.json` records, the archive and interrupted-download files, the folder only if it is then empty, never through a symlink.
+
 ### `saferun doctor [--online] [--format json]`
-Read-only diagnosis, one line per check, `PASS` / `WARNING` / `FAIL`, and a fix for every problem: SafeRun version, Python (3.12+), operating system, Docker state (as above), the python sandbox image (pinned digest), the analyzer image (lock, labels, rules hash), cosign (SafeRun's pinned copy or PATH), the OSV database (integrity and age; stale = WARNING, missing or invalid = FAIL), the data directory (writable) and `SAFERUN_*` overrides. `--online` also verifies the cosign signature of the published analyzer release. A check that cannot be carried out is never a PASS (with Docker unusable, the image checks FAIL). Exit 0 when nothing FAILED (warnings allowed), 1 otherwise. JSON: `{"schema_version": 1, "ok": bool, "checks": [{"name", "level", "detail", "fix"}]}`.
+Read-only diagnosis, one line per check, `PASS` / `WARNING` / `FAIL`, and a fix for every problem: SafeRun version, Python (3.12+), operating system, Docker state (as above), the python sandbox image (pinned digest), the analyzer image (lock, labels, rules hash), cosign (SafeRun's pinned copy or PATH), the OSV database (integrity and age; within 5 days of the age limit or stale = WARNING, missing or invalid = FAIL; an outdated analyzer image = FAIL with the fix `saferun init --only analyzer`), the data directory (writable) and `SAFERUN_*` overrides. `--online` also verifies the cosign signature of the published analyzer release. A check that cannot be carried out is never a PASS (with Docker unusable, the image checks FAIL). Exit 0 when nothing FAILED (warnings allowed), 1 otherwise. JSON: `{"schema_version": 1, "ok": bool, "checks": [{"name", "level", "detail", "fix"}]}`.
 
 ### `saferun status [--only a,b] [--format json]`
-Verifies every component now and prints state (`ready`, `missing`, `invalid`, `outdated`, `unknown`), what it enables and the exact fix. Exit 0 only if all selected components are ready. JSON:
+Verifies every component now and prints state (`ready`, `missing`, `invalid`, `outdated`, `unknown`), what it enables and the exact fix. OSV data within 5 days of the age limit stays `ready` (exit code unchanged) with a warning in its detail. Exit 0 only if all selected components are ready. JSON:
 `{"schema_version": 1, "ok": bool, "components": [{"component", "title", "state", "detail", "enables"}]}`. The OSV data alone: `saferun osv-db status`.
 
 ### When a scan needs something that is not installed
 The scan still runs what it can and the affected checks are `unavailable`/`error`/`incomplete` (verdict at best WARNING, exit codes unchanged); on stderr it adds one line per missing component naming the exact fix, e.g.
 `setup: OSV vulnerability database is outdated: …  ->  fix: saferun init --only osv-db`. Nothing is skipped silently and nothing falls back to host tools.
+When the dependency check used OSV data that becomes stale within 5 days (day 25 of 30 by default), stderr also gets `warning: the OSV database is 26 days old and becomes stale in 4.0 day(s) …; refresh it with: saferun osv-db update`. The report, the verdict and the exit code are unchanged.
 
 ## Usage
 **`scan` executes nothing; `run` scans, then executes in the sandbox.** `saferun scan` reads the files and reports; no project code is run. `saferun run` (below) first performs the same scan on a script and executes it, inside the sandbox only, when the verdict allows it.
@@ -160,11 +165,30 @@ See [engine.md](engine.md) for the checks, statuses and verdict rules, and [PROJ
 ## `saferun osv-db`
 `update [--dir D] [--allow-unverified] [--if-stale] [--max-age-days N]` downloads `PyPI` data (HTTPS). It refuses a download when the server sends no usable MD5 hash (unless `--allow-unverified`, which is recorded and shown in every
 later scan), refuses archives that are unreadable or list fewer advisories than a sanity floor (PyPI 5 000; October 2026: 26 726), (connection failures and HTTP 408/429/5xx are retried three times with a back-off; any other failure keeps the previous file and manifest, and the data does not become "fresher"). `--if-stale` downloads only when the data is missing, invalid or older than `--max-age-days` (default 30). It records SHA-256, size, advisory count and time in
-`manifest.json`. An existing directory passed with `--dir` is **never chmod'ed**; directories it creates are 0755 so the analyzer container (uid 65534) can read them. `status [--dir D] [--max-age-days N]` validates the data and prints
-its age (exit 0 usable and fresh, 1 otherwise). Every scan re-validates: manifest present and well-formed, SHA-256 and size equal the recorded values, no symlinks, readable by the container user, advisory count above the floor, timestamp not
+`manifest.json`. An existing directory passed with `--dir` is **never chmod'ed**; directories it creates are 0755 so the analyzer container (uid 65534) can read them. Every `update` (also with `--if-stale`) first removes data of ecosystems SafeRun no longer supports (npm; same rules as in `init` above). `status [--dir D] [--max-age-days N]` validates the PyPI data and prints
+its age (exit 0 usable and fresh, 1 otherwise); within 5 days of the limit it adds a `WARNING:` line (exit still 0), and it names leftover npm data with a pointer to `saferun cleanup` (that data is no longer validated). Every scan re-validates: manifest present and well-formed, SHA-256 and size equal the recorded values, no symlinks, readable by the container user, advisory count above the floor, timestamp not
 in the future. Any failure -> the dependency check is `error`; valid but older than 30 days -> `incomplete` (findings are still reported).
+**Keeping it fresh.** SafeRun never refreshes the data by itself (scans stay offline). Schedule the refresh with your system's scheduler; `--if-stale` makes it a no-op while the data is current. Use the full path of `saferun` (`which saferun` / `where saferun`):
+```bash
+# Linux and macOS (crontab -e): every day at 09:00
+0 9 * * * /path/to/saferun osv-db update --if-stale >> ~/.saferun-osv-update.log 2>&1
+```
+```powershell
+# Windows (once, in a terminal): every day at 09:00
+schtasks /Create /TN "SafeRun OSV update" /SC DAILY /ST 09:00 /TR "C:\path\to\saferun.exe osv-db update --if-stale"
+```
+On macOS a launchd agent (`~/Library/LaunchAgents/*.plist` with `StartCalendarInterval`) is the native alternative to cron. A run while offline fails and leaves the existing data untouched. These are standard scheduler examples; SafeRun's tests do not exercise them.
 **Limits:** the MD5 and the recorded SHA-256 detect corruption and later modification of the files, not a malicious or compromised server (the MD5 comes from the same server; the SHA-256 is computed locally after download, so it does not
 authenticate the original). The manifest sits next to the data, so whoever can write the directory can rewrite both. The advisory-count floor is a sanity check, not proof of completeness. The host reads only the zip's central directory (stdlib `zipfile`) to count advisories; the advisories themselves are opened only by OSV-Scanner in the container.
+
+## `saferun cleanup [--yes]`
+Lists what SafeRun left behind, then removes it only after confirmation:
+- **old analyzer images**: `saferun.analyzer=1` label, not the image in the lock, not the one `saferun-analyzer:local` points to, not the pinned python image, not used by any container (an image that is used is listed under *Kept* with the reason);
+- **OSV data of unsupported ecosystems** (npm), as recorded in SafeRun's manifest;
+- **leftovers of crashed runs**: `saferun-*` containers past their deadline label and unlocked `saferun-ws-*` temporary workspaces (the rules of `reap_orphans`, see [sandbox.md](sandbox.md));
+- **`analyzer-image-id.bak`** next to the analyzer lock (a hand-made backup from an old release checklist; SafeRun never uses it), only a regular file of the current user.
+
+On a terminal it lists, then asks `Remove these N item(s)? [y/N]` (Enter = no). Without a terminal it only lists, unless `--yes`. Each image is checked against every guard again right before `docker rmi` (never `-f`). It never touches the current analyzer image, the python sandbox image or any image without the `saferun.analyzer` label. If Docker is unusable, images and containers are reported as not checked and the rest still works. Exit codes: 0 nothing to do, listed only, or everything removed · 1 something could not be checked or removed · 64 usage · 70 internal error · 130 interrupted.
 
 ## `saferun check-names [NAME ...] [--project DIR] [--online] [--format json]`
 Looks for dependency names that resemble popular PyPI packages (`reqeusts` for `requests`). It is a separate command: **`scan` and `run` are unchanged and never do this check.** Nothing is installed or executed.
@@ -191,5 +215,5 @@ On a terminal the commands are laid out for quick reading; piped output, CI logs
 - **Verdict banner**: green `✓ PASS`, yellow `! WARNING`, red `✗ FAIL`, then why, then one line per check with an icon (`✓` passed, `✗` findings or error, `!` incomplete/unavailable/timeout, `–` skipped / not applicable).
 - **Severity tags**: `[CRITICAL]` bold magenta, `[HIGH]` bold red, `[MEDIUM]` yellow, `[LOW]` cyan, `[INFO]` dim; a tally (`CRITICAL 2  HIGH 13  MEDIUM 15`) sits above the list. Fixed versions are green, long messages are wrapped, and a **What to do next** block follows (upgrade the packages, fix the flagged lines, run `saferun status`).
 - **Progress**: `scan` shows a spinner with elapsed seconds on stderr while it works (so stdout and JSON are never touched), `init` shows a download progress bar for the OSV data and a spinner during the analyzer build. The cursor is hidden while animating and always restored, also on Ctrl-C.
-- **Control**: `--color auto|always|never` on `scan`, `init`, `status`, `verify-images`, `osv-db status`, `check-names`. `auto` = only on a terminal; `NO_COLOR` turns colour off, `FORCE_COLOR` on, `TERM=dumb` off; `SAFERUN_ASCII=1` (or a non-UTF-8 terminal) uses `+ x ! -` instead of `✓ ✗ ! –`.
+- **Control**: `--color auto|always|never` on `scan`, `init`, `status`, `verify-images`, `osv-db status`, `check-names`, `cleanup`. `auto` = only on a terminal; `NO_COLOR` turns colour off, `FORCE_COLOR` on, `TERM=dumb` off; `SAFERUN_ASCII=1` (or a non-UTF-8 terminal) uses `+ x ! -` instead of `✓ ✗ ! –`.
 - Untrusted text (file names, messages) is sanitized to one line **before** it is painted, so a project cannot inject escape sequences or fake report lines; colours are for people, the exit code and JSON are what scripts should use.

@@ -27,6 +27,7 @@ from .sandbox import docker as dk
 from .sandbox import images as im
 from .sandbox import verify as vf
 from .sandbox import cosign_tool
+from .sandbox import oldimages
 from .sandbox.signature import CosignMissing, SignatureError, verify_release_signature
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -86,6 +87,7 @@ class Status:
     key: str
     state: str          # ready | missing | invalid | outdated | unknown
     detail: str = ""
+    warning: str = ""   # ready, but needs attention soon (OSV data close to its age limit); the text is also in `detail`
 
     @property
     def ready(self) -> bool:
@@ -124,6 +126,9 @@ def component_status(key: str, *, max_age_days: float = osvdb.DEFAULT_MAX_AGE_DA
                 image_id = sa.verify_analyzer_image()
             except sa.AnalyzerUnavailable as e:
                 return Status(key, MISSING, str(e))
+            except sa.AnalyzerOutdated as e:
+                return Status(key, OUTDATED, "the installed image matches its lock but was built for older tool/rules pins "
+                                             f"({', '.join(e.wrong) or 'labels'}), as after upgrading SafeRun; update it with: saferun init --only analyzer")
             except sa.AnalyzerIntegrityError as e:
                 return Status(key, INVALID, str(e))
             except SandboxError as e:
@@ -138,7 +143,12 @@ def component_status(key: str, *, max_age_days: float = osvdb.DEFAULT_MAX_AGE_DA
                 return Status(key, INVALID, "; ".join(rep.problems))
             if rep.stale:
                 return Status(key, OUTDATED, rep.stale)
-            return Status(key, READY, f"{rep.age_days:.1f} days old, integrity manifest verified")
+            detail = f"{rep.age_days:.1f} days old, integrity manifest verified"
+            if rep.expires_soon:
+                left = max_age_days - rep.age_days
+                return Status(key, READY, f"{detail}. Warning: it becomes stale in {left:.1f} day(s); refresh it with: saferun osv-db update",
+                              warning=rep.expires_soon)
+            return Status(key, READY, detail)
     except Exception as e:  # noqa: BLE001 - a broken probe must read as "not ready", never as ready
         return Status(key, UNKNOWN, f"could not verify: {type(e).__name__}: {e}")
     raise KeyError(key)
@@ -162,6 +172,19 @@ def scan_hints(report) -> list[str]:
     bad = [s for s in all_status(needed) if not s.ready]
     return [f"setup: {BY_KEY[s.key].title} is {s.state}: {clean_text(s.detail, 220)}  ->  fix: saferun init --only {s.key}"
             + (" --repair" if s.key == "analyzer" and s.state == INVALID else "") for s in bad]
+
+
+# ---------------------------------------------------------------------------------------------------------- deleting
+# The only two things `saferun init` deletes. Module-level so the test suite replaces them (tests/conftest.py): no test may remove the
+# real installation's OSV data or images. The guards live in the functions they call.
+def prune_osv_data(d: Path) -> tuple[list[tuple[str, int]], list[str]]:
+    """OSV data of ecosystems SafeRun no longer supports (npm): see osvdb.prune_unsupported."""
+    return osvdb.prune_unsupported(d)
+
+
+def remove_previous_analyzer(image_id: str, keep=()) -> tuple[bool, str]:
+    """The analyzer image the OLD lock named, after a new one was verified and locked: see sandbox/oldimages.py."""
+    return oldimages.remove_old_image(image_id, keep=keep)
 
 
 # ---------------------------------------------------------------------------------------------------------- selection
@@ -274,7 +297,8 @@ class Setup:
 
     def __init__(self, *, out=None, err=None, ask=input, interactive=False, tty=False, status=component_status, online=network_ok,
                  pull=docker_pull, build=build_analyzer, osv_update=None, free_bytes=None, daemon_check=None, theme=None,
-                 verify_signature=verify_release_signature, build_local=False, ensure_cosign=None, diagnose=None, has_cosign=None):
+                 verify_signature=verify_release_signature, build_local=False, ensure_cosign=None, diagnose=None, has_cosign=None,
+                 prune_osv=None, remove_old=None, locked_id=None):
         self.out, self.err = out or sys.stdout, err or sys.stderr
         self.th = theme or ui.PLAIN
         self.ask, self.interactive, self.tty = ask, interactive, tty
@@ -286,6 +310,8 @@ class Setup:
         self.diagnose = diagnose or (dockerdiag.diagnose if daemon_check is None else None)   # an injected daemon_check (tests) replaces the real probe
         self.free_bytes = free_bytes or (lambda p: shutil.disk_usage(p).free)
         self.daemon_check = daemon_check or dk.check_local_daemon
+        # None = the real step, looked up when it runs (so the test suite's replacement of the module-level function applies)
+        self.prune_osv, self.remove_old, self.locked_id = prune_osv, remove_old, locked_id
 
     def show_banner(self) -> None:
         for line in banner_lines(self.th):
@@ -418,6 +444,8 @@ class Setup:
         for k in selected:
             s = statuses[k]
             self.say(f"  {self._tag(s.state)} {BY_KEY[k].title}" + (self.th.paint(f": {clean_text(s.detail, 160)}", "dim") if s.state != READY else ""))
+        if "osv-db" in selected:
+            self._prune_osv()                            # before any download: it also frees disk space
         results: dict[str, str] = {}
         offline: list[str] = []
         for k in selected:
@@ -452,6 +480,7 @@ class Setup:
                 continue
             if not asked:                                # after a "[Y/n]" question the same line would only repeat it
                 self.say(self.th.paint(f"  {verb} {c.title} ({c.size}):", "bold"))
+            previous = self._locked_id() if k == "analyzer" else None
             try:
                 err = self._install_osv() if k == "osv-db" else self._install_analyzer() if k == "analyzer" else self._install_image(k)
             except KeyboardInterrupt:
@@ -464,6 +493,8 @@ class Setup:
             after = self.status(k)
             results[k] = "installed and verified" if after.ready else f"FAILED: installed but still {after.state}: {clean_text(after.detail, 200)}"
             self.say("  " + self._outcome(results[k]))
+            if k == "analyzer" and after.ready and previous:
+                self._remove_previous(previous)
         self.say()
         self.say(self.th.paint("Result:", "bold", "cyan"))
         for k in selected:
@@ -479,6 +510,37 @@ class Setup:
         self.say()
         self.say(self.th.paint("Ready.", "green", "bold") + " Scan a project with: saferun scan ./my-project")
         return 0
+
+    def _locked_id(self) -> str | None:
+        return (self.locked_id or sa.read_trusted_lock)()
+
+    def _remove_previous(self, previous: str) -> None:
+        """After a new analyzer image was verified and locked: delete the image the OLD lock named, under every guard in
+        sandbox/oldimages.py. A refusal or failure is a note only; it never fails `init`."""
+        new = self._locked_id()
+        if not new or new == previous:
+            return
+        try:
+            removed, why = (self.remove_old or remove_previous_analyzer)(previous, keep=(new,))
+        except Exception as e:  # noqa: BLE001 - a cleanup problem must never turn a successful install into a failure
+            removed, why = False, f"{type(e).__name__}: {e}"
+        if removed:
+            self.say(f"  previous analyzer image {oldimages.short_id(previous)} removed")
+        else:
+            self.say(self.th.paint(f"  note: previous analyzer image {oldimages.short_id(previous)} was kept: {clean_text(why, 200)}", "dim"))
+
+    def _prune_osv(self) -> None:
+        """Remove OSV data of ecosystems SafeRun no longer supports. Notes only; never fails `init`."""
+        try:
+            removed, problems = (self.prune_osv or prune_osv_data)(_osv_dir())
+        except Exception as e:  # noqa: BLE001
+            removed, problems = [], [f"{type(e).__name__}: {e}"]
+        if removed or problems:
+            self.say()
+        for eco, size in removed:
+            self.say(f"Removed OSV data SafeRun no longer supports: {eco}" + (f" ({ui.size_text(size)})" if size else ""))
+        for problem in problems:
+            self.say(self.th.paint(f"note: unsupported OSV data was not fully removed: {clean_text(problem, 300)}", "dim"))
 
     def _tag(self, state: str, pad: bool = True) -> str:
         """`[   ready]` in plain mode; an icon and a coloured upper-case word on a terminal (`pad=False`: no trailing spaces)."""
@@ -542,7 +604,7 @@ def status_report(statuses: list[Status], th: "ui.Theme | None" = None) -> str:
         if th.on:
             icon, col = {READY: ("ok", "green"), INVALID: ("bad", "red")}.get(s.state, ("warn", "yellow"))
             head = f"{th.icon(icon, col, 'bold')} {th.paint(s.state.upper().ljust(8), col, 'bold')} {th.paint(c.title, 'bold')}"
-            body = f"\n           enables: {', '.join(c.checks)}" + (f"\n           {th.paint(clean_text(s.detail, 240), 'dim')}" if s.detail else "")
+            body = f"\n           enables: {', '.join(c.checks)}" + (f"\n           {th.paint(clean_text(s.detail, 240), 'yellow' if s.warning else 'dim')}" if s.detail else "")
             fix = f"\n           {th.paint('fix:', 'cyan', 'bold')} saferun init --only {s.key}" + (" --repair" if s.key == "analyzer" and s.state == INVALID else "")
             lines.append(head + body + (fix if not s.ready else ""))
             continue

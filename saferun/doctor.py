@@ -73,8 +73,10 @@ def check_docker(d: dockerdiag.DockerDiagnosis) -> Check:
     return Check("Docker", PASS if d.ok else FAIL, d.detail, "" if d.ok else d.guidance)
 
 
-def _from_status(name: str, s: st.Status, fix: str) -> Check:
-    level = {st.READY: PASS, st.OUTDATED: WARN}.get(s.state, FAIL)
+def _from_status(name: str, s: st.Status, fix: str, outdated: str = WARN) -> Check:
+    """`outdated`: the level for an outdated component. Outdated OSV data still lets the check run (INCOMPLETE), so WARN; an outdated
+    analyzer image is not used at all (its checks do not run), so the analyzer passes FAIL, as it was before the outdated state existed."""
+    level = {st.READY: WARN if s.warning else PASS, st.OUTDATED: outdated}.get(s.state, FAIL)
     return Check(name, level, clean_text(s.detail, 300) if s.detail else s.state, "" if level == PASS else fix)
 
 
@@ -125,7 +127,9 @@ def run_checks(*, online: bool = False, status=st.component_status, diagnose=doc
         if not d.ok:
             checks.append(Check(label, FAIL, "cannot be verified while Docker is unusable", "fix Docker first"))
         else:
-            checks.append(_from_status(label, status(key), f"run: saferun init --only {key}" + (" --repair" if key == "analyzer" else "")))
+            s = status(key)
+            repair = key == "analyzer" and s.state != st.OUTDATED      # an outdated analyzer is updated normally, without --repair
+            checks.append(_from_status(label, s, f"run: saferun init --only {key}" + (" --repair" if repair else ""), outdated=FAIL))
     checks.append(check_cosign())
     osv = _from_status("OSV database", status("osv-db"), "run: saferun osv-db update")
     checks.append(osv)

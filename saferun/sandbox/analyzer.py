@@ -27,6 +27,7 @@ from .config import SandboxError
 from .images import GITLEAKS_VERSION, OSV_SCANNER_VERSION, SEMGREP_VERSION
 
 ANALYZER_REPO_TAG = "saferun-analyzer:local"
+ANALYZER_LABEL = "saferun.analyzer"   # set to "1" on every analyzer image (local build and published release)
 SEMGREP_EXE = "/usr/local/bin/semgrep"
 OSV_EXE = "/usr/local/bin/osv-scanner"
 RULES_PATH = "/opt/saferun/rules/python.yml"
@@ -41,6 +42,16 @@ class AnalyzerUnavailable(SandboxError):
 
 class AnalyzerIntegrityError(SandboxError):
     """The image present locally is not the one that was built and locked (digest, tool or rules mismatch)."""
+
+
+class AnalyzerOutdated(AnalyzerIntegrityError):
+    """The locked image itself is intact (trusted lock, same image ID, `saferun.analyzer` label) but was built for older tool or rules
+    pins, typically after upgrading SafeRun. A subclass of AnalyzerIntegrityError, so every check treats it exactly as before (not run);
+    only setup and status offer a normal update instead of a repair."""
+
+    def __init__(self, message: str, wrong=()):
+        super().__init__(message)
+        self.wrong = tuple(wrong)      # the labels that differ from this version's pins
 
 
 def lock_path() -> Path:
@@ -179,22 +190,47 @@ def inspect_analyzer_tag() -> tuple[str, dict]:
     return image_id, labels
 
 
-def check_labels(labels: dict) -> None:
-    """The labels baked in at build time must equal this checkout's pins (tool versions) and rules hash."""
-    expected = {"saferun.analyzer": "1", "saferun.semgrep.version": SEMGREP_VERSION,
+def label_mismatches(labels: dict) -> list[str]:
+    """Names of the labels that differ from this checkout's pins (tool versions) and rules hashes."""
+    expected = {ANALYZER_LABEL: "1", "saferun.semgrep.version": SEMGREP_VERSION,
                 "saferun.osv-scanner.version": OSV_SCANNER_VERSION, "saferun.rules.sha256": rules_sha256(),
                 "saferun.gitleaks.version": GITLEAKS_VERSION, "saferun.secrets-rules.sha256": secrets_rules_sha256()}
-    wrong = [k for k, v in expected.items() if labels.get(k) != v]
+    return [k for k, v in expected.items() if labels.get(k) != v]
+
+
+def check_labels(labels: dict) -> None:
+    """The labels baked in at build time must equal this checkout's pins (tool versions) and rules hash."""
+    wrong = label_mismatches(labels)
     if wrong:
         raise AnalyzerIntegrityError(f"analyzer image labels do not match the pinned tools/rules: {', '.join(wrong)}; rebuild it")
 
 
 def verify_analyzer_image() -> str:
-    """Return the verified image ID or raise AnalyzerUnavailable / AnalyzerIntegrityError."""
+    """Return the verified image ID or raise AnalyzerUnavailable / AnalyzerIntegrityError (AnalyzerOutdated: see its docstring)."""
     locked = _read_lock()
     image_id, labels = inspect_analyzer_tag()
     if image_id != locked:
         raise AnalyzerIntegrityError(
             f"analyzer image ID mismatch: {ANALYZER_REPO_TAG} is {image_id}, the build lock says {locked}; rebuild or investigate")
-    check_labels(labels)
+    try:
+        check_labels(labels)
+    except AnalyzerIntegrityError as e:
+        if labels.get(ANALYZER_LABEL) == "1":   # the locked image (IDs are content-addressed, so its labels are the ones it was locked with)
+            raise AnalyzerOutdated(str(e), label_mismatches(labels)) from None
+        raise
     return image_id
+
+
+def read_trusted_lock() -> str | None:
+    """The locked analyzer image ID if the lock exists and is trusted, otherwise None. Never raises."""
+    try:
+        return _read_lock()
+    except SandboxError:
+        return None
+
+
+def lock_backup_path() -> Path:
+    """`analyzer-image-id.bak` next to the lock: a hand-made backup (an old release checklist moved the lock there). SafeRun never reads
+    or writes it; `saferun cleanup` offers to remove it."""
+    p = lock_path()
+    return p.with_name(p.name + ".bak")

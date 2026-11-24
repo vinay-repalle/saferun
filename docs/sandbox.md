@@ -25,4 +25,4 @@ print(attest(PYTHON.image).ok)                      # kernel-view check from ins
   must support the required controls (seccomp, memory/swap/pids/CPU limits) unless you explicitly pass `allow_degraded`.
 - `SandboxResult` reports `controls`, `image_id`, `skipped`, `withheld`, `redactions`, and honest accounting:
   `entries_scanned == copied_files + copied_dirs + len(skipped) + len(withheld)`. A non-empty `skipped`/`withheld` means
-  a partial scan. `reap_orphans()` removes containers/workspaces abandoned by a crashed run.
+  a partial scan. `reap_orphans()` removes containers/workspaces abandoned by a crashed run (`dry_run=True` only lists them, `only=` limits it to given names); the CLI calls it only from `saferun cleanup`.
