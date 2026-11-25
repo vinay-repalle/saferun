@@ -22,9 +22,10 @@ Status words: planned / in progress / done (local) / committed. Update this file
 | 12 | Plain-English `explanation` on findings | committed |
 | 13 | JavaScript rules **cancelled**; all JavaScript/Node support removed (Python-only) | committed |
 | 14 | Benchmark misses (Python rules): held-out set 2, 3 new behaviour rules; `analyzer-v1.2.0` | committed, closed (Checkpoints 1-4 done; `analyzer-v1.2.0` released) |
-| 15 | Upgrade and cleanup: outdated analyzer state, old image removal, OSV early warning and unsupported-data removal, `saferun cleanup` | done (local) 2026-11-24, awaiting owner review and commit |
+| 15 | Upgrade and cleanup: outdated analyzer state, old image removal, OSV early warning and unsupported-data removal, `saferun cleanup` | committed (`3d3aeda`, follow-up fix `418b32b`) |
+| 16 | Build-once checks: `hidden-characters` and `suspicious-files` | planned (plan accepted 2026-11-25, see *Stage 16 plan*) |
 
-All stages 7-14 are committed (owner confirmed, up to the 0.0.3 PyPI release); 15 is done locally. The git log is authoritative.
+All stages 7-15 are committed (7-14 up to the 0.0.3 PyPI release; 15 after it, not yet released). The git log is authoritative.
 
 ## Stage notes (facts that are not obvious from the code)
 - **7:** docs only; JavaScript was first labelled experimental, then removed in 13. Website text deliberately left out (see Deferred).
@@ -51,6 +52,15 @@ Full suite (latest, Stage 15, 2026-11-24): `SAFERUN_REQUIRE_DOCKER=1 .venv/bin/p
 **Out of scope:** disk-space check before an image pull; "new version available" notice.
 **Owner decisions (2026-11-24, at implementation):** an outdated analyzer stays FAIL in `doctor` (fix without `--repair`); the previous image is also removed after `--repair` (same guards); `osv-db status` validates supported ecosystems (PyPI) only and points at `saferun cleanup` for npm data.
 **Tests:** outdated vs invalid states; delete guards (current / unlabelled / in-use never removed); OSV pruning and warning thresholds; `cleanup` with and without `--yes`; full suite with Docker. **Docs:** README (upgrading), docs/cli.md, docs/release-images.md, PROJECT.md setup section, this file.
+
+## Stage 16 plan (accepted by the owner 2026-11-25; not started)
+**Goal:** two new `scan` checks that work on any file, not on one language's rules: hidden or look-alike characters, and files that do not belong in a script project. `saferun run` gets them too (it scans first).
+**How it runs:** like `python-syntax` (`saferun/engine/pysyntax.py`): one fixed driver via `python -I -c` inside the pinned `python` sandbox image, Python standard library only (`unicodedata`, `tokenize`). Nothing is imported or executed from the project. No analyzer image change, no analyzer release, no cosign step, no size increase.
+**A. Check `hidden-characters`** (any text file). (1) Bidirectional controls (U+202A–U+202E, U+2066–U+2069; "Trojan Source"). (2) Invisible characters: zero-width (U+200B–U+200D, U+2060), U+FEFF other than at the start of a file, tag characters (U+E0000–U+E007F, also used to hide instructions from AI agents). (3) Look-alike Python identifiers: a name whose NFKC form differs from how it is written (e.g. full-width `ｅｖａｌ`, which Python runs as `eval`); names that are stable under NFKC (e.g. `café`) are not flagged. (4) Reports show the code point and its Unicode name (e.g. `U+202E RIGHT-TO-LEFT OVERRIDE`), file and line, never the character itself.
+**B. Check `suspicious-files`.** (5) Executables by content (ELF, PE, Mach-O) and native libraries (`.so`, `.dll`, `.dylib`). (6) `.pyc` files without a matching source, and archives inside the project. (7) Content that does not match the extension (e.g. a `.png` that is an executable). (8) Files Python runs automatically: `.pth`, `sitecustomize.py`, `usercustomize.py`.
+**Common.** Same skipped folders as `python-syntax` (`.git`, `.venv`, `venv`, `node_modules`, `site-packages`); file-count and file-size limits like the other checks, exceeding them gives `incomplete`, never clean; `--no-hidden-characters` and `--no-suspicious-files` (a skipped check keeps the verdict at WARNING at best); a plain-English `explanation` per rule in `saferun/engine/explain.py`; JSON additive only, `schema_version` stays 1. Exact limits and rule ids are proposed in the implementation plan, not assumed here.
+**Owner decisions (2026-11-25, accepted as suggested):** two separate checks; severity medium by default (Stage 14 rule), HIGH for bidirectional or tag characters inside `.py` files and for look-alike identifiers whose NFKC form is a Python builtin (e.g. `eval`, `exec`, `__import__`; exact list in the implementation plan); auto-run files are part of this stage; no benchmark samples or benchmark claims for these checks (unit tests only). Open for the implementation plan: whether archives and orphan `.pyc` files should be low instead of medium to avoid false alarms.
+**Tests:** every rule (hit and clean case); hostile inputs (non-UTF-8, binary, very large files, many files, odd file names); the raw character never appears in text, JSON or CLI output; skipped-folder handling; flags; a real-Docker integration test; full suite with `SAFERUN_REQUIRE_DOCKER=1`. **Docs:** README, docs/engine.md, docs/cli.md, PROJECT.md (engine and limits), this file. Website text deferred as usual.
 
 ## Next (optional, none urgent; each needs the owner's approval first)
 - **Duplicate finding:** the `sensitive-file-access` rule reports the same finding twice on one line. Fix = rule change + new analyzer release + owner approval.
